@@ -103,13 +103,9 @@ See the [Wiki](../../wiki) for:
 - Architecture Overview
 - API Reference
 
-## 🌐 Deployment
+Supports [Koyeb](https://koyeb.com) for easy deployment (free tier):
 
-Supports [Shuttle.rs](https://shuttle.rs) for easy deployment:
-
-```bash
-cargo shuttle deploy
-```
+See [DEPLOY.md](DEPLOY.md) for full instructions.
 
 ## 📄 License
 

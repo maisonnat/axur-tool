@@ -8,7 +8,7 @@
 | Frontend | Rust + Leptos (WASM) |
 | Shared | axur-core crate |
 | Build | wasm-pack, trunk |
-| Deployment | Shuttle.rs |
+| Deployment | Koyeb + Docker Hub |
 
 ## Prerequisites
 
@@ -127,9 +127,10 @@ Follow the `/security-audit` workflow for comprehensive security checks includin
 
 ## Deployment
 
-Using Shuttle.rs:
-```bash
-cargo shuttle deploy
-```
+Using Koyeb + Docker Hub:
 
-See `Shuttle.toml` for configuration.
+1. GitHub Actions builds the binary
+2. Image pushed to Docker Hub
+3. Koyeb pulls and runs the image
+
+See [DEPLOY.md](../DEPLOY.md) for full instructions.
