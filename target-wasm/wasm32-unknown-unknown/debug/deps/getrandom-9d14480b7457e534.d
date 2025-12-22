@@ -1,0 +1,10 @@
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\getrandom-9d14480b7457e534.d: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\error.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\util.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\js.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\libgetrandom-9d14480b7457e534.rlib: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\error.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\util.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\js.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\libgetrandom-9d14480b7457e534.rmeta: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\error.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\util.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\js.rs
+
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\lib.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\error.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\util.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\getrandom-0.2.16\src\js.rs:

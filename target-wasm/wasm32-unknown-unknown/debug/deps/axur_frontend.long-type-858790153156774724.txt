@@ -1,0 +1,1 @@
+std::string::String: From<leptos::Signal<std::string::String>>

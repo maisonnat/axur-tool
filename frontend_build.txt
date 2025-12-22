@@ -1,0 +1,46 @@
+   Compiling wasm-bindgen v0.2.106
+   Compiling futures-executor v0.3.31
+   Compiling half v2.7.1
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling syn_derive v0.1.8
+   Compiling quote-use v0.8.4
+   Compiling prettyplease v0.2.37
+   Compiling walkdir v2.5.0
+   Compiling dashmap v5.5.3
+   Compiling tracing-core v0.1.36
+   Compiling tracing v0.1.44
+   Compiling url v2.5.2
+   Compiling slotmap v1.1.1
+   Compiling anyhow v1.0.100
+   Compiling getrandom v0.3.4
+   Compiling paste v1.0.15
+   Compiling futures v0.3.31
+   Compiling ciborium-ll v0.2.2
+   Compiling toml_edit v0.22.27
+   Compiling attribute-derive-macro v0.9.2
+   Compiling serde v1.0.228
+   Compiling camino v1.2.2
+   Compiling serde_qs v0.12.0
+   Compiling ciborium v0.2.2
+   Compiling oco_ref v0.1.1
+   Compiling server_fn_macro_default v0.6.15
+   Compiling const_format v0.2.35
+   Compiling derive-where v1.6.0
+   Compiling proc-macro-error-attr2 v2.0.0
+   Compiling send_wrapper v0.6.0
+   Compiling aho-corasick v1.1.4
+   Compiling either v1.15.0
+   Compiling js-sys v0.3.83
+   Compiling rstml v0.11.2
+   Compiling rustc-hash v1.1.0
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\server_fn_macro_default-e19809e94948a31f.8xfykw0khuj2v79t2p83oeo1q.rcgu.o: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: could not compile `server_fn_macro_default` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\paste-7d8611b344546d5e.paste.1114d89e111a9e56-cgu.6.rcgu.o: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\proc_macro_error_attr2-b7a1443fa22e26f3.5m9kxhwcivuzxmldchvixdtth.rcgu.rmeta: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: could not compile `paste` (lib) due to 1 previous error
+error: could not compile `proc-macro-error-attr2` (lib) due to 1 previous error

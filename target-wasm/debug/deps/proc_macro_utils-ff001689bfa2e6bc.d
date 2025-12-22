@@ -1,0 +1,10 @@
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\deps\proc_macro_utils-ff001689bfa2e6bc.d: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\parser.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\assert.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\__private.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\deps\libproc_macro_utils-ff001689bfa2e6bc.rlib: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\parser.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\assert.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\__private.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\deps\libproc_macro_utils-ff001689bfa2e6bc.rmeta: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\parser.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\assert.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\__private.rs
+
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\lib.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\parser.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\assert.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\proc-macro-utils-0.10.0\src\__private.rs:

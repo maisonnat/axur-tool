@@ -1,0 +1,10 @@
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\gloo_storage-70d8192c46a66d6b.d: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\errors.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\local_storage.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\session_storage.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\libgloo_storage-70d8192c46a66d6b.rlib: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\errors.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\local_storage.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\session_storage.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\libgloo_storage-70d8192c46a66d6b.rmeta: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\errors.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\local_storage.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\session_storage.rs
+
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\lib.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\errors.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\local_storage.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\gloo-storage-0.3.0\src\session_storage.rs:

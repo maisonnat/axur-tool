@@ -1,0 +1,9 @@
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\wasm_bindgen_futures-12253fdbe12dc28b.d: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\queue.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\task\singlethread.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\libwasm_bindgen_futures-12253fdbe12dc28b.rlib: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\queue.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\task\singlethread.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\wasm32-unknown-unknown\debug\deps\libwasm_bindgen_futures-12253fdbe12dc28b.rmeta: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\queue.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\task\singlethread.rs
+
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\lib.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\queue.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wasm-bindgen-futures-0.4.56\src\task\singlethread.rs:

@@ -1,0 +1,55 @@
+[package]
+name = "axur-backend"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "axur-backend"
+path = "src/main.rs"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+axur-core = { path = "../core" }
+
+# Web framework
+axum = { version = "0.7", features = ["macros"] }
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# HTTP client (for proxying to Axur API)
+reqwest.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Middleware and security
+tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
+tower = "0.4"
+
+# Cookie handling for httpOnly sessions
+cookie = { version = "0.18", features = ["secure"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Shuttle deployment (optional - enable with feature)
+[dependencies.shuttle-runtime]
+version = "0.49"
+optional = true
+
+[dependencies.shuttle-axum]
+version = "0.49"
+optional = true
+
+[features]
+default = []
+shuttle = ["shuttle-runtime", "shuttle-axum"]
+

@@ -1,0 +1,23 @@
+    Checking axur-frontend v0.1.0 (C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\crates\frontend)
+error[E0525]: expected a closure that implements the `Fn` trait, but this closure only implements `FnOnce`
+   --> crates\frontend\src\pages\login.rs:134:5
+    |
+134 | /     view! {
+135 | |         <div class="min-h-screen flex items-center justify-center p-4">
+136 | |             <div class="w-full max-w-md">
+...   |
+199 | |                                 on_click=Callback::from(submit_2fa)
+    | |                                                         ---------- closure is `FnOnce` because it moves the variable `submit_2fa` out of its environment
+...   |
+220 | |         </div>
+221 | |     }
+    | |     ^
+    | |     |
+    | |_____this closure implements `FnOnce`, not `Fn`
+    |       the requirement to implement `Fn` derives from here
+    |
+    = note: required for `Rc<dyn std::ops::Fn() -> Fragment>` to implement `ToChildren<{closure@crates\frontend\src\pages\login.rs:134:5: 221:6}>`
+    = note: this error originates in the macro `view` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+For more information about this error, try `rustc --explain E0525`.
+error: could not compile `axur-frontend` (lib) due to 1 previous error

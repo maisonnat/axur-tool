@@ -1,0 +1,35 @@
+    Checking generic-array v0.14.7
+   Compiling synstructure v0.13.2
+   Compiling tokio-macros v2.6.0
+   Compiling zerovec-derive v0.11.2
+   Compiling tracing-attributes v0.1.31
+   Compiling displaydoc v0.2.5
+   Compiling serde_derive v1.0.228
+    Checking serde_json v1.0.145
+    Checking ppv-lite86 v0.2.21
+   Compiling rustversion v1.0.22
+   Compiling async-trait v0.1.89
+    Checking time v0.3.44
+    Checking serde_path_to_error v0.1.20
+   Compiling axum-macros v0.4.2
+   Compiling thiserror-impl v1.0.69
+    Checking multer v3.1.0
+    Checking matchers v0.2.0
+    Checking regex v1.12.2
+    Checking rand_chacha v0.3.1
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+    Checking tokio v1.48.0
+   Compiling zerofrom-derive v0.1.6
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\displaydoc-bc32d8a5f40e00c8.displaydoc.7ce93c2d605cc088-cgu.5.rcgu.o: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: could not compile `displaydoc` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\async_trait-5078a30062c25860.async_trait.f31465170048eda9-cgu.05.rcgu.o: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\async_trait-5078a30062c25860.async_trait.f31465170048eda9-cgu.09.rcgu.o: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: could not compile `async-trait` (lib) due to 2 previous errors
+error: failed to remove C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target\debug\deps\axum_macros-5b6970770bec5578.axum_macros.60cd67b94093412c-cgu.05.rcgu.o: El proceso no tiene acceso al archivo porque est├í siendo utilizado por otro proceso. (os error 32)
+
+error: could not compile `axum-macros` (lib) due to 1 previous error

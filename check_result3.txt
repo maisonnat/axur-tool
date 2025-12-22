@@ -1,0 +1,63 @@
+    Checking axur-frontend v0.1.0 (C:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\crates\frontend)
+error[E0593]: closure is expected to take 1 argument, but it takes 0 arguments
+   --> crates\frontend\src\pages\login.rs:178:42
+    |
+ 36 |     let submit_credentials = move || {
+    |                              ------- takes 0 arguments
+...
+178 |                                 on_click=Callback::from(submit_credentials)
+    |                                          ^^^^^^^^ expected closure that takes 1 argument
+    |
+    = note: required for `leptos::Callback<_, _>` to implement `From<{closure@crates\frontend\src\pages\login.rs:36:30: 36:37}>`
+help: consider changing the closure to take and ignore the expected argument
+    |
+ 36 |     let submit_credentials = move |_| {
+    |                                    +
+
+error[E0593]: closure is expected to take 1 argument, but it takes 0 arguments
+   --> crates\frontend\src\pages\login.rs:199:42
+    |
+ 71 |     let submit_2fa = move || {
+    |                      ------- takes 0 arguments
+...
+199 |                                 on_click=Callback::from(submit_2fa)
+    |                                          ^^^^^^^^ expected closure that takes 1 argument
+    |
+    = note: required for `leptos::Callback<_, _>` to implement `From<{closure@crates\frontend\src\pages\login.rs:71:22: 71:29}>`
+help: consider changing the closure to take and ignore the expected argument
+    |
+ 71 |     let submit_2fa = move |_| {
+    |                            +
+
+error[E0593]: closure is expected to take 1 argument, but it takes 0 arguments
+   --> crates\frontend\src\pages\dashboard.rs:187:42
+    |
+ 47 |     let generate = move || {
+    |                    ------- takes 0 arguments
+...
+187 |                                 on_click=Callback::from(generate)
+    |                                          ^^^^^^^^ expected closure that takes 1 argument
+    |
+    = note: required for `leptos::Callback<_, _>` to implement `From<{closure@crates\frontend\src\pages\dashboard.rs:47:20: 47:27}>`
+help: consider changing the closure to take and ignore the expected argument
+    |
+ 47 |     let generate = move |_| {
+    |                          +
+
+error[E0593]: closure is expected to take 1 argument, but it takes 0 arguments
+   --> crates\frontend\src\pages\dashboard.rs:209:50
+    |
+ 91 |     let download_report = move || {
+    |                           ------- takes 0 arguments
+...
+209 |                                         on_click=Callback::from(download_report)
+    |                                                  ^^^^^^^^ expected closure that takes 1 argument
+    |
+    = note: required for `leptos::Callback<_, _>` to implement `From<{closure@crates\frontend\src\pages\dashboard.rs:91:27: 91:34}>`
+help: consider changing the closure to take and ignore the expected argument
+    |
+ 91 |     let download_report = move |_| {
+    |                                 +
+
+For more information about this error, try `rustc --explain E0593`.
+error: could not compile `axur-frontend` (lib) due to 4 previous errors

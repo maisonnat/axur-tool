@@ -1,0 +1,47 @@
+# Build artifacts
+/target/
+/crates/frontend/pkg/
+/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Trunk build cache
+.trunk/
+
+# Cargo lock for libraries (keep for binaries)
+# Cargo.lock
+
+# Local development
+*.local
+
+# Test artifacts
+*.profraw
+
+# Shuttle local
+.shuttle/
+
+# Agent artifacts (keep workflows)
+.gemini/
+
+# WASM build intermediates
+crates/frontend/target/

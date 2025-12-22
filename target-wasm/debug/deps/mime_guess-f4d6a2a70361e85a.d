@@ -1,0 +1,12 @@
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\deps\mime_guess-f4d6a2a70361e85a.d: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\impl_bin_search.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\mime_types.rs c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\build\mime_guess-14e7e6fea4b5645e\out\mime_types_generated.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\deps\libmime_guess-f4d6a2a70361e85a.rlib: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\impl_bin_search.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\mime_types.rs c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\build\mime_guess-14e7e6fea4b5645e\out\mime_types_generated.rs
+
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\deps\libmime_guess-f4d6a2a70361e85a.rmeta: C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\lib.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\impl_bin_search.rs C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\mime_types.rs c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\build\mime_guess-14e7e6fea4b5645e\out\mime_types_generated.rs
+
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\lib.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\impl_bin_search.rs:
+C:\Users\maiso\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\mime_guess-2.0.5\src\mime_types.rs:
+c:\Users\maiso\.gemini\antigravity\playground\azimuthal-opportunity\axur-web\target-wasm\debug\build\mime_guess-14e7e6fea4b5645e\out\mime_types_generated.rs:
+
+# env-dep:MIME_TYPES_GENERATED_PATH=c:\\Users\\maiso\\.gemini\\antigravity\\playground\\azimuthal-opportunity\\axur-web\\target-wasm\\debug\\build\\mime_guess-14e7e6fea4b5645e\\out\\mime_types_generated.rs
