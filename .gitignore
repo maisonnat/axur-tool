@@ -3,6 +3,11 @@
 /crates/frontend/pkg/
 /dist/
 
+# Local development scripts (Windows-specific)
+build-frontend.ps1
+start-dev.bat
+CLI_REFERENCE.md
+
 # IDE
 .idea/
 .vscode/
