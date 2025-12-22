@@ -69,9 +69,8 @@ pub fn App() -> impl IntoView {
 }
 
 /// Entry point for WASM
-// Deployment trigger: 2
-#[wasm_bindgen::prelude::wasm_bindgen]
-pub fn hydrate() {
+#[wasm_bindgen::prelude::wasm_bindgen(start)]
+pub fn main() {
     // Remove loading indicator
     let window = web_sys::window().expect("no global `window` exists");
     let document = window.document().expect("should have a document on window");
