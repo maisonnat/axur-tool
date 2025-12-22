@@ -1,0 +1,28 @@
+name: Deploy to Shuttle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/backend/**'
+      - 'crates/core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Shuttle.toml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Install Shuttle CLI
+        run: cargo install cargo-shuttle
+        
+      - name: Deploy to Shuttle
+        run: cargo shuttle deploy --allow-dirty
+        env:
+          SHUTTLE_API_KEY: ${{ secrets.SHUTTLE_API_KEY }}

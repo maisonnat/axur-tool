@@ -8,8 +8,8 @@
     <meta name="description" content="Axur Web - Generador de reportes de inteligencia de amenazas externas">
     
 <script type="module">
-import init, * as bindings from '/axur-frontend-f2f483c26e74ef7c.js';
-const wasm = await init({ module_or_path: '/axur-frontend-f2f483c26e74ef7c_bg.wasm' });
+import init, * as bindings from '/axur-frontend-c59aa38d22e089cb.js';
+const wasm = await init({ module_or_path: '/axur-frontend-c59aa38d22e089cb_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -71,7 +71,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
             background: #52525b;
         }
     </style>
-<link rel="modulepreload" href="/axur-frontend-f2f483c26e74ef7c.js" crossorigin="anonymous" integrity="sha384-U7wN5QCpzAU1NzXmk02PHjVtEH+O5oWApeeZr/dSej93bxpqQPW7vIyzGHxYf/Yg"><link rel="preload" href="/axur-frontend-f2f483c26e74ef7c_bg.wasm" crossorigin="anonymous" integrity="sha384-Qtw9jMWMioSKm3SILgJ3wyIV7ng4yD2pXuC43+fjgAmd+xZNwGMNh+A7AT27+U2v" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="/axur-frontend-c59aa38d22e089cb.js" crossorigin="anonymous" integrity="sha384-0k2EzKuxfB1cUktIWc6abtg1NdUQ7gqu1nqgCX9pmqcmUACQteaa4rvOrl6BtcJ0"><link rel="preload" href="/axur-frontend-c59aa38d22e089cb_bg.wasm" crossorigin="anonymous" integrity="sha384-MC4Fu7Ww29UAuYa9ylhuxMta1h+XrJFBf4IqGzHwzHl/azu5OSBBMPg0sT6PPcR5" as="fetch" type="application/wasm"></head>
 
 <body class="bg-zinc-950 text-zinc-100">
     <!-- Loading indicator while WASM loads -->

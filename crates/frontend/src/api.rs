@@ -3,7 +3,11 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 
-const API_BASE: &str = "http://localhost:3001";
+// Use environment variable at compile time, default to localhost for development
+const API_BASE: &str = match option_env!("API_BASE_URL") {
+    Some(url) => url,
+    None => "http://localhost:3001",
+};
 
 // ========================
 // REQUEST/RESPONSE TYPES

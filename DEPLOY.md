@@ -1,112 +1,66 @@
-# Axur Web - Deployment Guide
+# Deployment Guide
+
+## Overview
+
+This project uses automated CI/CD deployment:
+- **Backend**: Deployed to [Shuttle.rs](https://shuttle.rs)
+- **Frontend**: Deployed to [Cloudflare Pages](https://pages.cloudflare.com)
 
 ## Prerequisites
 
-1. **Rust toolchain**: `rustup update stable`
-2. **Shuttle CLI**: `cargo install cargo-shuttle`
-3. **Trunk** (for frontend): `cargo install trunk`
-4. **wasm32 target**: `rustup target add wasm32-unknown-unknown`
+Before deployment works, you need to configure GitHub Secrets.
 
----
+### 1. Shuttle API Key
 
-## Backend Deployment (Shuttle.rs)
+1. Install Shuttle CLI: `cargo install cargo-shuttle`
+2. Login: `cargo shuttle login`
+3. Get your API key from [Shuttle Console](https://console.shuttle.rs)
+4. Add to GitHub: Settings → Secrets → Actions → New secret
+   - Name: `SHUTTLE_API_KEY`
+   - Value: Your Shuttle API key
 
-### 1. Login to Shuttle
+### 2. Cloudflare Credentials
+
+1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
+2. Create a Cloudflare Pages project named `axur-tool`
+3. Get your Account ID from the dashboard URL or Overview page
+4. Create an API Token with "Cloudflare Pages" permissions
+5. Add to GitHub: Settings → Secrets → Actions → New secrets
+   - `CLOUDFLARE_ACCOUNT_ID`: Your account ID
+   - `CLOUDFLARE_API_TOKEN`: Your API token
+
+## URLs After Deployment
+
+| Service | URL |
+|---------|-----|
+| Backend (Shuttle) | https://axur-web.shuttle.app |
+| Frontend (Cloudflare) | https://axur-tool.pages.dev |
+
+## Manual Deployment
+
+### Backend to Shuttle
 ```bash
 cargo shuttle login
+cargo shuttle deploy
 ```
 
-### 2. Initialize project (first time only)
-```bash
-cd crates/backend
-cargo shuttle project start
-```
-
-### 3. Deploy
-```bash
-cargo shuttle deploy --features shuttle
-```
-
-Your backend will be available at:
-`https://axur-web.shuttleapp.rs`
-
-### Environment Variables
-Currently none required - the backend proxies to Axur API directly.
-
----
-
-## Frontend Deployment (Cloudflare Pages)
-
-### 1. Build WASM
+### Frontend to Cloudflare
 ```bash
 cd crates/frontend
 trunk build --release
+npx wrangler pages deploy dist --project-name=axur-tool
 ```
 
-This creates a `dist/` folder with:
-- `index.html`
-- `pkg/axur_frontend_bg.wasm`
-- `pkg/axur_frontend.js`
+## Workflow Triggers
 
-### 2. Deploy to Cloudflare Pages
+- **Backend deploy**: Triggers on push to `main` when `crates/backend/`, `crates/core/`, or `Cargo.toml` changes
+- **Frontend deploy**: Triggers on push to `main` when `crates/frontend/` or `crates/core/` changes
 
-**Option A: Via Dashboard**
-1. Go to [Cloudflare Pages](https://pages.cloudflare.com)
-2. Create new project
-3. Upload the `dist/` folder
+## Environment Variables
 
-**Option B: Via Wrangler CLI**
-```bash
-npm install -g wrangler
-wrangler pages publish dist --project-name=axur-web
-```
+### Build Time (Frontend)
+- `API_BASE_URL`: Set to production backend URL (e.g., `https://axur-web.shuttle.app`)
 
-### 3. Configure Frontend API URL
-Before building for production, update `src/api.rs`:
-```rust
-const API_BASE: &str = "https://axur-web.shuttleapp.rs";
-```
-
----
-
-## Local Development
-
-### Backend
-```bash
-cargo run -p axur-backend
-# Runs on http://localhost:3001
-```
-
-### Frontend
-```bash
-cd crates/frontend
-trunk serve --open
-# Runs on http://localhost:8080
-```
-
----
-
-## URLs Summary
-
-| Environment | Backend | Frontend |
-|-------------|---------|----------|
-| **Local** | http://localhost:3001 | http://localhost:8080 |
-| **Production** | https://axur-web.shuttleapp.rs | https://axur-web.pages.dev |
-
----
-
-## Troubleshooting
-
-### CORS Issues
-If you get CORS errors, ensure the frontend URL is in the backend's CORS config:
-```rust
-// In main.rs
-.allow_origin([
-    "https://axur-web.pages.dev".parse().unwrap(),
-])
-```
-
-### Cookie Issues (Production)
-Ensure cookies work across domains:
-- Backend and frontend should share same-site or use `SameSite=None; Secure`
-- Consider using a custom domain for both
+### Runtime (Backend)
+- No special environment variables required
+- Shuttle handles secrets via `Secrets.toml` (local) or console

@@ -1,0 +1,45 @@
+name: Deploy Frontend to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/frontend/**'
+      - 'crates/core/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          
+      - name: Install wasm-pack
+        run: cargo install wasm-pack
+        
+      - name: Install trunk
+        run: cargo install trunk
+        
+      - name: Build Frontend (WASM)
+        run: |
+          cd crates/frontend
+          trunk build --release
+        env:
+          # Production API URL (Shuttle)
+          TRUNK_BUILD_PUBLIC_URL: /
+          
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: axur-tool
+          directory: crates/frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
