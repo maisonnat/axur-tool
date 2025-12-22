@@ -28,20 +28,13 @@ node_modules/
 # Trunk build cache
 .trunk/
 
-# Custom WASM build target
-/target-wasm/
-
 # Build logs and temporary text files
-*_build.txt
-*_errors.txt
-*_log*.txt
-check_result*.txt
-frontend_*.txt
-wasm_build.txt
-build_errors.txt
-check_errors.txt
-check_result.txt
-backend_build*.txt
+*.txt
+*.log
+
+# Custom WASM build target
+target-wasm/
+**/target-wasm/
 
 # Cargo lock for libraries (keep for binaries)
 # Cargo.lock
