@@ -36,11 +36,8 @@ jobs:
           API_BASE_URL: https://unacceptable-dennie-axur-tool-8f97679f.koyeb.app
           TRUNK_BUILD_PUBLIC_URL: /
           
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: axur-tool
-          directory: crates/frontend/dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy to Cloudflare
+        run: npx wrangler pages deploy crates/frontend/dist --project-name=axur-tool
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
