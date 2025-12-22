@@ -172,51 +172,61 @@ pub fn LoginPage() -> impl IntoView {
 
                     // Step 1: Credentials
                     <Show when=move || step.get() == LoginStep::Credentials>
-                        <h2 class="text-xl font-bold text-white mb-6">{move || dict.get().login_title}</h2>
+                        <form on:submit=move |ev| {
+                            ev.prevent_default();
+                            credentials_action.dispatch(());
+                        }>
+                            <h2 class="text-xl font-bold text-white mb-6">{move || dict.get().login_title}</h2>
 
-                        <TextInput
-                            label=Signal::derive(move || dict.get().email_label.to_string())
-                            placeholder=Signal::derive(move || dict.get().email_placeholder.to_string())
-                            value=email
-                            input_type="email".to_string()
-                        />
+                            <TextInput
+                                label=Signal::derive(move || dict.get().email_label.to_string())
+                                placeholder=Signal::derive(move || dict.get().email_placeholder.to_string())
+                                value=email
+                                input_type="email".to_string()
+                            />
 
-                        <TextInput
-                            label=Signal::derive(move || dict.get().password_label.to_string())
-                            placeholder=Signal::derive(move || dict.get().password_placeholder.to_string())
-                            value=password
-                            input_type="password".to_string()
-                        />
+                            <TextInput
+                                label=Signal::derive(move || dict.get().password_label.to_string())
+                                placeholder=Signal::derive(move || dict.get().password_placeholder.to_string())
+                                value=password
+                                input_type="password".to_string()
+                            />
 
-                        <div class="mt-6">
-                            <button
-                                class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-                                on:click=move |_| credentials_action.dispatch(())
-                            >
-                                {move || dict.get().continue_btn}
-                            </button>
-                        </div>
+                            <div class="mt-6">
+                                <button
+                                    type="submit"
+                                    class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                                >
+                                    {move || dict.get().continue_btn}
+                                </button>
+                            </div>
+                        </form>
                     </Show>
 
                     // Step 2: 2FA
                     <Show when=move || step.get() == LoginStep::TwoFactor>
-                        <h2 class="text-xl font-bold text-white mb-2">{move || dict.get().tfa_title}</h2>
-                        <p class="text-zinc-400 text-sm mb-6">{move || dict.get().tfa_subtitle}</p>
+                        <form on:submit=move |ev| {
+                            ev.prevent_default();
+                            tfa_action.dispatch(());
+                        }>
+                            <h2 class="text-xl font-bold text-white mb-2">{move || dict.get().tfa_title}</h2>
+                            <p class="text-zinc-400 text-sm mb-6">{move || dict.get().tfa_subtitle}</p>
 
-                        <TextInput
-                            label=Signal::derive(move || dict.get().tfa_label.to_string())
-                            placeholder=Signal::derive(move || dict.get().tfa_placeholder.to_string())
-                            value=tfa_code
-                        />
+                            <TextInput
+                                label=Signal::derive(move || dict.get().tfa_label.to_string())
+                                placeholder=Signal::derive(move || dict.get().tfa_placeholder.to_string())
+                                value=tfa_code
+                            />
 
-                        <div class="mt-6">
-                            <button
-                                class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-                                on:click=move |_| tfa_action.dispatch(())
-                            >
-                                {move || dict.get().verify_btn}
-                            </button>
-                        </div>
+                            <div class="mt-6">
+                                <button
+                                    type="submit"
+                                    class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                                >
+                                    {move || dict.get().verify_btn}
+                                </button>
+                            </div>
+                        </form>
                     </Show>
 
 
