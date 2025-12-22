@@ -126,7 +126,7 @@ const DICT_ES: UiDict = UiDict {
     select_tenant: "Selecciona un tenant",
     logout: "Cerrar Sesión",
 
-    copyright: "Axur Web © 2024",
+    copyright: "Axur Web © 2025",
     external_threat_intel: "External Threat Intelligence",
 };
 
@@ -163,7 +163,7 @@ const DICT_EN: UiDict = UiDict {
     select_tenant: "Select a tenant",
     logout: "Log Out",
 
-    copyright: "Axur Web © 2024",
+    copyright: "Axur Web © 2025",
     external_threat_intel: "External Threat Intelligence",
 };
 
@@ -200,6 +200,6 @@ const DICT_PT: UiDict = UiDict {
     select_tenant: "Selecione um tenant",
     logout: "Sair",
 
-    copyright: "Axur Web © 2024",
+    copyright: "Axur Web © 2025",
     external_threat_intel: "External Threat Intelligence",
 };
