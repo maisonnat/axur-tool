@@ -32,7 +32,8 @@ jobs:
           cd crates/frontend
           trunk build --release
         env:
-          # Production API URL (Shuttle)
+          # Production API URL (Koyeb)
+          API_BASE_URL: https://unacceptable-dennie-axur-tool-8f97679f.koyeb.app
           TRUNK_BUILD_PUBLIC_URL: /
           
       - name: Deploy to Cloudflare Pages
