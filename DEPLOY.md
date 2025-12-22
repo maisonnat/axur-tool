@@ -27,7 +27,7 @@ Before deployment works, you need to configure GitHub Secrets.
 ### 2. Cloudflare Credentials
 
 1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
-2. Create a Cloudflare Pages project named `axur-tool`
+2. Create a Cloudflare Pages project named `axtool`
 3. Get your Account ID from the dashboard URL or Overview page
 4. Create an API Token with "Cloudflare Pages" permissions
 5. Add to GitHub: Settings → Secrets → Actions → New secrets
@@ -39,7 +39,7 @@ Before deployment works, you need to configure GitHub Secrets.
 | Service | URL |
 |---------|-----|
 | Backend (Koyeb) | https://axur-backend-USERNAME.koyeb.app |
-| Frontend (Cloudflare) | https://axur-tool.pages.dev |
+| Frontend (Cloudflare) | https://axtool.pages.dev |
 
 ## Manual Deployment
 
@@ -53,7 +53,7 @@ The easiest way is via Koyeb Dashboard:
 ```bash
 cd crates/frontend
 trunk build --release
-npx wrangler pages deploy dist --project-name=axur-tool
+npx wrangler pages deploy dist --project-name=axtool
 ```
 
 ## Workflow Triggers
