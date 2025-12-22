@@ -39,17 +39,3 @@ axum-extra = { version = "0.9", features = ["cookie"] }
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# Shuttle deployment (optional - enable with feature)
-[dependencies.shuttle-runtime]
-version = "0.50"
-optional = true
-
-[dependencies.shuttle-axum]
-version = "0.50"
-optional = true
-
-[features]
-default = []
-shuttle = ["shuttle-runtime", "shuttle-axum"]
-

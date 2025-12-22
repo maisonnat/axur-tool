@@ -3,21 +3,26 @@
 ## Overview
 
 This project uses automated CI/CD deployment:
-- **Backend**: Deployed to [Shuttle.rs](https://shuttle.rs)
-- **Frontend**: Deployed to [Cloudflare Pages](https://pages.cloudflare.com)
+- **Backend**: Deployed to [Koyeb](https://koyeb.com) (Free tier)
+- **Frontend**: Deployed to [Cloudflare Pages](https://pages.cloudflare.com) (Free)
 
 ## Prerequisites
 
 Before deployment works, you need to configure GitHub Secrets.
 
-### 1. Shuttle API Key
+### 1. Koyeb Setup
 
-1. Install Shuttle CLI: `cargo install cargo-shuttle`
-2. Login: `cargo shuttle login`
-3. Get your API key from [Shuttle Console](https://console.shuttle.rs)
+1. Create account at [Koyeb](https://app.koyeb.com) (no credit card needed)
+2. Create a new App:
+   - Name: `axur-backend`
+   - Source: GitHub → `maisonnat/axur-tool`
+   - Builder: Dockerfile
+   - Port: 3001
+   - Instance: Free (0.1 vCPU, 512MB RAM)
+3. Get your API Token from Settings → API
 4. Add to GitHub: Settings → Secrets → Actions → New secret
-   - Name: `SHUTTLE_API_KEY`
-   - Value: Your Shuttle API key
+   - Name: `KOYEB_TOKEN`
+   - Value: Your Koyeb API token
 
 ### 2. Cloudflare Credentials
 
@@ -33,16 +38,16 @@ Before deployment works, you need to configure GitHub Secrets.
 
 | Service | URL |
 |---------|-----|
-| Backend (Shuttle) | https://axur-web.shuttle.app |
+| Backend (Koyeb) | https://axur-backend-USERNAME.koyeb.app |
 | Frontend (Cloudflare) | https://axur-tool.pages.dev |
 
 ## Manual Deployment
 
-### Backend to Shuttle
-```bash
-cargo shuttle login
-cargo shuttle deploy
-```
+### Backend to Koyeb
+The easiest way is via Koyeb Dashboard:
+1. Connect GitHub repo
+2. Select Dockerfile as builder
+3. Deploy
 
 ### Frontend to Cloudflare
 ```bash
@@ -53,14 +58,14 @@ npx wrangler pages deploy dist --project-name=axur-tool
 
 ## Workflow Triggers
 
-- **Backend deploy**: Triggers on push to `main` when `crates/backend/`, `crates/core/`, or `Cargo.toml` changes
+- **Backend deploy**: Triggers on push to `main` when `crates/backend/`, `crates/core/`, or `Dockerfile` changes
 - **Frontend deploy**: Triggers on push to `main` when `crates/frontend/` or `crates/core/` changes
 
 ## Environment Variables
 
 ### Build Time (Frontend)
-- `API_BASE_URL`: Set to production backend URL (e.g., `https://axur-web.shuttle.app`)
+- `API_BASE_URL`: Set to production backend URL (e.g., `https://axur-backend-USERNAME.koyeb.app`)
 
 ### Runtime (Backend)
-- No special environment variables required
-- Shuttle handles secrets via `Secrets.toml` (local) or console
+- `RUST_LOG`: Logging level (default: `axur_backend=info`)
+

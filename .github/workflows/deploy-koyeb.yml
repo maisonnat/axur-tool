@@ -1,0 +1,33 @@
+name: Deploy Backend to Koyeb
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/backend/**'
+      - 'crates/core/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Dockerfile'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Koyeb CLI
+        run: curl -fsSL https://cli.koyeb.com/install.sh | bash
+        
+      - name: Deploy to Koyeb
+        run: |
+          koyeb service update axur-backend \
+            --git github.com/maisonnat/axur-tool \
+            --git-branch main \
+            --git-build-command "" \
+            --ports 3001:http \
+            --routes /:3001 \
+            --instance-type free \
+            --regions fra
+        env:
+          KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
