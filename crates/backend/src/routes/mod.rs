@@ -30,19 +30,24 @@ pub fn create_router() -> Router {
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::COOKIE])
         .allow_credentials(true);
 
-    Router::new()
-        // Health check
+    // Public routes (Auth, Health)
+    let public_routes = Router::new()
         .route("/health", get(health_check))
-        // Auth routes
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/2fa", post(auth::verify_2fa))
         .route("/api/auth/finalize", post(auth::finalize))
         .route("/api/auth/validate", get(auth::validate))
-        .route("/api/auth/logout", post(auth::logout))
-        // Report routes
+        .route("/api/auth/logout", post(auth::logout));
+
+    // Protected routes (Require Authentication)
+    let protected_routes = Router::new()
         .route("/api/tenants", get(report::list_tenants))
         .route("/api/report/generate", post(report::generate_report))
-        // Middleware
+        .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
+
+    Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
         .layer(TraceLayer::new_for_http())
         .layer(cors)
 }

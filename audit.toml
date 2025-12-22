@@ -1,0 +1,5 @@
+[advisories]
+ignore = [
+    "RUSTSEC-2024-0370", # proc-macro-error is unmaintained (dependency of leptos 0.6)
+    "RUSTSEC-2024-0436"  # paste is unmaintained (dependency of leptos 0.6)
+]
