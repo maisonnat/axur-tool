@@ -37,13 +37,13 @@ jobs:
           TRUNK_BUILD_PUBLIC_URL: /
           
       - name: Create Cloudflare Project
-        run: npx wrangler pages project create axur-webapp --production-branch main
+        run: npx wrangler pages project create axur-tool --production-branch main
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy to Cloudflare
-        run: npx wrangler pages deploy crates/frontend/dist --project-name=axur-webapp
+        run: npx wrangler pages deploy crates/frontend/dist --project-name=axur-tool
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
