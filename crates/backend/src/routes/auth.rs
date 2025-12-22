@@ -233,7 +233,7 @@ pub async fn finalize(
     let cookie = Cookie::build((AUTH_COOKIE_NAME, master_token))
         .http_only(true)
         .secure(true) // Requires HTTPS in production
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::None)
         .path("/")
         .max_age(cookie::time::Duration::days(7))
         .build();
@@ -293,7 +293,7 @@ pub async fn logout(jar: CookieJar) -> impl IntoResponse {
     let cookie = Cookie::build((AUTH_COOKIE_NAME, ""))
         .http_only(true)
         .secure(true)
-        .same_site(SameSite::Strict)
+        .same_site(SameSite::None)
         .path("/")
         .max_age(cookie::time::Duration::seconds(0))
         .build();
