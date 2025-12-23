@@ -1,4 +1,6 @@
 name: Deploy Frontend to Cloudflare Pages
+# Deploys the frontend to Cloudflare Pages (Production)
+
 
 on:
   push:
