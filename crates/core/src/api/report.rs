@@ -243,8 +243,118 @@ pub struct PocReportData {
     // NEW: ROI Metrics for COO Executive Slide
     pub roi_metrics: RoiMetrics,
 
+    // NEW: Story / Timeline Tickets
+    pub story_tickets: Vec<StoryTicket>,
+
+    // NEW: Threat Intelligence from Threat Hunting API
+    pub threat_intelligence: ThreatIntelligence,
+
     // UI FLAGS
     pub is_dynamic_window: bool,
+}
+
+/// Aggregated threat intelligence data from Threat Hunting API
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct ThreatIntelligence {
+    // === Dimension 1: Threat Origin (Dark Web) ===
+    pub dark_web_mentions: u64,
+    pub earliest_dark_web_date: Option<String>,
+    pub dark_web_sources: Vec<String>,
+    pub days_before_public: Option<i64>, // Days detected before going public
+
+    // === Dimension 2: Virality & Reach ===
+    pub chat_group_shares: u64,          // WhatsApp/Telegram/Discord
+    pub social_media_mentions: u64,      // Twitter/X
+    pub platforms_detected: Vec<String>, // List of platforms
+
+    // === Dimension 3: Credential Quality ===
+    pub total_credentials: u64,
+    pub stealer_log_count: u64,       // CRITICAL: Active malware
+    pub combolist_count: u64,         // Medium: Old/recycled
+    pub plain_password_count: u64,    // High risk: plain text
+    pub hashed_password_count: u64,   // Lower risk: hashed
+    pub stealer_log_percent: f64,     // % that are stealer logs
+    pub plain_password_percent: f64,  // % plain text passwords
+    pub top_access_urls: Vec<String>, // Target portals
+
+    // === Dimension 4: Attacker Investment ===
+    pub paid_ads_detected: u64,
+    pub ad_platforms: Vec<String>, // FB, IG, Google etc.
+
+    // === Meta ===
+    pub data_available: bool, // False if API unavailable or no results
+}
+
+impl ThreatIntelligence {
+    /// Generate demo/fake data for previewing the slide design
+    pub fn demo() -> Self {
+        Self {
+            // Dark Web
+            dark_web_mentions: 12,
+            earliest_dark_web_date: Some("2024-12-19T14:30:00Z".to_string()),
+            dark_web_sources: vec![
+                "Telegram - Fraud Groups".to_string(),
+                "Dark Forum XSS".to_string(),
+                "RaidForums Archive".to_string(),
+            ],
+            days_before_public: Some(3),
+
+            // Virality
+            chat_group_shares: 47,
+            social_media_mentions: 23,
+            platforms_detected: vec![
+                "Telegram".to_string(),
+                "WhatsApp".to_string(),
+                "Twitter/X".to_string(),
+            ],
+
+            // Credentials
+            total_credentials: 156,
+            stealer_log_count: 31,    // 20%
+            combolist_count: 94,      // 60%
+            plain_password_count: 47, // 30%
+            hashed_password_count: 109,
+            stealer_log_percent: 19.9,
+            plain_password_percent: 30.1,
+            top_access_urls: vec![
+                "login.empresa.com".to_string(),
+                "portal.banco.com.ar".to_string(),
+            ],
+
+            // Ads
+            paid_ads_detected: 3,
+            ad_platforms: vec!["Facebook".to_string(), "Instagram".to_string()],
+
+            data_available: true,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct StoryTicket {
+    pub ticket_key: String,
+    pub target: String,      // Domain/host
+    pub status: String,      // incident, open, closed
+    pub threat_type: String, // phishing, fake-social-media-profile, etc.
+    pub description: String, // Type + host combined
+    pub screenshot_url: Option<String>,
+
+    // Timeline dates (for individual story)
+    pub creation_date: Option<String>, // When discovered
+    pub open_date: Option<String>,     // When opened
+    pub incident_date: Option<String>, // When became incident
+    pub close_date: Option<String>,    // When closed (if applicable)
+
+    // Operational impact metrics
+    pub isp: Option<String>,           // Hosting provider
+    pub ip: Option<String>,            // IP address
+    pub risk_score: Option<f64>,       // 0-1 prediction.risk
+    pub brand_confidence: Option<f64>, // 0-1 prediction.brand-logo
+    pub page_title: Option<String>,    // From snapshots.content.title
+
+    // Computed metrics
+    pub time_to_incident_hours: Option<i64>, // Hours from creation to incident
+    pub incident_age_hours: Option<i64>,     // Hours since incident started
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -631,7 +741,7 @@ struct TicketItem {
     current: Option<CurrentInfo>,
     detection: Option<CurrentInfo>, // detection field (sometimes used instead of current)
     #[serde(default)]
-    snapshots: Vec<SnapshotItem>,
+    snapshots: serde_json::Value, // Can be object or array depending on API version
     #[serde(default)]
     attachments: Vec<AttachmentItem>, // Top-level attachments (contains screenshots)
 }
@@ -652,13 +762,33 @@ struct CurrentInfo {
     isp: Option<String>,
     domain: Option<String>,
     host: Option<String>,
-    // Date fields
+
+    // Nested date fields (old API format)
     #[serde(rename = "open")]
     open: Option<DateInfo>,
     #[serde(rename = "incident")]
     incident: Option<DateInfo>,
     #[serde(rename = "close")]
     close: Option<DateInfo>,
+
+    // Flat date fields (new API format) - used by ticket tags API
+    #[serde(rename = "open.date")]
+    open_date_flat: Option<String>,
+    #[serde(rename = "incident.date")]
+    incident_date_flat: Option<String>,
+    #[serde(rename = "close.date")]
+    close_date_flat: Option<String>,
+    #[serde(rename = "creation.date")]
+    creation_date_flat: Option<String>,
+
+    // Prediction metrics
+    #[serde(rename = "prediction.risk")]
+    prediction_risk: Option<String>, // String because API returns "0.36"
+    #[serde(rename = "prediction.brand-logo")]
+    prediction_brand_logo: Option<String>,
+    #[serde(rename = "prediction.brand-name")]
+    prediction_brand_name: Option<String>,
+
     // Takedown fields
     #[serde(rename = "takedown")]
     takedown: Option<TakedownInfo>,
@@ -742,7 +872,24 @@ pub async fn fetch_full_report(
     tenant_id: &str,
     from: &str,
     to: &str,
+    story_tag: Option<String>,
+    include_threat_intel: bool,
 ) -> Result<PocReportData> {
+    // DEBUG: Write to file to trace story_tag
+    use std::io::Write;
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("story_debug.log")
+    {
+        let _ = writeln!(
+            file,
+            "[{}] fetch_full_report called with story_tag: {:?}",
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+            story_tag
+        );
+    }
+
     let client = create_client()?;
     let auth = format!("Bearer {}", token);
 
@@ -756,6 +903,7 @@ pub async fn fetch_full_report(
         credentials_total,
         code_leaks_total,
         takedown_stats,
+        story_tickets_res,
     ) = tokio::join!(
         fetch_customer_data(&client, &auth, tenant_id),
         fetch_ticket_count(&client, &auth, from, to, "open", tenant_id),
@@ -765,6 +913,7 @@ pub async fn fetch_full_report(
         fetch_credentials_total_all(&client, &auth, from, to, tenant_id),
         fetch_code_leaks_count(&client, &auth, from, to, tenant_id),
         fetch_takedown_stats_full(&client, &auth, from, to, tenant_id),
+        fetch_tagged_tickets(&client, &auth, tenant_id, story_tag.as_deref()),
     );
 
     let customer = customer_data.unwrap_or_default();
@@ -923,13 +1072,35 @@ pub async fn fetch_full_report(
         // ROI placeholder (will be computed after struct creation)
         roi_metrics: RoiMetrics::default(),
 
+        // NEW: Story Tickets
+        story_tickets: story_tickets_res.unwrap_or_default(),
+
+        // NEW: Threat Intelligence - fetched conditionally
+        threat_intelligence: ThreatIntelligence::default(), // Placeholder, will be populated below
+
         is_dynamic_window: false, // Default to fixed window
+    };
+
+    // Fetch Threat Intelligence if enabled (this is async and can take 1-2 min)
+    let threat_intel = if include_threat_intel {
+        // Use the first brand or company name as the search query
+        let query = report
+            .brands
+            .first()
+            .cloned() // brands is Vec<String>, clone the string directly
+            .unwrap_or_else(|| report.company_name.clone());
+
+        tracing::info!("Fetching threat intelligence for query: {}", query);
+        fetch_threat_intelligence(&client, &auth, &query, from, to).await
+    } else {
+        ThreatIntelligence::default()
     };
 
     // Compute ROI metrics now that we have the full data
     let roi = RoiMetrics::compute(&report);
     let mut report_with_roi = report;
     report_with_roi.roi_metrics = roi;
+    report_with_roi.threat_intelligence = threat_intel;
 
     Ok(report_with_roi)
 }
@@ -1495,11 +1666,14 @@ async fn fetch_evidence_samples(
                         let current = ticket.current.as_ref();
 
                         let screenshot = ticket
-                            .snapshots
+                            .attachments
                             .iter()
-                            .flat_map(|s| s.attachments.iter())
                             .find(|a| {
-                                a.type_.as_deref() == Some("screenshot")
+                                a.name
+                                    .as_ref()
+                                    .map(|n| n.ends_with(".jpg") || n.ends_with(".png"))
+                                    .unwrap_or(false)
+                                    || a.type_.as_deref() == Some("screenshot")
                                     || a.type_.as_deref() == Some("image")
                             })
                             .and_then(|a| a.url.clone());
@@ -2043,14 +2217,17 @@ async fn fetch_latest_incidents(
 
                             // Find screenshot from attachments
                             let screenshot = t
-                                .snapshots
+                                .attachments
                                 .iter()
-                                .flat_map(|s| s.attachments.iter())
                                 .find(|a| {
                                     a.url.as_ref().map_or(false, |u| {
                                         u.ends_with(".png")
                                             || u.ends_with(".jpg")
                                             || u.ends_with(".jpeg")
+                                    }) || a.name.as_ref().map_or(false, |n| {
+                                        n.ends_with(".png")
+                                            || n.ends_with(".jpg")
+                                            || n.ends_with(".jpeg")
                                     })
                                 })
                                 .and_then(|a| a.url.clone());
@@ -2252,7 +2429,7 @@ pub async fn fetch_report_data(
     from: &str,
     to: &str,
 ) -> Result<PocReport> {
-    let full = fetch_full_report(token, tenant_id, from, to).await?;
+    let full = fetch_full_report(token, tenant_id, from, to, None, false).await?;
 
     Ok(PocReport {
         tenant_id: tenant_id.to_string(),
@@ -2277,4 +2454,529 @@ pub async fn fetch_report_data(
             .collect(),
         code_leak_total: full.secrets_total,
     })
+}
+
+/// Fetch tickets filtered by tag for the Story Slide
+async fn fetch_tagged_tickets(
+    client: &reqwest::Client,
+    auth: &str,
+    tenant_id: &str,
+    tag: Option<&str>,
+) -> Result<Vec<StoryTicket>> {
+    use std::io::Write;
+    let mut log_file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("story_debug.log")
+        .ok();
+
+    macro_rules! log_debug {
+        ($($arg:tt)*) => {
+            if let Some(ref mut f) = log_file {
+                let _ = writeln!(f, "[{}] {}", chrono::Local::now().format("%H:%M:%S"), format!($($arg)*));
+            }
+        };
+    }
+
+    log_debug!("fetch_tagged_tickets called with tag: {:?}", tag);
+
+    let tag = match tag {
+        Some(t) if !t.is_empty() => t,
+        _ => {
+            log_debug!("No tag provided, skipping story tickets fetch");
+            return Ok(vec![]);
+        }
+    };
+
+    let url = format!(
+        "{}/tickets-api/tickets?ticket.customer={}&ticket.tags={}",
+        API_URL, tenant_id, tag
+    );
+
+    log_debug!("Fetching from URL: {}", url);
+
+    let resp = client
+        .get(&url)
+        .header("Authorization", auth)
+        .send()
+        .await?;
+
+    log_debug!("Response status: {}", resp.status());
+
+    if !resp.status().is_success() {
+        log_debug!("API returned error status: {}", resp.status());
+        return Ok(vec![]);
+    }
+
+    let body = resp.text().await?;
+    log_debug!("Response body length: {} chars", body.len());
+    log_debug!("First 500 chars: {}", &body[..body.len().min(500)]);
+
+    let response: TicketsResponse = match serde_json::from_str(&body) {
+        Ok(r) => r,
+        Err(e) => {
+            log_debug!("JSON parsing error: {}", e);
+            return Ok(vec![]);
+        }
+    };
+    log_debug!("Parsed {} tickets from response", response.tickets.len());
+
+    let mut story_tickets = Vec::new();
+
+    for item in response.tickets {
+        if let (Some(ticket), Some(detection)) = (item.ticket, item.detection) {
+            let key = ticket.ticket_key.unwrap_or_default();
+
+            // Determine date (Incident > Open > Created)
+            let date = detection
+                .incident_date()
+                .or_else(|| detection.open_date())
+                .unwrap_or_else(|| "N/A".to_string());
+
+            // Format date nicely if possible
+            let fmt_date = if date.len() >= 10 {
+                format!("{}/{}/{}", &date[8..10], &date[5..7], &date[0..4])
+            } else {
+                date
+            };
+
+            // Determine Target
+            let target = detection
+                .host
+                .clone()
+                .or(detection.domain.clone())
+                .or(ticket.reference.clone())
+                .unwrap_or_else(|| "Unknown Target".to_string());
+
+            // Image - find URL first
+            let screenshot_url = item
+                .attachments
+                .iter()
+                .find(|a| {
+                    a.name
+                        .as_ref()
+                        .map(|n| n.ends_with(".jpg") || n.ends_with(".png"))
+                        .unwrap_or(false)
+                })
+                .and_then(|a| a.url.clone());
+
+            // Download and convert to base64 with authentication
+            let screenshot_base64 = if let Some(ref img_url) = screenshot_url {
+                download_image_as_base64(client, auth, img_url).await
+            } else {
+                None
+            };
+
+            // Extract dates (prefer flat format, fallback to nested)
+            let creation_date = detection.creation_date_flat.clone();
+            let open_date = detection
+                .open_date_flat
+                .clone()
+                .or_else(|| detection.open_date());
+            let incident_date = detection
+                .incident_date_flat
+                .clone()
+                .or_else(|| detection.incident_date());
+            let close_date = detection
+                .close_date_flat
+                .clone()
+                .or_else(|| detection.close_date());
+
+            // Parse prediction metrics
+            let risk_score = detection
+                .prediction_risk
+                .as_ref()
+                .and_then(|s| s.parse::<f64>().ok());
+            let brand_confidence = detection
+                .prediction_brand_logo
+                .as_ref()
+                .and_then(|s| s.parse::<f64>().ok());
+
+            // Extract page title from snapshots if available
+            let page_title = item
+                .snapshots
+                .get("content")
+                .and_then(|c| c.get("title"))
+                .and_then(|t| t.as_str())
+                .map(|s| s.to_string());
+
+            // Compute time metrics
+            let time_to_incident_hours = compute_hours_between(&creation_date, &incident_date);
+            let incident_age_hours = incident_date.as_ref().and_then(|d| compute_hours_since(d));
+
+            // Description (Type + Host)
+            let threat_type = detection.type_.clone().unwrap_or_default();
+            let desc = format!("{} on {}", &threat_type, &target);
+
+            story_tickets.push(StoryTicket {
+                ticket_key: key,
+                target,
+                status: detection
+                    .status
+                    .clone()
+                    .unwrap_or_else(|| "open".to_string()),
+                threat_type,
+                description: desc,
+                screenshot_url: screenshot_base64,
+                creation_date,
+                open_date,
+                incident_date,
+                close_date,
+                isp: detection.isp.clone(),
+                ip: detection.ip.clone(),
+                risk_score,
+                brand_confidence,
+                page_title,
+                time_to_incident_hours,
+                incident_age_hours,
+            });
+        }
+    }
+
+    log_debug!("Returning {} story_tickets", story_tickets.len());
+    Ok(story_tickets)
+}
+
+/// Helper to compute hours between two ISO date strings
+fn compute_hours_between(from: &Option<String>, to: &Option<String>) -> Option<i64> {
+    let from = from.as_ref()?;
+    let to = to.as_ref()?;
+    let from_dt = chrono::DateTime::parse_from_rfc3339(from).ok()?;
+    let to_dt = chrono::DateTime::parse_from_rfc3339(to).ok()?;
+    Some((to_dt - from_dt).num_hours())
+}
+
+/// Helper to compute hours since an ISO date string
+fn compute_hours_since(date: &str) -> Option<i64> {
+    let dt = chrono::DateTime::parse_from_rfc3339(date).ok()?;
+    let now = chrono::Utc::now();
+    Some((now - dt.with_timezone(&chrono::Utc)).num_hours())
+}
+
+// ========================
+// THREAT HUNTING API
+// ========================
+
+/// Source types for Threat Hunting searches
+#[derive(Debug, Clone, Copy)]
+pub enum ThreatHuntingSource {
+    ForumMessage,     // Dark web forums
+    ChatMessage,      // WhatsApp/Telegram/Discord
+    SocialMediaPosts, // Twitter/X
+    Credential,       // Leaked credentials
+    SignalLakeAds,    // Paid ads
+}
+
+impl ThreatHuntingSource {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::ForumMessage => "forum-message",
+            Self::ChatMessage => "chat-message",
+            Self::SocialMediaPosts => "social-media-posts",
+            Self::Credential => "credential",
+            Self::SignalLakeAds => "signal-lake-ads",
+        }
+    }
+}
+
+/// Request body for starting a threat hunting search
+#[derive(Debug, Serialize)]
+struct ThreatSearchRequest {
+    query: String,
+    source: String,
+    #[serde(rename = "dateRange", skip_serializing_if = "Option::is_none")]
+    date_range: Option<DateRange>,
+}
+
+#[derive(Debug, Serialize)]
+struct DateRange {
+    from: String,
+    to: String,
+}
+
+/// Response from starting a search
+#[derive(Debug, Deserialize)]
+struct ThreatSearchStartResponse {
+    #[serde(rename = "searchId")]
+    search_id: Option<String>,
+    id: Option<String>, // Alternative field name
+}
+
+impl ThreatSearchStartResponse {
+    fn get_id(&self) -> Option<&str> {
+        self.search_id.as_deref().or(self.id.as_deref())
+    }
+}
+
+/// Response from polling search results
+#[derive(Debug, Deserialize)]
+struct ThreatSearchResultsResponse {
+    status: Option<String>,
+    #[serde(default)]
+    results: Vec<ThreatSearchResult>,
+    #[serde(default)]
+    data: Vec<ThreatSearchResult>, // Alternative field name
+}
+
+impl ThreatSearchResultsResponse {
+    fn get_results(&self) -> &[ThreatSearchResult] {
+        if !self.results.is_empty() {
+            &self.results
+        } else {
+            &self.data
+        }
+    }
+
+    fn is_complete(&self) -> bool {
+        self.status
+            .as_deref()
+            .map(|s| s.eq_ignore_ascii_case("COMPLETED"))
+            .unwrap_or(false)
+    }
+}
+
+/// Individual search result
+#[derive(Debug, Deserialize, Clone)]
+struct ThreatSearchResult {
+    source: Option<String>,
+    reference: Option<String>,
+    date: Option<String>,
+    #[serde(rename = "leakFormat")]
+    leak_format: Option<String>,
+    #[serde(rename = "passwordType")]
+    password_type: Option<String>,
+    #[serde(rename = "accessUrl")]
+    access_url: Option<String>,
+    #[serde(rename = "sourceName")]
+    source_name: Option<String>,
+    platform: Option<String>,
+}
+
+/// Start a threat hunting search (async)
+async fn start_threat_search(
+    client: &reqwest::Client,
+    auth: &str,
+    query: &str,
+    source: ThreatHuntingSource,
+    from: &str,
+    to: &str,
+) -> Result<Option<String>> {
+    let url = format!("{}/threat-hunting-api/external-search", API_URL);
+
+    let request = ThreatSearchRequest {
+        query: query.to_string(),
+        source: source.as_str().to_string(),
+        date_range: Some(DateRange {
+            from: from.to_string(),
+            to: to.to_string(),
+        }),
+    };
+
+    let resp = client
+        .post(&url)
+        .header("Authorization", auth)
+        .json(&request)
+        .send()
+        .await?;
+
+    if !resp.status().is_success() {
+        tracing::warn!(
+            "Threat hunting search failed for source {:?}: {}",
+            source,
+            resp.status()
+        );
+        return Ok(None);
+    }
+
+    let response: ThreatSearchStartResponse = resp.json().await?;
+    Ok(response.get_id().map(|s| s.to_string()))
+}
+
+/// Poll for search results (async with timeout)
+async fn poll_threat_search(
+    client: &reqwest::Client,
+    auth: &str,
+    search_id: &str,
+    max_attempts: u32,
+) -> Result<Vec<ThreatSearchResult>> {
+    let url = format!(
+        "{}/threat-hunting-api/external-search/{}",
+        API_URL, search_id
+    );
+
+    for attempt in 0..max_attempts {
+        let resp = client
+            .get(&url)
+            .header("Authorization", auth)
+            .send()
+            .await?;
+
+        if !resp.status().is_success() {
+            tracing::warn!("Poll attempt {} failed: {}", attempt, resp.status());
+            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+            continue;
+        }
+
+        let response: ThreatSearchResultsResponse = resp.json().await?;
+
+        if response.is_complete() {
+            return Ok(response.get_results().to_vec());
+        }
+
+        // Wait before next poll
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+    }
+
+    tracing::warn!(
+        "Threat search {} timed out after {} attempts",
+        search_id,
+        max_attempts
+    );
+    Ok(vec![])
+}
+
+/// Fetch and aggregate all threat intelligence data
+pub async fn fetch_threat_intelligence(
+    client: &reqwest::Client,
+    auth: &str,
+    query: &str, // Brand domain or name to search
+    from: &str,
+    to: &str,
+) -> ThreatIntelligence {
+    let mut intel = ThreatIntelligence::default();
+
+    // Start all searches in parallel
+    let sources = [
+        ThreatHuntingSource::ForumMessage,
+        ThreatHuntingSource::ChatMessage,
+        ThreatHuntingSource::SocialMediaPosts,
+        ThreatHuntingSource::Credential,
+        ThreatHuntingSource::SignalLakeAds,
+    ];
+
+    // Start searches
+    let mut search_ids: Vec<(ThreatHuntingSource, Option<String>)> = vec![];
+
+    for source in sources {
+        let id = start_threat_search(client, auth, query, source, from, to)
+            .await
+            .ok()
+            .flatten();
+        search_ids.push((source, id));
+    }
+
+    // Poll for results (with timeout of 10 attempts = ~30 seconds each)
+    for (source, search_id) in search_ids {
+        let Some(id) = search_id else { continue };
+
+        let results = poll_threat_search(client, auth, &id, 10)
+            .await
+            .unwrap_or_default();
+
+        // Process results based on source type
+        match source {
+            ThreatHuntingSource::ForumMessage => {
+                intel.dark_web_mentions = results.len() as u64;
+
+                // Find earliest date
+                let mut earliest: Option<String> = None;
+                for r in &results {
+                    if let Some(date) = &r.date {
+                        if earliest.as_ref().map(|e| date < e).unwrap_or(true) {
+                            earliest = Some(date.clone());
+                        }
+                    }
+                }
+                intel.earliest_dark_web_date = earliest;
+
+                // Collect unique sources
+                let sources: std::collections::HashSet<_> = results
+                    .iter()
+                    .filter_map(|r| r.source_name.clone().or(r.source.clone()))
+                    .collect();
+                intel.dark_web_sources = sources.into_iter().collect();
+            }
+
+            ThreatHuntingSource::ChatMessage => {
+                intel.chat_group_shares = results.len() as u64;
+
+                // Collect platforms
+                let platforms: std::collections::HashSet<_> =
+                    results.iter().filter_map(|r| r.platform.clone()).collect();
+                intel.platforms_detected.extend(platforms);
+            }
+
+            ThreatHuntingSource::SocialMediaPosts => {
+                intel.social_media_mentions = results.len() as u64;
+
+                // Add social platforms
+                let platforms: std::collections::HashSet<_> =
+                    results.iter().filter_map(|r| r.platform.clone()).collect();
+                intel.platforms_detected.extend(platforms);
+            }
+
+            ThreatHuntingSource::Credential => {
+                intel.total_credentials = results.len() as u64;
+
+                for r in &results {
+                    // Classify by leak format
+                    if let Some(format) = &r.leak_format {
+                        let format_lower = format.to_lowercase();
+                        if format_lower.contains("stealer") {
+                            intel.stealer_log_count += 1;
+                        } else if format_lower.contains("combo") {
+                            intel.combolist_count += 1;
+                        }
+                    }
+
+                    // Classify by password type
+                    if let Some(pwd_type) = &r.password_type {
+                        let type_lower = pwd_type.to_lowercase();
+                        if type_lower.contains("plain") {
+                            intel.plain_password_count += 1;
+                        } else {
+                            intel.hashed_password_count += 1;
+                        }
+                    }
+
+                    // Collect access URLs
+                    if let Some(url) = &r.access_url {
+                        if intel.top_access_urls.len() < 5 && !intel.top_access_urls.contains(url) {
+                            intel.top_access_urls.push(url.clone());
+                        }
+                    }
+                }
+
+                // Compute percentages
+                if intel.total_credentials > 0 {
+                    intel.stealer_log_percent =
+                        (intel.stealer_log_count as f64 / intel.total_credentials as f64) * 100.0;
+                    intel.plain_password_percent = (intel.plain_password_count as f64
+                        / intel.total_credentials as f64)
+                        * 100.0;
+                }
+            }
+
+            ThreatHuntingSource::SignalLakeAds => {
+                intel.paid_ads_detected = results.len() as u64;
+
+                // Collect ad platforms
+                let platforms: std::collections::HashSet<_> =
+                    results.iter().filter_map(|r| r.platform.clone()).collect();
+                intel.ad_platforms = platforms.into_iter().collect();
+            }
+        }
+    }
+
+    // Compute days before public (if we have dark web data and incident data)
+    // This would require comparing earliest_dark_web_date with earliest public incident
+    // For now, we'll leave this as None unless we can compute it
+
+    intel.data_available = intel.dark_web_mentions > 0
+        || intel.chat_group_shares > 0
+        || intel.social_media_mentions > 0
+        || intel.total_credentials > 0
+        || intel.paid_ads_detected > 0;
+
+    intel
 }

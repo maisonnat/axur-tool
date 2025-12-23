@@ -79,6 +79,8 @@ pub struct GenerateReportRequest {
     pub from_date: String,
     pub to_date: String,
     pub language: String,
+    pub story_tag: Option<String>,
+    pub include_threat_intel: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -216,6 +218,8 @@ pub async fn generate_report(
     from_date: &str,
     to_date: &str,
     language: &str,
+    story_tag: Option<String>,
+    include_threat_intel: bool,
 ) -> Result<GenerateReportResponse, String> {
     let resp = Request::post(&format!("{}/api/report/generate", API_BASE))
         .header("Content-Type", "application/json")
@@ -225,6 +229,8 @@ pub async fn generate_report(
             from_date: from_date.to_string(),
             to_date: to_date.to_string(),
             language: language.to_string(),
+            story_tag,
+            include_threat_intel,
         })
         .map_err(|e| e.to_string())?
         .send()

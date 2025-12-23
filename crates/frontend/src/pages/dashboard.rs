@@ -1,7 +1,7 @@
 //! Dashboard page with tenant selector and report generation
 
 use crate::api::{self, Tenant};
-use crate::components::{CardWithHeader, Combobox, FullScreenLoader};
+use crate::components::{CardWithHeader, Combobox, ReportLoader};
 use crate::{get_ui_dict, AppState, Page};
 use leptos::*;
 
@@ -25,6 +25,8 @@ pub fn DashboardPage() -> impl IntoView {
     let to_date = create_rw_signal(get_today());
     // Default report language to the UI language
     let language = create_rw_signal(ui_language.get().code().to_string());
+    let story_tag = create_rw_signal(String::new());
+    let include_threat_intel = create_rw_signal(false);
 
     // UI state
     let loading_tenants = create_rw_signal(true);
@@ -67,8 +69,15 @@ pub fn DashboardPage() -> impl IntoView {
         let from = from_date.get();
         let to = to_date.get();
         let lang = language.get();
+        let tag = story_tag.get();
+        let tag_opt = if tag.trim().is_empty() {
+            None
+        } else {
+            Some(tag)
+        };
+        let threat_intel = include_threat_intel.get();
 
-        match api::generate_report(&tenant, &from, &to, &lang).await {
+        match api::generate_report(&tenant, &from, &to, &lang, tag_opt, threat_intel).await {
             Ok(resp) => {
                 if resp.success {
                     report_html.set(resp.html);
@@ -89,9 +98,9 @@ pub fn DashboardPage() -> impl IntoView {
     });
 
     view! {
-        // Loading overlay
+        // Loading overlay with enhanced progress
         <Show when=move || generating.get()>
-            <FullScreenLoader/>
+            <ReportLoader include_threat_intel=include_threat_intel.get() />
         </Show>
 
         <div class="min-h-screen">
@@ -164,6 +173,17 @@ pub fn DashboardPage() -> impl IntoView {
                                 />
                             </div>
 
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-zinc-400 mb-2">"Story Tag (Optional)"</label>
+                                <input
+                                    type="text"
+                                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none placeholder-zinc-600"
+                                    placeholder="tag:campaign-name"
+                                    prop:value=move || story_tag.get()
+                                    on:input=move |ev| story_tag.set(event_target_value(&ev))
+                                />
+                            </div>
+
                             <div class="mb-6">
                                 <label class="block text-sm font-medium text-zinc-400 mb-2">{move || dict.get().language_label}</label>
                                 <select
@@ -174,6 +194,35 @@ pub fn DashboardPage() -> impl IntoView {
                                     <option value="en">"English"</option>
                                     <option value="pt">"Português"</option>
                                 </select>
+                            </div>
+
+                            // Threat Intelligence Toggle
+                            <div class="mb-6 p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1">
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                class="w-5 h-5 rounded border-zinc-600 bg-zinc-700 text-purple-500 focus:ring-purple-500 focus:ring-offset-zinc-900 cursor-pointer"
+                                                prop:checked=move || include_threat_intel.get()
+                                                on:change=move |ev| include_threat_intel.set(event_target_checked(&ev))
+                                            />
+                                            <span class="text-white font-medium">"🕵️ Threat Intelligence"
+                                            </span>
+                                        </label>
+                                        <p class="text-zinc-500 text-xs mt-1 ml-7">"Análisis profundo de Dark Web, viralidad y credenciales"
+                                        </p>
+                                    </div>
+                                </div>
+                                // Credits warning - subtle but visible
+                                <Show when=move || include_threat_intel.get()>
+                                    <div class="mt-3 flex items-center gap-2 text-amber-400/80 text-xs bg-amber-900/20 rounded px-3 py-2 border border-amber-500/20">
+                                        <span class="text-sm">"⚡"
+                                        </span>
+                                        <span>"Consume créditos de Threat Hunting · Añade ~1-2 min al reporte"
+                                        </span>
+                                    </div>
+                                </Show>
                             </div>
 
                             <button
@@ -215,7 +264,24 @@ pub fn DashboardPage() -> impl IntoView {
                                         class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
                                         on:click=move |_| {
                                             if let Some(html) = report_html.get() {
-                                                download_html(&html, "axur_report.html");
+                                                // Generate descriptive filename
+                                                let tenant_key = selected_tenant.get();
+                                                let tenant_name = tenants.get()
+                                                    .iter()
+                                                    .find(|t| t.key == tenant_key)
+                                                    .map(|t| t.name.clone())
+                                                    .unwrap_or_else(|| "report".to_string());
+
+                                                // Clean name for filename (remove special chars)
+                                                let clean_name: String = tenant_name
+                                                    .chars()
+                                                    .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-')
+                                                    .collect::<String>()
+                                                    .replace(' ', "_");
+
+                                                let today = get_today(); // YYYY-MM-DD
+                                                let filename = format!("{}_{}_report.html", clean_name, today);
+                                                download_html(&html, &filename);
                                             }
                                         }
                                     >

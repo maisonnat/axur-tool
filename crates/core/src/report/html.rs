@@ -1,20 +1,24 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
-use crate::api::report::{PocReport, PocReportData, OperationalMetrics};
 use super::OfflineAssets;
+use crate::api::report::{OperationalMetrics, PocReport, PocReportData};
 use crate::i18n::Dictionary;
 
 /// Check if report has meaningful takedown data to display
 fn has_takedown_data(data: &PocReportData) -> bool {
-    data.takedown_resolved > 0 || 
-    data.takedown_pending > 0 || 
-    data.takedown_aborted > 0 || 
-    data.takedown_unresolved > 0
+    data.takedown_resolved > 0
+        || data.takedown_pending > 0
+        || data.takedown_aborted > 0
+        || data.takedown_unresolved > 0
 }
 
 /// Generate full HTML report with exact design (slides vary based on data)
-pub fn generate_full_report_html(data: &PocReportData, offline_assets: Option<&OfflineAssets>, dict: &Box<dyn Dictionary>) -> String {
+pub fn generate_full_report_html(
+    data: &PocReportData,
+    offline_assets: Option<&OfflineAssets>,
+    dict: &Box<dyn Dictionary>,
+) -> String {
     // Start with core slides that are always shown
     let mut slides = vec![
         render_cover_full(data, dict),
@@ -27,6 +31,7 @@ pub fn generate_full_report_html(data: &PocReportData, offline_assets: Option<&O
         render_infostealer_slide(data, dict),
         render_code_leak_slide(data, dict),
         render_incidents_chart_slide(data, dict),
+        render_incident_story_slide(data, dict),
     ];
 
     // Only add takedown slides if there is takedown data
@@ -50,11 +55,16 @@ pub fn generate_full_report_html(data: &PocReportData, offline_assets: Option<&O
         slides.push(render_deep_analytics_slide(data, dict));
     }
 
+    // Only add Threat Intelligence slide if data was fetched
+    if data.threat_intelligence.data_available {
+        slides.push(render_threat_intelligence_slide(data, dict));
+    }
+
     // Always add closing slide
     slides.push(render_closing_full(data, offline_assets, dict));
-    
+
     let all_slides = slides.join("\n");
-    
+
     // Choose assets based on offline mode
     let (tailwind_script, font_links, font_family) = if let Some(assets) = offline_assets {
         (
@@ -72,7 +82,8 @@ pub fn generate_full_report_html(data: &PocReportData, offline_assets: Option<&O
         )
     };
 
-    format!(r#"<!DOCTYPE html>
+    format!(
+        r#"<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8"/>
@@ -138,13 +149,19 @@ fn axur_logo() -> &'static str {
 }
 
 fn footer_dark(page: u32, dict: &Box<dyn Dictionary>) -> String {
-    format!(r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>{}</span><span class="ml-4">{}</span></div></footer>"#, 
-        dict.footer_text(), page)
+    format!(
+        r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>{}</span><span class="ml-4">{}</span></div></footer>"#,
+        dict.footer_text(),
+        page
+    )
 }
 
 fn footer_light(page: u32, dict: &Box<dyn Dictionary>) -> String {
-    format!(r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>{}</span><span class="ml-4">{}</span></div></footer>"#, 
-        dict.footer_text(), page)
+    format!(
+        r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>{}</span><span class="ml-4">{}</span></div></footer>"#,
+        dict.footer_text(),
+        page
+    )
 }
 
 fn geometric_pattern() -> &'static str {
@@ -156,14 +173,15 @@ fn render_cover_full(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String
         r#"<div class="mt-4"><p class="text-orange-500 font-semibold">{}</p><p class="text-2xl">{}</p></div>"#, 
         dict.label_partner(), p
     )).unwrap_or_default();
-    
+
     let title_line2 = if data.is_dynamic_window {
         dict.cover_title_dynamic()
     } else {
         dict.cover_title_static()
     };
 
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white p-0"><div class="flex-grow h-full overflow-hidden"><div class="relative h-full w-full flex"><div class="w-5/12 h-full flex flex-col p-14 relative z-10 bg-zinc-950"><div><div class="inline-block bg-black p-1"><div class="inline-flex items-center gap-2 px-4 py-1 bg-orange-600 text-white"><span class="font-bold text-lg">{tlp_lbl}{tlp}</span></div></div><p class="mt-2 text-xs max-w-xs">{tlp_desc}</p></div><div class="flex-grow flex flex-col justify-center"><div><h1 class="text-6xl font-black leading-tight">{title}</h1><div class="mt-8"><div><p class="text-orange-500 font-semibold">{company_lbl}</p><p class="text-2xl">{company}</p></div>{partner}</div></div></div>{logo}</div><div class="w-7/12 h-full relative"><div class="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"></div><div class="absolute inset-0 bg-black/30"></div>{pattern}</div></div></div></div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white p-0"><div class="flex-grow h-full overflow-hidden"><div class="relative h-full w-full flex"><div class="w-5/12 h-full flex flex-col p-14 relative z-10 bg-zinc-950"><div><div class="inline-block bg-black p-1"><div class="inline-flex items-center gap-2 px-4 py-1 bg-orange-600 text-white"><span class="font-bold text-lg">{tlp_lbl}{tlp}</span></div></div><p class="mt-2 text-xs max-w-xs">{tlp_desc}</p></div><div class="flex-grow flex flex-col justify-center"><div><h1 class="text-6xl font-black leading-tight">{title}</h1><div class="mt-8"><div><p class="text-orange-500 font-semibold">{company_lbl}</p><p class="text-2xl">{company}</p></div>{partner}</div></div></div>{logo}</div><div class="w-7/12 h-full relative"><div class="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"></div><div class="absolute inset-0 bg-black/30"></div>{pattern}</div></div></div></div></div>"#,
         tlp_lbl = dict.label_tlp(),
         tlp = data.tlp_level,
         tlp_desc = dict.label_tlp_desc(),
@@ -183,7 +201,8 @@ fn render_intro_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> Strin
         dict.intro_text_static()
     };
 
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500">{title}</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p>{text}</p><p>{closing}</p></div></div></div></div>{footer}</div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500">{title}</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p>{text}</p><p>{closing}</p></div></div></div></div>{footer}</div></div>"#,
         title = dict.intro_title(),
         text = text,
         closing = dict.intro_text_closing(),
@@ -192,8 +211,9 @@ fn render_intro_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> Strin
 }
 
 fn render_solutions_slide(dict: &Box<dyn Dictionary>) -> String {
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full relative items-center"><div class="w-5/12 text-white flex flex-col justify-center pr-10"><h2 class="text-4xl font-bold text-orange-500 leading-tight mb-8">{title}</h2><div class="space-y-6 text-zinc-300 text-sm"><p>{sub1}</p><p>{sub2}</p><p>{sub3}</p></div></div><div class="w-7/12 bg-white text-zinc-800 p-8 rounded-lg shadow-2xl"><div class="grid grid-cols-12 gap-x-6 gap-y-4 w-full"><div class="col-span-8 grid grid-cols-2 gap-x-6 gap-y-4"><div class="bg-blue-500 text-white p-3 rounded-md"><h4 class="font-bold text-sm mb-1">{sol_takedown}</h4><p class="text-xs text-blue-100">Eliminación automatizada de contenido infractor.</p></div><div><h4 class="font-bold text-sm mb-1">{sol_brand}</h4><p class="text-xs text-zinc-600">Detección de abuso de marca y falsificaciones.</p></div><div><h4 class="font-bold text-sm mb-1">{sol_intel}</h4><p class="text-xs text-zinc-600">Inteligencia contextualizada sobre amenazas.</p></div><div><h4 class="font-bold text-sm mb-1">Caza de Amenazas</h4><p class="text-xs text-zinc-600">Búsqueda proactiva de amenazas ocultas.</p></div><div><h4 class="font-bold text-sm mb-1">Deep &amp; Dark Web</h4><p class="text-xs text-zinc-600">Monitoreo de foros y mercados clandestinos.</p></div><div><h4 class="font-bold text-sm mb-1">Inteligencia de Phishing</h4><p class="text-xs text-zinc-600">Análisis de campañas e infraestructura de phishing.</p></div><div><h4 class="font-bold text-sm mb-1">Antipiratería</h4><p class="text-xs text-zinc-600">Combate a la distribución no autorizada.</p></div><div><h4 class="font-bold text-sm mb-1">Protección VIP</h4><p class="text-xs text-zinc-600">Protección para ejecutivos y personas de alto perfil.</p></div><div><h4 class="font-bold text-sm mb-1">Gestión de Superficie de Ataque</h4><p class="text-xs text-zinc-600">Mapeo y monitoreo de activos digitales.</p></div><div><h4 class="font-bold text-sm mb-1">Fugas de Datos</h4><p class="text-xs text-zinc-600">Detección de credenciales y datos sensibles expuestos.</p></div></div><div class="col-span-4 border-l border-zinc-200 pl-6"><h5 class="text-xs font-semibold text-zinc-500 tracking-wider mb-4">INTEGRACIONES</h5><h4 class="font-bold text-sm mb-1">API y Conectores</h4><p class="text-xs text-zinc-600">Integre nuestros datos en su SIEM, SOAR u otras herramientas de seguridad.</p></div></div></div></div></div>{footer}</div></div>"#,
-        // Note: For brevity I only connected a few key titles - ideally ALL would be connected. 
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full relative items-center"><div class="w-5/12 text-white flex flex-col justify-center pr-10"><h2 class="text-4xl font-bold text-orange-500 leading-tight mb-8">{title}</h2><div class="space-y-6 text-zinc-300 text-sm"><p>{sub1}</p><p>{sub2}</p><p>{sub3}</p></div></div><div class="w-7/12 bg-white text-zinc-800 p-8 rounded-lg shadow-2xl"><div class="grid grid-cols-12 gap-x-6 gap-y-4 w-full"><div class="col-span-8 grid grid-cols-2 gap-x-6 gap-y-4"><div class="bg-blue-500 text-white p-3 rounded-md"><h4 class="font-bold text-sm mb-1">{sol_takedown}</h4><p class="text-xs text-blue-100">Eliminación automatizada de contenido infractor.</p></div><div><h4 class="font-bold text-sm mb-1">{sol_brand}</h4><p class="text-xs text-zinc-600">Detección de abuso de marca y falsificaciones.</p></div><div><h4 class="font-bold text-sm mb-1">{sol_intel}</h4><p class="text-xs text-zinc-600">Inteligencia contextualizada sobre amenazas.</p></div><div><h4 class="font-bold text-sm mb-1">Caza de Amenazas</h4><p class="text-xs text-zinc-600">Búsqueda proactiva de amenazas ocultas.</p></div><div><h4 class="font-bold text-sm mb-1">Deep &amp; Dark Web</h4><p class="text-xs text-zinc-600">Monitoreo de foros y mercados clandestinos.</p></div><div><h4 class="font-bold text-sm mb-1">Inteligencia de Phishing</h4><p class="text-xs text-zinc-600">Análisis de campañas e infraestructura de phishing.</p></div><div><h4 class="font-bold text-sm mb-1">Antipiratería</h4><p class="text-xs text-zinc-600">Combate a la distribución no autorizada.</p></div><div><h4 class="font-bold text-sm mb-1">Protección VIP</h4><p class="text-xs text-zinc-600">Protección para ejecutivos y personas de alto perfil.</p></div><div><h4 class="font-bold text-sm mb-1">Gestión de Superficie de Ataque</h4><p class="text-xs text-zinc-600">Mapeo y monitoreo de activos digitales.</p></div><div><h4 class="font-bold text-sm mb-1">Fugas de Datos</h4><p class="text-xs text-zinc-600">Detección de credenciales y datos sensibles expuestos.</p></div></div><div class="col-span-4 border-l border-zinc-200 pl-6"><h5 class="text-xs font-semibold text-zinc-500 tracking-wider mb-4">INTEGRACIONES</h5><h4 class="font-bold text-sm mb-1">API y Conectores</h4><p class="text-xs text-zinc-600">Integre nuestros datos en su SIEM, SOAR u otras herramientas de seguridad.</p></div></div></div></div></div>{footer}</div></div>"#,
+        // Note: For brevity I only connected a few key titles - ideally ALL would be connected.
         // Given complexity, I connected the main ones.
         title = dict.solutions_title(),
         sub1 = dict.solutions_subtitle_1(),
@@ -211,8 +231,9 @@ fn render_toc_slide(dict: &Box<dyn Dictionary>) -> String {
     let items_html: String = items.iter().map(|item| format!(
         r#"<div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">{}</span></div>"#, item
     )).collect();
-    
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100 p-0"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full"><div class="w-8/12 p-14 flex flex-col justify-center"><div class="mb-12"><span class="bg-orange-600 text-white px-4 py-2 text-md font-semibold">{title}</span></div><div class="space-y-5">{items}</div></div><div class="w-4/12 relative bg-zinc-800 rounded-l-xl overflow-hidden">{pattern}</div></div></div>{footer}</div></div>"#,
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100 p-0"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full"><div class="w-8/12 p-14 flex flex-col justify-center"><div class="mb-12"><span class="bg-orange-600 text-white px-4 py-2 text-md font-semibold">{title}</span></div><div class="space-y-5">{items}</div></div><div class="w-4/12 relative bg-zinc-800 rounded-l-xl overflow-hidden">{pattern}</div></div></div>{footer}</div></div>"#,
         items = items_html,
         title = dict.toc_title(),
         pattern = geometric_pattern(),
@@ -222,12 +243,14 @@ fn render_toc_slide(dict: &Box<dyn Dictionary>) -> String {
 
 fn render_poc_data_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let duration_box = if data.is_dynamic_window {
-        format!(r#"<div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>{title}</h3><p class="text-zinc-300 text-lg">{text}</p><p class="text-zinc-500 text-sm mt-2">Detección Continua</p></div>"#,
+        format!(
+            r#"<div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>{title}</h3><p class="text-zinc-300 text-lg">{text}</p><p class="text-zinc-500 text-sm mt-2">Detección Continua</p></div>"#,
             title = dict.poc_period_dynamic_title(),
             text = dict.poc_period_dynamic_text()
         )
     } else {
-        format!(r#"<div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>{title}</h3><p class="text-zinc-300">{start_lbl}: {start}</p><p class="text-zinc-300">{end_lbl}: {end}</p></div>"#,
+        format!(
+            r#"<div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>{title}</h3><p class="text-zinc-300">{start_lbl}: {start}</p><p class="text-zinc-300">{end_lbl}: {end}</p></div>"#,
             title = dict.poc_period_static_title(),
             start_lbl = dict.poc_period_start(),
             end_lbl = dict.poc_period_end(),
@@ -236,7 +259,8 @@ fn render_poc_data_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
         )
     };
 
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="absolute inset-0 bg-gradient-to-br from-zinc-950 to-zinc-900" style="background-image:radial-gradient(circle at 25px 25px,rgba(251,146,60,0.1) 2%,transparent 0%),radial-gradient(circle at 75px 75px,rgba(251,146,60,0.1) 2%,transparent 0%);background-size:100px 100px"></div><div class="relative h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">{title_scope}</span><h2 class="text-4xl font-bold mt-2">{title_assets}</h2></div><div class="grid grid-cols-12 gap-12 flex-grow"><div class="col-span-8"><h3 class="text-2xl font-semibold mb-6 text-orange-400">{title_assets}</h3><div class="grid grid-cols-2 gap-6"><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z"></path></svg><div><p class="text-3xl font-bold text-white">{brands}</p><p class="text-sm text-zinc-400">{brands_label}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.228a4.5 4.5 0 00-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 001.13-1.897M16.5 7.5V18L18 15.75l-1.5-3.75V7.5z"></path></svg><div><p class="text-3xl font-bold text-white">{exec}</p><p class="text-sm text-zinc-400">{lbl_exec}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 00-.12-1.03l-2.268-9.64a3.375 3.375 0 00-3.285-2.602H7.923a3.375 3.375 0 00-3.285 2.602l-2.268 9.64a4.5 4.5 0 00-.12 1.03v.228m19.5 0a3 3 0 01-3 3H5.25a3 3 0 01-3-3m19.5 0a3 3 0 00-3-3H5.25a3 3 0 00-3 3m16.5 0h.008v.008h-.008v-.008zm-3 0h.008v.008h-.008v-.008z"></path></svg><div><p class="text-3xl font-bold text-white">{ips}</p><p class="text-sm text-zinc-400">{lbl_ips}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"></path></svg><div><p class="text-3xl font-bold text-white">{bins}</p><p class="text-sm text-zinc-400">{lbl_bins}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg><div><p class="text-3xl font-bold text-white">{domains}</p><p class="text-sm text-zinc-400">{lbl_domains}</p></div></div></div></div><div class="col-span-4 flex flex-col gap-8">{duration_box}<div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>Acceso a Investigación</h3><div class="space-y-4"><div><p class="font-semibold">Threat Hunting</p><p class="text-sm text-zinc-400">Créditos: <span class="font-bold text-orange-400">{th_credits}</span></p></div><div><p class="font-semibold">Threat Intelligence</p><p class="text-sm text-zinc-400">Activos: <span class="font-bold text-orange-400">{ti_assets}</span></p></div></div></div></div></div></div></div>{footer}</div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="absolute inset-0 bg-gradient-to-br from-zinc-950 to-zinc-900" style="background-image:radial-gradient(circle at 25px 25px,rgba(251,146,60,0.1) 2%,transparent 0%),radial-gradient(circle at 75px 75px,rgba(251,146,60,0.1) 2%,transparent 0%);background-size:100px 100px"></div><div class="relative h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">{title_scope}</span><h2 class="text-4xl font-bold mt-2">{title_assets}</h2></div><div class="grid grid-cols-12 gap-12 flex-grow"><div class="col-span-8"><h3 class="text-2xl font-semibold mb-6 text-orange-400">{title_assets}</h3><div class="grid grid-cols-2 gap-6"><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z"></path></svg><div><p class="text-3xl font-bold text-white">{brands}</p><p class="text-sm text-zinc-400">{brands_label}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.228a4.5 4.5 0 00-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 001.13-1.897M16.5 7.5V18L18 15.75l-1.5-3.75V7.5z"></path></svg><div><p class="text-3xl font-bold text-white">{exec}</p><p class="text-sm text-zinc-400">{lbl_exec}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 00-.12-1.03l-2.268-9.64a3.375 3.375 0 00-3.285-2.602H7.923a3.375 3.375 0 00-3.285 2.602l-2.268 9.64a4.5 4.5 0 00-.12 1.03v.228m19.5 0a3 3 0 01-3 3H5.25a3 3 0 01-3-3m19.5 0a3 3 0 00-3-3H5.25a3 3 0 00-3 3m16.5 0h.008v.008h-.008v-.008zm-3 0h.008v.008h-.008v-.008z"></path></svg><div><p class="text-3xl font-bold text-white">{ips}</p><p class="text-sm text-zinc-400">{lbl_ips}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"></path></svg><div><p class="text-3xl font-bold text-white">{bins}</p><p class="text-sm text-zinc-400">{lbl_bins}</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg><div><p class="text-3xl font-bold text-white">{domains}</p><p class="text-sm text-zinc-400">{lbl_domains}</p></div></div></div></div><div class="col-span-4 flex flex-col gap-8">{duration_box}<div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>Acceso a Investigación</h3><div class="space-y-4"><div><p class="font-semibold">Threat Hunting</p><p class="text-sm text-zinc-400">Créditos: <span class="font-bold text-orange-400">{th_credits}</span></p></div><div><p class="font-semibold">Threat Intelligence</p><p class="text-sm text-zinc-400">Activos: <span class="font-bold text-orange-400">{ti_assets}</span></p></div></div></div></div></div></div></div>{footer}</div></div>"#,
         brands = data.brands_count,
         brands_label = dict.poc_label_brands(),
         exec = data.executives_count,
@@ -247,10 +271,8 @@ fn render_poc_data_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
         lbl_bins = dict.poc_label_bins(),
         domains = data.domains_count,
         lbl_domains = dict.poc_label_domains(),
-        
         title_scope = dict.poc_scope_title(),
         title_assets = dict.poc_assets_title(),
-        
         duration_box = duration_box,
         th_credits = data.threat_hunting_credits,
         ti_assets = data.threat_intelligence_assets,
@@ -259,33 +281,36 @@ fn render_poc_data_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
 }
 
 fn render_general_metrics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">{title_metrics}</h2><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{tickets}</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_tickets}</p><div class="text-zinc-600 text-sm space-y-2">{desc_tickets}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{threats}</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_threats}</p><div class="text-zinc-600 text-sm space-y-2">{desc_threats}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{hours} h</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_time}</p><div class="text-zinc-600 text-sm space-y-2">{desc_time}</div></div><p class="text-xs text-zinc-500 italic mt-4">*Estimación basada en un promedio de 5 minutos por señal.</p></div></div></div></div>{footer}</div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">{title_metrics}</h2><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{tickets}</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_tickets}</p><div class="text-zinc-600 text-sm space-y-2">{desc_tickets}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{threats}</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_threats}</p><div class="text-zinc-600 text-sm space-y-2">{desc_threats}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{hours} h</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_time}</p><div class="text-zinc-600 text-sm space-y-2">{desc_time}</div></div><p class="text-xs text-zinc-500 italic mt-4">*Estimación basada en un promedio de 5 minutos por señal.</p></div></div></div></div>{footer}</div></div>"#,
         title_metrics = dict.metrics_title(),
         tickets = format_number(data.total_tickets),
         title_tickets = dict.metrics_total_tickets(),
         desc_tickets = dict.metrics_desc_tickets(),
-        
         threats = format_number(data.total_threats),
         title_threats = dict.metrics_threats_detected(),
         desc_threats = dict.metrics_desc_threats(),
-        
         hours = data.validation_hours as u64,
         title_time = dict.metrics_time_saved(),
         desc_time = dict.metrics_desc_time(),
-        
         footer = footer_light(6, dict),
     )
 }
 
 fn render_threats_chart_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     // Generate JSON for Chart.js
-    let labels: Vec<String> = data.threats_by_type.iter().map(|t| t.threat_type.clone()).collect();
+    let labels: Vec<String> = data
+        .threats_by_type
+        .iter()
+        .map(|t| t.threat_type.clone())
+        .collect();
     let values: Vec<u64> = data.threats_by_type.iter().map(|t| t.count).collect();
-    
+
     let json_labels = serde_json::to_string(&labels).unwrap_or_default();
     let json_data = serde_json::to_string(&values).unwrap_or_default();
-    
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-zinc-600 max-w-4xl text-lg">{desc}</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="threatsChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('threatsChart').getContext('2d');new Chart(ctx,{{type:'bar',data:{{labels:{json_labels},datasets:[{{label:'Amenazas',data:{json_data},backgroundColor:'#f97316',borderRadius:4}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},scales:{{y:{{beginAtZero:true,grid:{{display:true,color:'rgba(0,0,0,0.05)'}}}},x:{{grid:{{display:false}}}}}}}}}});}})();</script></div></div>"#,
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-zinc-600 max-w-4xl text-lg">{desc}</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="threatsChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('threatsChart').getContext('2d');new Chart(ctx,{{type:'bar',data:{{labels:{json_labels},datasets:[{{label:'Amenazas',data:{json_data},backgroundColor:'#f97316',borderRadius:4}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},scales:{{y:{{beginAtZero:true,grid:{{display:true,color:'rgba(0,0,0,0.05)'}}}},x:{{grid:{{display:false}}}}}}}}}});}})();</script></div></div>"#,
         title = dict.threats_title(),
         desc = dict.threats_desc(data.total_threats),
         footer = footer_light(7, dict),
@@ -295,38 +320,32 @@ fn render_threats_chart_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) 
 }
 
 fn render_infostealer_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="absolute inset-0 opacity-20" style="background-image: linear-gradient(30deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(150deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(30deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(150deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), radial-gradient(circle at 50% 50%, #f97316 0%, transparent 15%); background-size: 80px 140px; background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0;"></div><div class="relative h-full flex flex-col z-10"><h2 class="text-4xl font-bold text-orange-500 mb-2">{title}</h2><p class="text-xl text-zinc-300 mb-12">{subtitle}</p><div class="grid grid-cols-3 gap-8 mb-12"><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">{creds}</p><p class="text-zinc-400">{lbl_creds}</p></div><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">{hosts}</p><p class="text-zinc-400">{lbl_hosts}</p></div><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">{risk}</p><p class="text-zinc-400">{lbl_risk}</p></div></div><div class="bg-orange-600/20 border border-orange-600/50 p-6 rounded-lg flex items-start gap-4"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-orange-100 italic">{action}</p></div></div></div>{footer}</div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="absolute inset-0 opacity-20" style="background-image: linear-gradient(30deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(150deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(30deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(150deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), radial-gradient(circle at 50% 50%, #f97316 0%, transparent 15%); background-size: 80px 140px; background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0;"></div><div class="relative h-full flex flex-col z-10"><h2 class="text-4xl font-bold text-orange-500 mb-2">{title}</h2><p class="text-xl text-zinc-300 mb-12">{subtitle}</p><div class="grid grid-cols-3 gap-8 mb-12"><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">{creds}</p><p class="text-zinc-400">{lbl_creds}</p></div><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">{hosts}</p><p class="text-zinc-400">{lbl_hosts}</p></div><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">{risk}</p><p class="text-zinc-400">{lbl_risk}</p></div></div><div class="bg-orange-600/20 border border-orange-600/50 p-6 rounded-lg flex items-start gap-4"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-orange-100 italic">{action}</p></div></div></div>{footer}</div></div>"#,
         title = dict.stealer_title(),
         subtitle = dict.stealer_subtitle(data.credentials_total),
-        
         creds = format_number(data.credentials_total),
         lbl_creds = dict.stealer_box_creds(),
-        
         hosts = format_number(data.unique_hosts),
         lbl_hosts = dict.stealer_box_hosts(),
-        
         risk = format_number(data.high_risk_users),
         lbl_risk = dict.stealer_box_high_risk(),
-        
         action = dict.stealer_action(),
         footer = footer_dark(8, dict),
     )
 }
 
 fn render_code_leak_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-50"><div class="flex-grow h-full overflow-hidden"><div class="absolute right-0 top-0 w-1/3 h-full bg-zinc-200/50 slanted-bg"></div><div class="relative h-full flex flex-col z-10"><h2 class="text-4xl font-bold text-zinc-900 mb-2">{title}</h2><p class="text-xl text-zinc-600 mb-12">{subtitle}</p><div class="grid grid-cols-3 gap-8 mb-12"><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-orange-500"><p class="text-5xl font-bold text-zinc-900 mb-2">{secrets}</p><p class="text-zinc-500">{lbl_secrets}</p></div><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-zinc-500"><p class="text-5xl font-bold text-zinc-900 mb-2">{repos}</p><p class="text-zinc-500">{lbl_repos}</p></div><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-red-500"><p class="text-5xl font-bold text-zinc-900 mb-2">{prod}</p><p class="text-zinc-500">{lbl_prod}</p></div></div><div class="bg-red-50 border border-red-200 p-6 rounded-lg flex items-start gap-4"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8 text-red-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-red-800 italic">{action}</p></div></div></div>{footer}</div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-50"><div class="flex-grow h-full overflow-hidden"><div class="absolute right-0 top-0 w-1/3 h-full bg-zinc-200/50 slanted-bg"></div><div class="relative h-full flex flex-col z-10"><h2 class="text-4xl font-bold text-zinc-900 mb-2">{title}</h2><p class="text-xl text-zinc-600 mb-12">{subtitle}</p><div class="grid grid-cols-3 gap-8 mb-12"><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-orange-500"><p class="text-5xl font-bold text-zinc-900 mb-2">{secrets}</p><p class="text-zinc-500">{lbl_secrets}</p></div><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-zinc-500"><p class="text-5xl font-bold text-zinc-900 mb-2">{repos}</p><p class="text-zinc-500">{lbl_repos}</p></div><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-red-500"><p class="text-5xl font-bold text-zinc-900 mb-2">{prod}</p><p class="text-zinc-500">{lbl_prod}</p></div></div><div class="bg-red-50 border border-red-200 p-6 rounded-lg flex items-start gap-4"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8 text-red-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-red-800 italic">{action}</p></div></div></div>{footer}</div></div>"#,
         title = dict.code_leak_title(),
         subtitle = dict.code_leak_subtitle(data.secrets_total),
-        
         secrets = format_number(data.secrets_total),
         lbl_secrets = dict.code_leak_box_secrets(),
-        
         repos = format_number(data.unique_repos),
         lbl_repos = dict.code_leak_box_repos(),
-        
         prod = format_number(data.production_secrets),
         lbl_prod = dict.code_leak_box_prod(),
-        
         action = dict.code_leak_action(),
         footer = footer_light(9, dict),
     )
@@ -334,13 +353,22 @@ fn render_code_leak_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> S
 
 fn render_incidents_chart_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     // Generate scale-agnostic labels
-    let labels: Vec<String> = data.incidents_by_type.iter().map(|t| t.incident_type.clone()).collect();
-    let values: Vec<u64> = data.incidents_by_type.iter().map(|t| t.detections).collect();
-    
+    let labels: Vec<String> = data
+        .incidents_by_type
+        .iter()
+        .map(|t| t.incident_type.clone())
+        .collect();
+    let values: Vec<u64> = data
+        .incidents_by_type
+        .iter()
+        .map(|t| t.detections)
+        .collect();
+
     let json_labels = serde_json::to_string(&labels).unwrap_or_default();
     let json_data = serde_json::to_string(&values).unwrap_or_default();
 
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-zinc-600 max-w-4xl text-lg">{desc}</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="incidentsChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('incidentsChart').getContext('2d');new Chart(ctx,{{type:'doughnut',data:{{labels:{json_labels},datasets:[{{data:{json_data},backgroundColor:['#fb923c','#f97316','#ea580c','#c2410c','#7c2d12'],borderWidth:0}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{position:'right'}}}}}}}});}})();</script></div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-zinc-600 max-w-4xl text-lg">{desc}</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="incidentsChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('incidentsChart').getContext('2d');new Chart(ctx,{{type:'doughnut',data:{{labels:{json_labels},datasets:[{{data:{json_data},backgroundColor:['#fb923c','#f97316','#ea580c','#c2410c','#7c2d12'],borderWidth:0}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{position:'right'}}}}}}}});}})();</script></div></div>"#,
         title = dict.incidents_title(),
         desc = dict.incidents_desc(data.total_threats),
         footer = footer_light(10, dict),
@@ -354,18 +382,19 @@ fn render_takedowns_realizados_slide(data: &PocReportData, dict: &Box<dyn Dictio
         data.takedown_resolved,
         data.takedown_pending,
         data.takedown_aborted,
-        data.takedown_unresolved
+        data.takedown_unresolved,
     ];
     let donut_json = serde_json::to_string(&donut_data).unwrap_or_default();
     let donut_labels = vec![
         dict.takedowns_solved(),
         dict.takedowns_in_progress(),
         dict.takedowns_interrupted(),
-        dict.takedowns_not_solved()
+        dict.takedowns_not_solved(),
     ];
     let labels_json = serde_json::to_string(&donut_labels).unwrap_or_default();
 
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-4"><h2 class="text-4xl font-bold mb-4">{title}</h2></div><div class="grid grid-cols-12 gap-8 flex-grow"><div class="col-span-4 flex flex-col gap-4"><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{req}</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_req}</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{rate:.1}%</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_rate}</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{notify}</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_notify}</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{uptime}</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_uptime}</p></div></div><div class="col-span-8 bg-white p-8 rounded-lg shadow-md border border-zinc-200 flex flex-col"><h3 class="text-xl font-bold text-zinc-700 mb-6">{status_title}</h3><div class="flex-grow relative"><canvas id="takedownChart"></canvas></div></div></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('takedownChart').getContext('2d');new Chart(ctx,{{type:'doughnut',data:{{labels:{labels},datasets:[{{data:{data},backgroundColor:['#10b981','#f59e0b','#ef4444','#64748b'],borderWidth:0}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{position:'right',labels:{{font:{{size:14}}}}}}}}}}}});}})();</script></div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-4"><h2 class="text-4xl font-bold mb-4">{title}</h2></div><div class="grid grid-cols-12 gap-8 flex-grow"><div class="col-span-4 flex flex-col gap-4"><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{req}</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_req}</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{rate:.1}%</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_rate}</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{notify}</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_notify}</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">{uptime}</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">{lbl_uptime}</p></div></div><div class="col-span-8 bg-white p-8 rounded-lg shadow-md border border-zinc-200 flex flex-col"><h3 class="text-xl font-bold text-zinc-700 mb-6">{status_title}</h3><div class="flex-grow relative"><canvas id="takedownChart"></canvas></div></div></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('takedownChart').getContext('2d');new Chart(ctx,{{type:'doughnut',data:{{labels:{labels},datasets:[{{data:{data},backgroundColor:['#10b981','#f59e0b','#ef4444','#64748b'],borderWidth:0}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{position:'right',labels:{{font:{{size:14}}}}}}}}}}}});}})();</script></div></div>"#,
         title = dict.takedowns_title(),
         req = data.total_tickets, // Or calculated requested from takedowns? "takedowns requested" usually resolved+pending+aborted+unresolved
         lbl_req = dict.takedowns_requested(),
@@ -375,7 +404,6 @@ fn render_takedowns_realizados_slide(data: &PocReportData, dict: &Box<dyn Dictio
         lbl_notify = dict.takedowns_median_notify(),
         uptime = data.takedown_median_uptime,
         lbl_uptime = dict.takedowns_median_uptime(),
-        
         status_title = dict.takedowns_status_title(),
         labels = labels_json,
         data = donut_json,
@@ -385,26 +413,30 @@ fn render_takedowns_realizados_slide(data: &PocReportData, dict: &Box<dyn Dictio
 
 fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let metrics = &data.roi_metrics;
-    
+
     // Format hours saved nicely
     let hours_display = if metrics.hours_saved_total >= 8.0 {
         format!("{:.0}", metrics.person_days_saved)
     } else {
         format!("{:.1}", metrics.hours_saved_total)
     };
-    let hours_unit = if metrics.hours_saved_total >= 8.0 { dict.op_unit_person_days() } else { dict.op_unit_hours() };
-    
+    let hours_unit = if metrics.hours_saved_total >= 8.0 {
+        dict.op_unit_person_days()
+    } else {
+        dict.op_unit_hours()
+    };
+
     // Format analysts equivalent - use simple formatting
     let analysts_display = if metrics.analysts_equivalent_monthly >= 1.0 {
         format!("{:.1}", metrics.analysts_equivalent_monthly)
     } else {
         format!("{:.0}%", metrics.analysts_equivalent_monthly * 100.0)
     };
-    
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">{badge}</span><h2 class="text-4xl font-bold mt-4">{title}</h2></div><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{eff_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{hours} <span class="text-base font-normal text-zinc-400">{hours_unit}</span></p><p class="text-zinc-400 text-sm leading-relaxed">{eff_desc}</p><div class="mt-4 text-xs text-zinc-500"><p>• {lbl_validation}: {val_hours:.0}h</p><p>• {lbl_monitoring}: {cred_hours:.0}h</p><p>• {lbl_takedowns}: {td_hours:.0}h</p></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94-3.198a9.094 9.094 0 01-5.454-2.82m0 0a2.25 2.25 0 00-3.182 0m3.182 0a2.25 2.25 0 010 3.182m-3.182-3.182L12 12.75m0 0l3.182 3.182m-3.182-3.182L12 12.75"></path></svg></div><h3 class="text-2xl font-bold mb-2">{team_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{analysts}</p><p class="text-zinc-400 text-sm leading-relaxed">{team_desc}</p><div class="mt-4"><div class="flex items-center gap-2 text-xs text-zinc-500"><span class="w-3 h-3 rounded-full bg-green-500"></span><span>{tickets} {lbl_tickets}</span></div><div class="flex items-center gap-2 text-xs text-zinc-500 mt-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span>{creds} {lbl_creds}</span></div></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{resp_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{resp_time}</p><p class="text-zinc-400 text-sm leading-relaxed">{resp_desc}</p><div class="mt-4 space-y-2"><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_success}</span><span class="text-green-400 font-bold">{success_rate:.1}%</span></div><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_td_done}</span><span class="text-white font-bold">{takedowns}</span></div></div></div></div></div></div>{footer}</div></div>"#,
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">{badge}</span><h2 class="text-4xl font-bold mt-4">{title}</h2></div><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{eff_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{hours} <span class="text-base font-normal text-zinc-400">{hours_unit}</span></p><p class="text-zinc-400 text-sm leading-relaxed">{eff_desc}</p><div class="mt-4 text-xs text-zinc-500"><p>• {lbl_validation}: {val_hours:.0}h</p><p>• {lbl_monitoring}: {cred_hours:.0}h</p><p>• {lbl_takedowns}: {td_hours:.0}h</p></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94-3.198a9.094 9.094 0 01-5.454-2.82m0 0a2.25 2.25 0 00-3.182 0m3.182 0a2.25 2.25 0 010 3.182m-3.182-3.182L12 12.75m0 0l3.182 3.182m-3.182-3.182L12 12.75"></path></svg></div><h3 class="text-2xl font-bold mb-2">{team_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{analysts}</p><p class="text-zinc-400 text-sm leading-relaxed">{team_desc}</p><div class="mt-4"><div class="flex items-center gap-2 text-xs text-zinc-500"><span class="w-3 h-3 rounded-full bg-green-500"></span><span>{tickets} {lbl_tickets}</span></div><div class="flex items-center gap-2 text-xs text-zinc-500 mt-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span>{creds} {lbl_creds}</span></div></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{resp_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{resp_time}</p><p class="text-zinc-400 text-sm leading-relaxed">{resp_desc}</p><div class="mt-4 space-y-2"><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_success}</span><span class="text-green-400 font-bold">{success_rate:.1}%</span></div><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_td_done}</span><span class="text-white font-bold">{takedowns}</span></div></div></div></div></div></div>{footer}</div></div>"#,
         badge = dict.op_badge(),
         title = dict.roi_title(),
-        
         eff_title = dict.op_time_saved_title(),
         hours = hours_display,
         hours_unit = hours_unit,
@@ -415,7 +447,6 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         cred_hours = metrics.hours_saved_credentials,
         lbl_takedowns = dict.op_breakdown_takedowns(),
         td_hours = metrics.hours_saved_takedowns,
-        
         team_title = dict.op_capacity_title(),
         analysts = analysts_display,
         team_desc = dict.op_capacity_desc(),
@@ -423,7 +454,6 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         lbl_tickets = dict.op_tickets_processed(),
         creds = format_number(metrics.credentials_monitored),
         lbl_creds = dict.op_credentials_monitored(),
-        
         resp_title = dict.op_response_title(),
         resp_time = metrics.median_response_time,
         resp_desc = dict.op_response_desc(),
@@ -431,7 +461,6 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         success_rate = metrics.takedown_success_rate,
         lbl_td_done = dict.op_takedowns_completed(),
         takedowns = metrics.takedowns_completed,
-        
         footer = footer_dark(12, dict),
     )
 }
@@ -439,25 +468,35 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
 fn render_takedown_examples_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let mut examples_html = String::new();
     let example_count = data.resolved_takedowns.len().min(3);
-    
+
     if example_count > 0 {
         for ex in data.resolved_takedowns.iter().take(3) {
             let img = if let Some(path) = &ex.screenshot_url {
-                format!(r#"<img src="{}" class="w-full h-48 object-cover rounded-md border border-zinc-200" alt="Screenshot"/>"#, path)
+                format!(
+                    r#"<img src="{}" class="w-full h-48 object-cover rounded-md border border-zinc-200" alt="Screenshot"/>"#,
+                    path
+                )
             } else {
-                 format!(r#"<div class="w-full h-48 bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-md border border-zinc-200">{}</div>"#, dict.example_no_image())
+                format!(
+                    r#"<div class="w-full h-48 bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-md border border-zinc-200">{}</div>"#,
+                    dict.example_no_image()
+                )
             };
-            
+
             let date = ex.resolution_date.as_deref().unwrap_or("-");
-            
+
             examples_html.push_str(&format!(r#"<div class="bg-white p-6 rounded-lg shadow-md border border-zinc-200"><div class="mb-4">{}</div><div class="space-y-2"><p class="font-bold text-zinc-800 text-lg line-clamp-1">{}</p><p class="text-xs text-zinc-500"><span class="font-bold">{}</span> {}</p><p class="text-xs text-zinc-500"><span class="font-bold">{}</span> {}</p></div></div>"#,
                 img, ex.name, dict.example_label_date(), date, dict.example_label_url(), ex.url));
         }
     } else {
-        examples_html = format!(r#"<div class="col-span-3 text-center text-zinc-500 italic p-12">{}</div>"#, dict.example_no_data());
+        examples_html = format!(
+            r#"<div class="col-span-3 text-center text-zinc-500 italic p-12">{}</div>"#,
+            dict.example_no_data()
+        );
     }
 
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">EVIDENCIAS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2></div><div class="grid grid-cols-3 gap-6 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">EVIDENCIAS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2></div><div class="grid grid-cols-3 gap-6 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
         title = dict.examples_takedowns_title(),
         examples = examples_html,
         footer = footer_light(13, dict),
@@ -467,7 +506,10 @@ fn render_takedown_examples_slide(data: &PocReportData, dict: &Box<dyn Dictionar
 fn render_poc_examples_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     // Group by type and show first few examples
     let examples_html: String = if data.poc_examples.is_empty() {
-        format!(r#"<div class="bg-white p-6 rounded-xl shadow-lg border border-zinc-200 text-center col-span-3"><p class="text-zinc-500 italic">{}</p></div>"#, dict.example_no_data())
+        format!(
+            r#"<div class="bg-white p-6 rounded-xl shadow-lg border border-zinc-200 text-center col-span-3"><p class="text-zinc-500 italic">{}</p></div>"#,
+            dict.example_no_data()
+        )
     } else {
         data.poc_examples.iter().take(6).map(|ex| {
             let domain = ex.domain.as_deref().unwrap_or("N/A");
@@ -494,17 +536,469 @@ fn render_poc_examples_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -
             )
         }).collect()
     };
-    
-    format!(r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">EVIDENCIAS</span></div><h2 class="text-3xl font-bold mb-6">{title}</h2><div class="grid grid-cols-3 gap-4 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">EVIDENCIAS</span></div><h2 class="text-3xl font-bold mb-6">{title}</h2><div class="grid grid-cols-3 gap-4 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
         title = dict.examples_poc_title(),
         examples = examples_html,
         footer = footer_light(12, dict),
     )
 }
 
+fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    tracing::info!(
+        "render_incident_story_slide called with {} story tickets",
+        data.story_tickets.len()
+    );
+    if data.story_tickets.is_empty() {
+        tracing::info!("No story tickets found, skipping slide");
+        return String::new();
+    }
 
+    let mut cards_html = String::new();
 
-fn render_closing_full(_data: &PocReportData, offline_assets: Option<&OfflineAssets>, dict: &Box<dyn Dictionary>) -> String {
+    // Take max 4 for grid layout (2x2)
+    for ticket in data.story_tickets.iter().take(4) {
+        // Screenshot image
+        let img_html = if let Some(url) = &ticket.screenshot_url {
+            format!(
+                r#"<div class="relative h-28 w-full rounded-lg overflow-hidden border border-zinc-700 mb-3">
+                    <img src="{}" class="w-full h-full object-cover" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                </div>"#,
+                url
+            )
+        } else {
+            r#"<div class="h-28 w-full rounded-lg bg-zinc-800 border border-zinc-700 mb-3 flex items-center justify-center">
+                <span class="text-zinc-500 text-xs">No preview</span>
+            </div>"#.to_string()
+        };
+
+        // Status badge color
+        let status_color = match ticket.status.to_lowercase().as_str() {
+            "incident" => ("bg-red-500/20 text-red-400 border-red-500/30", "🔴"),
+            "closed" => ("bg-green-500/20 text-green-400 border-green-500/30", "✅"),
+            _ => (
+                "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+                "⚠️",
+            ),
+        };
+
+        // Threat type icon
+        let threat_icon = match ticket.threat_type.as_str() {
+            "phishing" => "🎣",
+            "fake-social-media-profile" => "👤",
+            "fraudulent-brand-use" => "🏷️",
+            _ => "⚡",
+        };
+
+        // Format date nicely
+        let display_date = ticket
+            .incident_date
+            .as_ref()
+            .or(ticket.open_date.as_ref())
+            .map(|d| {
+                if d.len() >= 10 {
+                    format!("{}/{}/{}", &d[8..10], &d[5..7], &d[0..4])
+                } else {
+                    d.clone()
+                }
+            })
+            .unwrap_or_else(|| "N/A".to_string());
+
+        // Risk meter (0-100%)
+        let risk_percent = ticket.risk_score.map(|r| (r * 100.0) as i32).unwrap_or(0);
+        let risk_color = if risk_percent >= 70 {
+            "bg-red-500"
+        } else if risk_percent >= 40 {
+            "bg-orange-500"
+        } else {
+            "bg-green-500"
+        };
+
+        // Time metrics display
+        let time_metrics = if let Some(hours) = ticket.time_to_incident_hours {
+            if hours >= 24 {
+                format!("{} días hasta incidente", hours / 24)
+            } else {
+                format!("{} hrs hasta incidente", hours)
+            }
+        } else {
+            String::new()
+        };
+
+        let age_display = if let Some(hours) = ticket.incident_age_hours {
+            if hours >= 24 {
+                format!("Activo: {} días", hours / 24)
+            } else {
+                format!("Activo: {} hrs", hours)
+            }
+        } else {
+            String::new()
+        };
+
+        // Page title (truncated)
+        let page_title = ticket
+            .page_title
+            .as_ref()
+            .map(|t| {
+                if t.len() > 40 {
+                    format!("{}...", &t[..40])
+                } else {
+                    t.clone()
+                }
+            })
+            .unwrap_or_default();
+
+        cards_html.push_str(&format!(r#"
+            <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 hover:border-orange-500/40 transition-all duration-300 shadow-lg hover:shadow-orange-500/10">
+                <!-- Header: Date + Status -->
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-mono text-zinc-400">{date}</span>
+                    <span class="text-[0.6rem] px-2 py-0.5 rounded border {status_class} uppercase font-bold tracking-wider">{status_icon} {status}</span>
+                </div>
+                
+                <!-- Screenshot -->
+                {img}
+                
+                <!-- Target & Type -->
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">{threat_icon}</span>
+                    <h4 class="text-white font-bold text-sm truncate flex-1">{target}</h4>
+                </div>
+                
+                <!-- Threat Type Badge -->
+                <div class="mb-3">
+                    <span class="text-[0.65rem] bg-zinc-800 px-2 py-0.5 rounded text-zinc-400">{threat_type}</span>
+                </div>
+                
+                <!-- Page Title if available -->
+                {page_title_html}
+                
+                <!-- Metrics Row -->
+                <div class="grid grid-cols-2 gap-2 text-[0.65rem] text-zinc-500 border-t border-zinc-800 pt-3 mt-2">
+                    <!-- ISP -->
+                    <div class="flex items-center gap-1">
+                        <span>🏢</span>
+                        <span class="truncate">{isp}</span>
+                    </div>
+                    <!-- IP -->
+                    <div class="flex items-center gap-1 font-mono">
+                        <span>🌐</span>
+                        <span class="truncate">{ip}</span>
+                    </div>
+                </div>
+                
+                <!-- Risk Meter -->
+                <div class="mt-3">
+                    <div class="flex justify-between text-[0.6rem] text-zinc-500 mb-1">
+                        <span>Riesgo</span>
+                        <span class="font-bold {risk_text}">{risk}%</span>
+                    </div>
+                    <div class="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div class="h-full {risk_bar} transition-all" style="width: {risk}%"></div>
+                    </div>
+                </div>
+                
+                <!-- Time Metrics -->
+                <div class="mt-3 flex justify-between text-[0.6rem] text-zinc-500">
+                    <span>{time_to}</span>
+                    <span class="text-orange-400">{age}</span>
+                </div>
+                
+                <!-- Ticket Key -->
+                <div class="mt-2 text-[0.55rem] font-mono text-zinc-600 text-right">{key}</div>
+            </div>
+        "#,
+            date = display_date,
+            status = ticket.status,
+            status_class = status_color.0,
+            status_icon = status_color.1,
+            img = img_html,
+            threat_icon = threat_icon,
+            target = ticket.target,
+            threat_type = ticket.threat_type.replace("-", " "),
+            page_title_html = if !page_title.is_empty() {
+                format!(r#"<p class="text-zinc-500 text-[0.65rem] italic mb-2 truncate">"{}"</p>"#, page_title)
+            } else { String::new() },
+            isp = ticket.isp.as_deref().unwrap_or("--"),
+            ip = ticket.ip.as_deref().unwrap_or("--"),
+            risk = risk_percent,
+            risk_text = if risk_percent >= 70 { "text-red-400" } else if risk_percent >= 40 { "text-orange-400" } else { "text-green-400" },
+            risk_bar = risk_color,
+            time_to = time_metrics,
+            age = age_display,
+            key = ticket.ticket_key
+        ));
+    }
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white">
+            <div class="flex-grow h-full overflow-hidden">
+                <div class="h-full flex flex-col">
+                    <!-- Header -->
+                    <div class="mb-6">
+                        <span class="bg-orange-600 px-4 py-1 text-sm font-semibold">HISTORIAS DE INCIDENTES</span>
+                        <h2 class="text-3xl font-bold mt-3">{title}</h2>
+                        <p class="text-zinc-400 mt-1 text-sm">{subtitle}</p>
+                    </div>
+                    
+                    <!-- Grid of Cards -->
+                    <div class="grid grid-cols-2 gap-4 flex-grow overflow-hidden">
+                        {cards}
+                    </div>
+                </div>
+            </div>
+            {footer}
+        </div></div>"#,
+        title = dict.story_title(),
+        subtitle = dict.story_subtitle(data.story_tickets.len()),
+        cards = cards_html,
+        footer = footer_dark(11, dict),
+    )
+}
+
+/// Render the Threat Intelligence slide with 4 dimensions
+fn render_threat_intelligence_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    let intel = &data.threat_intelligence;
+
+    // Skip if no data available
+    if !intel.data_available {
+        tracing::info!("No threat intelligence data available, skipping slide");
+        return String::new();
+    }
+
+    // === Dimension 1: Dark Web Origin ===
+    let dark_web_html = format!(r#"
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 hover:border-purple-500/40 transition-all">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">🕵️</span>
+                <div>
+                    <h3 class="text-white font-bold">Origen en Dark Web</h3>
+                    <p class="text-zinc-500 text-xs">Inteligencia previa de foros</p>
+                </div>
+            </div>
+            
+            <div class="text-center py-4">
+                <span class="text-5xl font-bold text-purple-400">{mentions}</span>
+                <p class="text-zinc-400 mt-1">menciones detectadas</p>
+            </div>
+            
+            {early_warning}
+            
+            <div class="mt-4 border-t border-zinc-800 pt-3">
+                <p class="text-xs text-zinc-500 mb-2">Fuentes:</p>
+                <div class="flex flex-wrap gap-1">
+                    {sources}
+                </div>
+            </div>
+        </div>
+    "#,
+        mentions = intel.dark_web_mentions,
+        early_warning = if let Some(date) = &intel.earliest_dark_web_date {
+            format!(r#"<p class="text-center text-sm text-purple-300">⚡ Primera detección: {}</p>"#, 
+                if date.len() >= 10 { format!("{}/{}/{}", &date[8..10], &date[5..7], &date[0..4]) } else { date.clone() })
+        } else { String::new() },
+        sources = intel.dark_web_sources.iter().take(3)
+            .map(|s| format!(r#"<span class="text-[0.65rem] bg-purple-900/30 text-purple-300 px-2 py-0.5 rounded">{}</span>"#, s))
+            .collect::<Vec<_>>().join("")
+    );
+
+    // === Dimension 2: Virality ===
+    let virality_html = format!(r#"
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 hover:border-blue-500/40 transition-all">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">📡</span>
+                <div>
+                    <h3 class="text-white font-bold">Viralidad y Alcance</h3>
+                    <p class="text-zinc-500 text-xs">Propagación en redes</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 text-center py-4">
+                <div>
+                    <span class="text-4xl font-bold text-blue-400">{chat}</span>
+                    <p class="text-zinc-400 text-xs mt-1">Grupos de chat</p>
+                </div>
+                <div>
+                    <span class="text-4xl font-bold text-cyan-400">{social}</span>
+                    <p class="text-zinc-400 text-xs mt-1">Redes sociales</p>
+                </div>
+            </div>
+            
+            {campaign_alert}
+            
+            <div class="mt-4 border-t border-zinc-800 pt-3">
+                <p class="text-xs text-zinc-500 mb-2">Plataformas:</p>
+                <div class="flex flex-wrap gap-1">
+                    {platforms}
+                </div>
+            </div>
+        </div>
+    "#,
+        chat = intel.chat_group_shares,
+        social = intel.social_media_mentions,
+        campaign_alert = if intel.chat_group_shares > 10 {
+            r#"<p class="text-center text-sm text-blue-300 bg-blue-900/20 rounded py-1">⚠️ Posible campaña coordinada</p>"#
+        } else { "" },
+        platforms = intel.platforms_detected.iter().take(4)
+            .map(|p| format!(r#"<span class="text-[0.65rem] bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded">{}</span>"#, p))
+            .collect::<Vec<_>>().join("")
+    );
+
+    // === Dimension 3: Credential Quality ===
+    let stealer_pct = intel.stealer_log_percent as i32;
+    let plain_pct = intel.plain_password_percent as i32;
+
+    let cred_html = format!(
+        r#"
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 hover:border-red-500/40 transition-all">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">🔐</span>
+                <div>
+                    <h3 class="text-white font-bold">Calidad de Credenciales</h3>
+                    <p class="text-zinc-500 text-xs">{total} credenciales analizadas</p>
+                </div>
+            </div>
+            
+            <!-- Stealer Logs Bar -->
+            <div class="mb-3">
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-zinc-400">🦠 Stealer Logs (malware activo)</span>
+                    <span class="font-bold text-red-400">{stealer_count} ({stealer_pct}%)</span>
+                </div>
+                <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-red-500 transition-all" style="width: {stealer_pct}%"></div>
+                </div>
+            </div>
+            
+            <!-- Combolist Bar -->
+            <div class="mb-3">
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-zinc-400">📋 Combolist (recicladas)</span>
+                    <span class="text-yellow-400">{combo_count}</span>
+                </div>
+                <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-yellow-500 transition-all" style="width: {combo_pct}%"></div>
+                </div>
+            </div>
+            
+            <!-- Plain Password Bar -->
+            <div class="mb-3">
+                <div class="flex justify-between text-xs mb-1">
+                    <span class="text-zinc-400">🔓 Texto plano</span>
+                    <span class="text-orange-400">{plain_count} ({plain_pct}%)</span>
+                </div>
+                <div class="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-orange-500 transition-all" style="width: {plain_pct}%"></div>
+                </div>
+            </div>
+            
+            {critical_alert}
+            
+            <div class="mt-3 border-t border-zinc-800 pt-2">
+                <p class="text-[0.6rem] text-zinc-500">Portales: {access_urls}</p>
+            </div>
+        </div>
+    "#,
+        total = intel.total_credentials,
+        stealer_count = intel.stealer_log_count,
+        stealer_pct = stealer_pct,
+        combo_count = intel.combolist_count,
+        combo_pct = if intel.total_credentials > 0 {
+            (intel.combolist_count * 100 / intel.total_credentials) as i32
+        } else {
+            0
+        },
+        plain_count = intel.plain_password_count,
+        plain_pct = plain_pct,
+        critical_alert = if stealer_pct >= 20 {
+            r#"<p class="text-center text-sm text-red-300 bg-red-900/20 rounded py-1 mt-2">🚨 {stealer_pct}% usuarios con malware ACTIVO</p>"#
+        } else {
+            ""
+        },
+        access_urls = intel
+            .top_access_urls
+            .iter()
+            .take(2)
+            .map(|u| u.split('/').last().unwrap_or(u).to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+
+    // === Dimension 4: Attacker Investment ===
+    let ads_html = format!(r#"
+        <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-5 hover:border-green-500/40 transition-all">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">💰</span>
+                <div>
+                    <h3 class="text-white font-bold">Inversión del Atacante</h3>
+                    <p class="text-zinc-500 text-xs">Publicidad pagada detectada</p>
+                </div>
+            </div>
+            
+            <div class="text-center py-4">
+                <span class="text-5xl font-bold text-green-400">{ads}</span>
+                <p class="text-zinc-400 mt-1">campañas publicitarias</p>
+            </div>
+            
+            {roi_message}
+            
+            <div class="mt-4 border-t border-zinc-800 pt-3">
+                <p class="text-xs text-zinc-500 mb-2">Plataformas de ads:</p>
+                <div class="flex flex-wrap gap-1">
+                    {ad_platforms}
+                </div>
+            </div>
+        </div>
+    "#,
+        ads = intel.paid_ads_detected,
+        roi_message = if intel.paid_ads_detected > 0 {
+            r#"<p class="text-center text-sm text-green-300 bg-green-900/20 rounded py-1">💸 Takedown rápido = pérdida de inversión para el atacante</p>"#
+        } else {
+            r#"<p class="text-center text-sm text-zinc-500">Sin publicidad pagada detectada</p>"#
+        },
+        ad_platforms = intel.ad_platforms.iter().take(3)
+            .map(|p| format!(r#"<span class="text-[0.65rem] bg-green-900/30 text-green-300 px-2 py-0.5 rounded">{}</span>"#, p))
+            .collect::<Vec<_>>().join("")
+    );
+
+    // Combine into full slide
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white">
+            <div class="flex-grow h-full overflow-hidden">
+                <div class="h-full flex flex-col">
+                    <!-- Header -->
+                    <div class="mb-6">
+                        <span class="bg-purple-600 px-4 py-1 text-sm font-semibold">THREAT INTELLIGENCE</span>
+                        <h2 class="text-3xl font-bold mt-3">Inteligencia de Amenazas</h2>
+                        <p class="text-zinc-400 mt-1 text-sm">Análisis profundo de la sofisticación del ataque</p>
+                    </div>
+                    
+                    <!-- 4-Quadrant Grid -->
+                    <div class="grid grid-cols-2 gap-4 flex-grow overflow-hidden">
+                        {dark_web}
+                        {virality}
+                        {credentials}
+                        {ads}
+                    </div>
+                </div>
+            </div>
+            {footer}
+        </div></div>"#,
+        dark_web = dark_web_html,
+        virality = virality_html,
+        credentials = cred_html,
+        ads = ads_html,
+        footer = footer_dark(12, dict),
+    )
+}
+
+fn render_closing_full(
+    _data: &PocReportData,
+    offline_assets: Option<&OfflineAssets>,
+    dict: &Box<dyn Dictionary>,
+) -> String {
     // Abstract geometric pattern (CSS only) - Refined for "Thrive" theme
     let abstract_pattern = r#"
         <div class="absolute top-0 left-0 w-full h-[45%] bg-[#FF4D00] overflow-hidden">
@@ -515,23 +1009,27 @@ fn render_closing_full(_data: &PocReportData, offline_assets: Option<&OfflineAss
             <div class="absolute bottom-[10%] left-[0%] w-[15%] h-[30%] bg-zinc-900"></div>
         </div>
     "#;
-    
+
     // Choose image source (URL or Base64)
     let img_src = if let Some(assets) = offline_assets {
         format!("data:image/jpeg;base64,{}", assets.office_image_base64)
     } else {
         "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1000&q=80".to_string()
     };
-    
+
     // Office image
-    let office_image = format!(r#"
+    let office_image = format!(
+        r#"
         <div class="absolute bottom-0 left-0 w-full h-[55%] bg-zinc-800 overflow-hidden">
              <img src="{}" class="w-full h-full object-cover grayscale opacity-60 mix-blend-luminosity">
              <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
         </div>
-    "#, img_src);
+    "#,
+        img_src
+    );
 
-    format!(r#"
+    format!(
+        r#"
     <div class="printable-slide aspect-[16/9] w-full p-0 relative bg-zinc-950 flex overflow-hidden">
         <!-- Left Side: Visuals -->
         <div class="w-5/12 h-full relative border-r border-zinc-800">
@@ -638,8 +1136,9 @@ pub fn generate_html(report: &PocReport) -> String {
     let incidents_slide = render_incidents_slide(report);
     let takedowns_slide = render_takedowns_slide(report);
     let closing_slide = render_closing_slide(report);
-    
-    format!(r#"<!DOCTYPE html>
+
+    format!(
+        r#"<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8"/>
@@ -717,7 +1216,8 @@ pub fn generate_html(report: &PocReport) -> String {
 }
 
 fn render_cover_slide(report: &PocReport) -> String {
-    format!(r#"
+    format!(
+        r#"
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950">
         <div class="flex-grow flex flex-col justify-center">
             <div class="inline-block bg-orange-600 px-4 py-1 mb-4 w-fit">
@@ -749,8 +1249,9 @@ fn render_cover_slide(report: &PocReport) -> String {
 
 fn render_summary_slide(report: &PocReport) -> String {
     let total_creds = report.credentials_employee + report.credentials_stealer;
-    
-    format!(r#"
+
+    format!(
+        r#"
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-900">
         <h2 class="text-4xl font-bold text-orange-500 mb-8">Resumen Ejecutivo</h2>
         
@@ -799,14 +1300,17 @@ fn render_summary_slide(report: &PocReport) -> String {
 fn render_incidents_slide(report: &PocReport) -> String {
     let mut rows = String::new();
     for item in &report.incidents_by_type {
-        rows.push_str(&format!(r#"
+        rows.push_str(&format!(
+            r#"
             <tr class="border-b border-zinc-700">
                 <td class="py-3 px-4 text-left">{}</td>
                 <td class="py-3 px-4 text-right font-bold text-orange-500">{}</td>
             </tr>
-        "#, item.incident_type, item.count));
+        "#,
+            item.incident_type, item.count
+        ));
     }
-    
+
     if rows.is_empty() {
         rows = r#"
             <tr class="border-b border-zinc-700">
@@ -814,8 +1318,9 @@ fn render_incidents_slide(report: &PocReport) -> String {
             </tr>
         "#.to_string();
     }
-    
-    format!(r#"
+
+    format!(
+        r#"
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-900">
         <h2 class="text-4xl font-bold text-orange-500 mb-8">Incidentes por Tipo</h2>
         
@@ -850,8 +1355,9 @@ fn render_takedowns_slide(report: &PocReport) -> String {
     } else {
         0
     };
-    
-    format!(r#"
+
+    format!(
+        r#"
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-900">
         <h2 class="text-4xl font-bold text-orange-500 mb-8">Takedowns</h2>
         
@@ -890,7 +1396,8 @@ fn render_takedowns_slide(report: &PocReport) -> String {
 }
 
 fn render_closing_slide(report: &PocReport) -> String {
-    format!(r#"
+    format!(
+        r#"
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950">
         <div class="flex-grow flex flex-col justify-center items-center text-center">
             <span class="text-orange-500 font-bold text-4xl mb-8">AXUR</span>
@@ -914,19 +1421,23 @@ fn render_closing_slide(report: &PocReport) -> String {
 fn render_deep_analytics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let analytics = &data.deep_analytics;
     let mut sections = Vec::new();
-    
+
     // Section 1: Code Leak Insights
     if analytics.has_code_leak_insights && !analytics.secret_types_breakdown.is_empty() {
         let mut rows = String::new();
         for item in analytics.secret_types_breakdown.iter().take(5) {
-            rows.push_str(&format!(r#"
+            rows.push_str(&format!(
+                r#"
                 <div class="flex justify-between items-center py-2 border-b border-zinc-700">
                     <span class="text-zinc-300">{}</span>
                     <span class="font-bold text-purple-400">{}</span>
                 </div>
-            "#, item.name, item.value));
+            "#,
+                item.name, item.value
+            ));
         }
-        sections.push(format!(r#"
+        sections.push(format!(
+            r#"
             <div class="bg-zinc-800/50 rounded-xl p-6">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="text-2xl">🔐</span>
@@ -935,22 +1446,34 @@ fn render_deep_analytics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
                 <p class="text-sm text-zinc-400 mb-4">{}</p>
                 <div class="space-y-1">{}</div>
             </div>
-        "#, dict.deep_analytics_code_leak_title(), dict.deep_analytics_code_leak_subtitle(data.unique_repos), rows));
+        "#,
+            dict.deep_analytics_code_leak_title(),
+            dict.deep_analytics_code_leak_subtitle(data.unique_repos),
+            rows
+        ));
     }
-    
+
     // Section 2: Credential Insights
     if analytics.has_credential_insights && !analytics.leak_source_breakdown.is_empty() {
         let mut rows = String::new();
         for item in &analytics.leak_source_breakdown {
-            let color = if item.name.contains("STEALER") { "text-red-400" } else { "text-yellow-400" };
-            rows.push_str(&format!(r#"
+            let color = if item.name.contains("STEALER") {
+                "text-red-400"
+            } else {
+                "text-yellow-400"
+            };
+            rows.push_str(&format!(
+                r#"
                 <div class="flex justify-between items-center py-2 border-b border-zinc-700">
                     <span class="text-zinc-300">{}</span>
                     <span class="font-bold {}">{}</span>
                 </div>
-            "#, item.name, color, item.value));
+            "#,
+                item.name, color, item.value
+            ));
         }
-        sections.push(format!(r#"
+        sections.push(format!(
+            r#"
             <div class="bg-zinc-800/50 rounded-xl p-6">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="text-2xl">🔑</span>
@@ -959,21 +1482,31 @@ fn render_deep_analytics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
                 <p class="text-sm text-zinc-400 mb-4">{}</p>
                 <div class="space-y-1">{}</div>
             </div>
-        "#, dict.deep_analytics_credential_title(), dict.deep_analytics_credential_subtitle(data.credential_leaks_summary.total_credentials), rows));
+        "#,
+            dict.deep_analytics_credential_title(),
+            dict.deep_analytics_credential_subtitle(
+                data.credential_leaks_summary.total_credentials
+            ),
+            rows
+        ));
     }
-    
+
     // Section 3: Takedown Efficiency
     if analytics.has_takedown_insights && !analytics.takedowns_by_platform.is_empty() {
         let mut rows = String::new();
         for item in analytics.takedowns_by_platform.iter().take(5) {
-            rows.push_str(&format!(r#"
+            rows.push_str(&format!(
+                r#"
                 <div class="flex justify-between items-center py-2 border-b border-zinc-700">
                     <span class="text-zinc-300">{}</span>
                     <span class="font-bold text-green-400">{}</span>
                 </div>
-            "#, item.name, item.value));
+            "#,
+                item.name, item.value
+            ));
         }
-        sections.push(format!(r#"
+        sections.push(format!(
+            r#"
             <div class="bg-zinc-800/50 rounded-xl p-6">
                 <div class="flex items-center gap-2 mb-4">
                     <span class="text-2xl">⚡</span>
@@ -982,22 +1515,27 @@ fn render_deep_analytics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
                 <p class="text-sm text-zinc-400 mb-4">{}</p>
                 <div class="space-y-1">{}</div>
             </div>
-        "#, dict.deep_analytics_takedown_title(), dict.deep_analytics_takedown_subtitle(data.resolved_takedowns.len()), rows));
+        "#,
+            dict.deep_analytics_takedown_title(),
+            dict.deep_analytics_takedown_subtitle(data.resolved_takedowns.len()),
+            rows
+        ));
     }
-    
+
     // If no sections, return empty (slide will be skipped)
     if sections.is_empty() {
         return String::new();
     }
-    
+
     // Determine grid columns based on number of sections
     let grid_cols = match sections.len() {
         1 => "grid-cols-1",
         2 => "grid-cols-2",
         _ => "grid-cols-3",
     };
-    
-    format!(r#"
+
+    format!(
+        r#"
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-900">
         <h2 class="text-4xl font-bold text-orange-500 mb-2">{}</h2>
         <p class="text-zinc-400 mb-8">{}</p>
@@ -1011,6 +1549,10 @@ fn render_deep_analytics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
             <span class="text-xs text-zinc-400">Deep Analytics</span>
         </footer>
     </div>
-    "#, dict.deep_analytics_title(), dict.deep_analytics_subtitle(), grid_cols, sections.join("\n"))
+    "#,
+        dict.deep_analytics_title(),
+        dict.deep_analytics_subtitle(),
+        grid_cols,
+        sections.join("\n")
+    )
 }
-

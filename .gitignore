@@ -58,3 +58,9 @@ target-wasm/
 
 # WASM build intermediates
 crates/frontend/target/
+
+# Data files (local testing data, should not be committed)
+miwbob.json
+ax_tickets.json
+story_debug.log
+*.debug.json

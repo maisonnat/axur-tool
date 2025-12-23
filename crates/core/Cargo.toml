@@ -13,6 +13,7 @@ chrono.workspace = true
 tokio.workspace = true
 regex = "1.10"
 base64 = "0.21"
+tracing = "0.1"
 
 [features]
 default = []

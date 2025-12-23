@@ -29,6 +29,9 @@ pub struct GenerateReportRequest {
     pub to_date: String,
     #[serde(default = "default_language")]
     pub language: String,
+    pub story_tag: Option<String>,
+    #[serde(default)]
+    pub include_threat_intel: bool,
 }
 
 fn default_language() -> String {
@@ -90,10 +93,11 @@ pub async fn generate_report(
         .ok_or_else(|| ApiError::Unauthorized("No session found".into()))?;
 
     tracing::info!(
-        "Generating report for tenant {} from {} to {}",
+        "Generating report for tenant {} from {} to {} with story_tag: {:?}",
         payload.tenant_id,
         payload.from_date,
-        payload.to_date
+        payload.to_date,
+        payload.story_tag
     );
 
     // Fetch report data using axur-core
@@ -102,6 +106,8 @@ pub async fn generate_report(
         &payload.tenant_id,
         &payload.from_date,
         &payload.to_date,
+        payload.story_tag,
+        payload.include_threat_intel,
     )
     .await
     .map_err(|e| ApiError::ExternalApi(format!("Failed to fetch report data: {}", e)))?;
