@@ -64,3 +64,10 @@ miwbob.json
 ax_tickets.json
 story_debug.log
 *.debug.json
+
+# Private API documentation (not for public repo)
+axur-api-doc/
+
+# Debug logs
+debug_logs/
+

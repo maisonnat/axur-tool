@@ -40,6 +40,11 @@ pub fn generate_full_report_html(
         slides.push(render_impact_roi_slide(data, dict));
     }
 
+    // Only add Credential slide if there are exposures
+    if !data.credential_exposures.is_empty() {
+        slides.push(render_credential_slide(data, dict));
+    }
+
     // Only add takedown examples if there are resolved takedowns
     if !data.resolved_takedowns.is_empty() {
         slides.push(render_takedown_examples_slide(data, dict));
@@ -58,6 +63,11 @@ pub fn generate_full_report_html(
     // Only add Threat Intelligence slide if data was fetched
     if data.threat_intelligence.data_available {
         slides.push(render_threat_intelligence_slide(data, dict));
+    }
+
+    // Add Deep Investigation slide if we have investigated tickets
+    if !data.deep_investigations.is_empty() {
+        slides.push(render_deep_investigation_slide(data, dict));
     }
 
     // Always add closing slide
@@ -559,17 +569,44 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
 
     // Take max 4 for grid layout (2x2)
     for ticket in data.story_tickets.iter().take(4) {
-        // Screenshot image
-        let img_html = if let Some(url) = &ticket.screenshot_url {
+        // Try to find matching deep investigation data for enrichment
+        let enrichment = data.deep_investigations.iter()
+            .find(|inv| inv.ticket_key == ticket.ticket_key)
+            .map(|inv| &inv.enrichment);
+
+        // Screenshot image: Prioritize Base64 from enrichment > Ticket URL > Placeholder
+        let img_html = if let Some(enr) = enrichment {
+            if let Some(base64) = &enr.screenshot_base64 {
+                 format!(
+                    r#"<div class="relative h-32 w-full rounded-lg overflow-hidden border border-zinc-700 mb-3 group-hover:border-orange-500/50 transition-colors">
+                        <img src="{}" class="w-full h-full object-cover" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    </div>"#,
+                    base64
+                )
+            } else if let Some(url) = &ticket.screenshot_url {
+                format!(
+                    r#"<div class="relative h-32 w-full rounded-lg overflow-hidden border border-zinc-700 mb-3">
+                        <img src="{}" class="w-full h-full object-cover" />
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    </div>"#,
+                    url
+                )
+            } else {
+                r#"<div class="h-32 w-full rounded-lg bg-zinc-800 border border-zinc-700 mb-3 flex items-center justify-center">
+                    <span class="text-zinc-600 text-2xl">📷</span>
+                </div>"#.to_string()
+            }
+        } else if let Some(url) = &ticket.screenshot_url {
             format!(
-                r#"<div class="relative h-28 w-full rounded-lg overflow-hidden border border-zinc-700 mb-3">
+                r#"<div class="relative h-32 w-full rounded-lg overflow-hidden border border-zinc-700 mb-3">
                     <img src="{}" class="w-full h-full object-cover" />
                     <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                 </div>"#,
                 url
             )
         } else {
-            r#"<div class="h-28 w-full rounded-lg bg-zinc-800 border border-zinc-700 mb-3 flex items-center justify-center">
+            r#"<div class="h-32 w-full rounded-lg bg-zinc-800 border border-zinc-700 mb-3 flex items-center justify-center">
                 <span class="text-zinc-500 text-xs">No preview</span>
             </div>"#.to_string()
         };
@@ -615,6 +652,34 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
         } else {
             "bg-green-500"
         };
+        
+        // AI / Context Badges
+        let ai_badges = if let Some(enr) = enrichment {
+            let mut b = String::new();
+            // Impersonated brands
+            for brand in &enr.impersonated_brands {
+                 b.push_str(&format!(
+                    r#"<span class="text-[0.6rem] px-1.5 py-0.5 rounded bg-red-900/30 text-red-300 border border-red-800/30 flex items-center gap-1">🚨 {}</span>"#, 
+                    brand.brand
+                 ));
+            }
+            // Geo
+            if let Some(geo) = &enr.geolocation {
+                 if let Some(cc) = &geo.country_code {
+                      let flag = cc.chars().filter(|c| c.is_alphabetic())
+                        .map(|c| char::from_u32(0x1F1E6 + c.to_ascii_uppercase() as u32 - 'A' as u32).unwrap_or('🏳'))
+                        .collect::<String>();
+                      b.push_str(&format!(r#"<span class="text-[0.6rem] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">{} {}</span>"#, flag, cc));
+                 }
+            }
+            if !b.is_empty() {
+                format!(r#"<div class="flex flex-wrap gap-1 mb-2">{}</div>"#, b)
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
 
         // Time metrics display
         let time_metrics = if let Some(hours) = ticket.time_to_incident_hours {
@@ -651,7 +716,7 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
             .unwrap_or_default();
 
         cards_html.push_str(&format!(r#"
-            <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 hover:border-orange-500/40 transition-all duration-300 shadow-lg hover:shadow-orange-500/10">
+            <div class="bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 hover:border-orange-500/40 transition-all duration-300 shadow-lg hover:shadow-orange-500/10 flex flex-col">
                 <!-- Header: Date + Status -->
                 <div class="flex justify-between items-center mb-3">
                     <span class="text-xs font-mono text-zinc-400">{date}</span>
@@ -660,6 +725,9 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
                 
                 <!-- Screenshot -->
                 {img}
+                
+                <!-- AI Badges -->
+                {badges}
                 
                 <!-- Target & Type -->
                 <div class="flex items-center gap-2 mb-2">
@@ -675,6 +743,8 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
                 <!-- Page Title if available -->
                 {page_title_html}
                 
+                <div class="flex-grow"></div>
+
                 <!-- Metrics Row -->
                 <div class="grid grid-cols-2 gap-2 text-[0.65rem] text-zinc-500 border-t border-zinc-800 pt-3 mt-2">
                     <!-- ISP -->
@@ -715,6 +785,7 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
             status_class = status_color.0,
             status_icon = status_color.1,
             img = img_html,
+            badges = ai_badges,
             threat_icon = threat_icon,
             target = ticket.target,
             threat_type = ticket.threat_type.replace("-", " "),
@@ -737,10 +808,19 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
             <div class="flex-grow h-full overflow-hidden">
                 <div class="h-full flex flex-col">
                     <!-- Header -->
-                    <div class="mb-6">
-                        <span class="bg-orange-600 px-4 py-1 text-sm font-semibold">HISTORIAS DE INCIDENTES</span>
-                        <h2 class="text-3xl font-bold mt-3">{title}</h2>
-                        <p class="text-zinc-400 mt-1 text-sm">{subtitle}</p>
+                    <div class="mb-6 flex justify-between items-start">
+                        <div>
+                            <span class="bg-orange-600 px-4 py-1 text-sm font-semibold">HISTORIAS DE INCIDENTES</span>
+                            <h2 class="text-3xl font-bold mt-3">{title}</h2>
+                            <p class="text-zinc-400 mt-1 text-sm">{subtitle}</p>
+                        </div>
+                         <!-- Axur Logo Small -->
+                         <div class="opacity-50 grayscale hover:grayscale-0 transition-all">
+                             <div class="flex items-center gap-1">
+                                <span class="text-orange-600 text-xl font-black italic">///</span>
+                                <span class="text-white text-lg font-bold">AXUR</span>
+                             </div>
+                         </div>
                     </div>
                     
                     <!-- Grid of Cards -->
@@ -991,6 +1071,342 @@ fn render_threat_intelligence_slide(data: &PocReportData, dict: &Box<dyn Diction
         credentials = cred_html,
         ads = ads_html,
         footer = footer_dark(12, dict),
+    )
+}
+
+/// Render the Timeline Deep Investigation slide with enriched data
+fn render_deep_investigation_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) -> String {
+    if data.deep_investigations.is_empty() {
+        return String::new();
+    }
+
+    // Build timeline cards for each investigation with enrichment
+    let investigation_cards: Vec<String> = data.deep_investigations.iter().take(6).map(|inv| {
+        let campaign_badge = if inv.is_mass_campaign {
+            r#"<span class="bg-red-900/50 text-red-300 text-[0.65rem] px-2 py-0.5 rounded">⚠️ Campaña Masiva</span>"#
+        } else {
+            r#"<span class="bg-green-900/50 text-green-300 text-[0.65rem] px-2 py-0.5 rounded">Aislado</span>"#
+        };
+
+        // Screenshot HTML - use base64 if available, otherwise placeholder
+        let screenshot_html = if let Some(base64) = &inv.enrichment.screenshot_base64 {
+            format!(
+                r#"<div class="w-20 h-14 flex-shrink-0 rounded overflow-hidden bg-zinc-800 border border-zinc-700">
+                    <img src="{}" alt="Screenshot" class="w-full h-full object-cover" />
+                </div>"#,
+                base64
+            )
+        } else {
+            r#"<div class="w-20 h-14 flex-shrink-0 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-600 text-lg">
+                📷
+            </div>"#.to_string()
+        };
+
+        // AI Impersonation badges
+        let impersonation_html = if !inv.enrichment.impersonated_brands.is_empty() {
+            let badges: Vec<String> = inv.enrichment.impersonated_brands.iter().take(2).map(|b| {
+                let (color, icon) = match b.level.as_str() {
+                    "high" => ("bg-red-900/60 text-red-300 border-red-700", "🔴"),
+                    "medium" => ("bg-yellow-900/60 text-yellow-300 border-yellow-700", "🟡"),
+                    _ => ("bg-zinc-800 text-zinc-300 border-zinc-700", "🟢"),
+                };
+                format!(
+                    r#"<span class="text-[0.55rem] px-1.5 py-0.5 rounded border {} flex items-center gap-1">
+                        <span>{}</span>
+                        <span>{}</span>
+                    </span>"#,
+                    color, icon, b.brand
+                )
+            }).collect();
+            format!(r#"<div class="flex flex-wrap gap-1 mb-2">{}</div>"#, badges.join(""))
+        } else {
+            String::new()
+        };
+
+        // Credential/Payment warning badges
+        let warning_badges = {
+            let mut badges = Vec::new();
+            if inv.enrichment.credential_requested {
+                badges.push(r#"<span class="text-[0.55rem] bg-orange-900/50 text-orange-300 px-1.5 py-0.5 rounded">🔓 Credenciales</span>"#);
+            }
+            if inv.enrichment.payment_requested {
+                badges.push(r#"<span class="text-[0.55rem] bg-red-900/50 text-red-300 px-1.5 py-0.5 rounded">💳 Pagos</span>"#);
+            }
+            if !badges.is_empty() {
+                format!(r#"<div class="flex gap-1 mb-2">{}</div>"#, badges.join(""))
+            } else {
+                String::new()
+            }
+        };
+
+        // Geolocation with country flag
+        let geo_html = if let Some(geo) = &inv.enrichment.geolocation {
+            let country_flag = geo.country_code.as_ref().map(|cc| {
+                // Convert country code to flag emoji
+                cc.chars().filter(|c| c.is_alphabetic())
+                    .map(|c| char::from_u32(0x1F1E6 + c.to_ascii_uppercase() as u32 - 'A' as u32).unwrap_or('🏳'))
+                    .collect::<String>()
+            }).unwrap_or_else(|| "🌐".to_string());
+            
+            let country = geo.country_name.as_deref().unwrap_or("--");
+            let isp = geo.isp.as_deref().unwrap_or("--");
+            
+            format!(
+                r#"<div class="flex items-center gap-1 text-[0.6rem] text-zinc-400">
+                    <span class="text-sm">{}</span>
+                    <span>{}</span>
+                    <span class="text-zinc-600">·</span>
+                    <span class="truncate max-w-[80px]">{}</span>
+                </div>"#,
+                country_flag, country, isp
+            )
+        } else {
+            String::new()
+        };
+
+        // Detection date (use enrichment date if available, fallback to first_seen)
+        let detection_date = inv.enrichment.detection_date.as_ref()
+            .or(inv.first_seen.as_ref())
+            .map(|d| format!(r#"<span class="text-purple-400">{}</span>"#, d))
+            .unwrap_or_else(|| r#"<span class="text-zinc-600">N/A</span>"#.to_string());
+
+        // Domain created date
+        let domain_created = inv.enrichment.domain_created.as_ref()
+            .map(|d| format!(r#"<div class="text-[0.55rem] text-zinc-500">📆 Dominio: {}</div>"#, d))
+            .unwrap_or_default();
+
+        // AI content type badge
+        let content_type_badge = inv.enrichment.ai_content_type.as_ref()
+            .map(|ct| format!(
+                r#"<span class="text-[0.55rem] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded">{}</span>"#,
+                ct
+            ))
+            .unwrap_or_default();
+
+        // HTTP status indicator
+        let http_status = inv.enrichment.http_status.map(|s| {
+            let (color, icon) = if s == 200 {
+                ("text-green-400", "●")
+            } else if s == 404 {
+                ("text-yellow-400", "◌")
+            } else {
+                ("text-red-400", "○")
+            };
+            format!(r#"<span class="{} text-[0.6rem]">{} {}</span>"#, color, icon, s)
+        }).unwrap_or_default();
+
+        format!(r#"
+            <div class="bg-zinc-900/80 border border-zinc-800 rounded-lg p-3 hover:border-orange-500/40 transition-all">
+                <div class="flex gap-3">
+                    <!-- Screenshot -->
+                    {screenshot}
+                    
+                    <!-- Main Content -->
+                    <div class="flex-1 min-w-0">
+                        <!-- Header: Ticket + Campaign -->
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="text-orange-400 font-mono text-[0.7rem]">{ticket}</span>
+                                <span class="text-zinc-600">→</span>
+                                <span class="text-white text-[0.7rem] truncate">{target}</span>
+                            </div>
+                            {campaign_badge}
+                        </div>
+                        
+                        <!-- AI Impersonation Badges -->
+                        {impersonation}
+                        
+                        <!-- Warning Badges -->
+                        {warnings}
+                        
+                        <!-- Type + Signals Row -->
+                        <div class="flex items-center gap-2 text-[0.6rem] mb-2">
+                            <span class="bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">{threat_type}</span>
+                            {content_type}
+                            <span class="text-zinc-600">|</span>
+                            <span class="text-zinc-500">🔍 {signal_count} señales</span>
+                            {http_status}
+                        </div>
+                        
+                        <!-- Geolocation -->
+                        {geo}
+                        
+                        <!-- Dates -->
+                        <div class="flex items-center gap-3 mt-2">
+                            <div class="text-[0.55rem]">
+                                <span class="text-zinc-500">📅 Detectado:</span>
+                                {detection_date}
+                            </div>
+                            {domain_created}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        "#,
+            screenshot = screenshot_html,
+            ticket = inv.ticket_key,
+            target = if inv.target.len() > 22 { format!("{}...", &inv.target[..22]) } else { inv.target.clone() },
+            campaign_badge = campaign_badge,
+            impersonation = impersonation_html,
+            warnings = warning_badges,
+            threat_type = inv.threat_type,
+            content_type = content_type_badge,
+            signal_count = inv.signal_count,
+            http_status = http_status,
+            geo = geo_html,
+            detection_date = detection_date,
+            domain_created = domain_created,
+        )
+    }).collect();
+
+    // Summary stats
+    let total = data.deep_investigations.len();
+    let mass_campaigns = data
+        .deep_investigations
+        .iter()
+        .filter(|i| i.is_mass_campaign)
+        .count();
+    let total_signals: u64 = data
+        .deep_investigations
+        .iter()
+        .map(|i| i.signal_count)
+        .sum();
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white">
+        <div class="flex-grow h-full overflow-hidden">
+            <div class="h-full flex flex-col">
+                <!-- Header -->
+                <div class="mb-6 flex justify-between items-start">
+                    <div>
+                        <span class="bg-orange-600 px-4 py-1 text-sm font-semibold">INVESTIGACIÓN PROFUNDA</span>
+                        <h2 class="text-3xl font-bold mt-3">Timeline - Tickets Etiquetados</h2>
+                        <p class="text-zinc-400 mt-1 text-sm">Análisis mediante Signal-Lake del Data Lake</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-4xl font-bold text-orange-400">{total}</div>
+                        <p class="text-zinc-500 text-xs">tickets investigados</p>
+                        <div class="mt-2 flex gap-2 justify-end">
+                            <span class="bg-red-900/30 text-red-300 text-xs px-2 py-0.5 rounded">{mass_campaigns} campañas</span>
+                            <span class="bg-purple-900/30 text-purple-300 text-xs px-2 py-0.5 rounded">{total_signals} señales</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Investigation Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 flex-grow overflow-hidden">
+                    {cards}
+                </div>
+            </div>
+        </div>
+        <div class="flex justify-between items-center text-[0.6rem] text-zinc-600 print:text-black pt-3 border-t border-zinc-800/50">
+            <span>TIMELINE INVESTIGATION</span>
+            <span>Datos de Signal-Lake API</span>
+        </div>
+    </div></div>"#,
+        total = total,
+        mass_campaigns = mass_campaigns,
+        total_signals = total_signals,
+        cards = investigation_cards.join(""),
+    )
+}
+
+fn render_credential_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) -> String {
+    let mut rows = String::new();
+    
+    // Create rows for table
+    for cred in data.credential_exposures.iter().take(8) {
+        let user = cred.user.as_deref().unwrap_or("N/A");
+        let source_date = cred.leak_date.clone().unwrap_or_else(|| "N/A".to_string());
+        
+        let leak_name = cred.leak_name.clone().unwrap_or_default();
+        let short_leak = if leak_name.len() > 30 {
+            format!("{}...", &leak_name[0..27])
+        } else {
+            leak_name
+        };
+
+        let url = cred.access_url.as_deref().or(cred.access_domain.as_deref()).unwrap_or("-");
+        let short_url = if url.len() > 40 {
+            format!("{}...", &url[0..37])
+        } else {
+            url.to_string()
+        };
+
+        // Format date if possible
+        let date_display = if source_date.len() >= 10 {
+            &source_date[0..10]
+        } else {
+            &source_date
+        };
+
+        rows.push_str(&format!(
+            r#"<tr class="border-b border-zinc-800 text-sm hover:bg-zinc-900/50 transition-colors">
+                <td class="py-3 pl-4 text-zinc-300 font-medium">{}</td>
+                <td class="py-3 text-orange-400 font-mono text-xs">{}</td>
+                <td class="py-3 text-zinc-400 text-xs">{}</td>
+                <td class="py-3 text-zinc-500 text-xs text-right pr-4">{}</td>
+            </tr>"#,
+            user, short_url, short_leak, date_display
+        ));
+    }
+
+    // Fill empty rows if less than 8
+    let count = data.credential_exposures.len();
+    if count < 8 {
+        for _ in 0..(8 - count) {
+             rows.push_str(r#"<tr class="border-b border-zinc-900/50 text-sm"><td class="py-3 pl-4">&nbsp;</td><td></td><td></td><td></td></tr>"#);
+        }
+    }
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white">
+            <div class="flex-grow h-full overflow-hidden flex flex-col">
+                <!-- Header -->
+                <div class="mb-6 flex justify-between items-end border-b border-zinc-800 pb-4">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                             <span class="bg-red-900/40 text-red-400 px-3 py-1 text-xs font-bold tracking-wider rounded-sm">CRITICAL EXPOSURE</span>
+                             <span class="text-zinc-500 text-xs font-mono uppercase tracking-widest">CONFIDENTIAL</span>
+                        </div>
+                        <h2 class="text-3xl font-bold text-white">Credenciales Comprometidas</h2>
+                        <p class="text-zinc-400 mt-1 text-sm">Identificadas en Stealer Logs y filtraciones (Dark Web)</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-5xl font-bold text-red-500 tracking-tighter">{}</div>
+                        <div class="text-xs text-zinc-500 uppercase tracking-widest mt-1">Total Expuesto</div>
+                    </div>
+                </div>
+                
+                <!-- Table -->
+                <div class="flex-grow w-full overflow-hidden bg-zinc-900/20 rounded-lg border border-zinc-800/50">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-xs text-zinc-500 uppercase tracking-wider border-b border-zinc-800 bg-zinc-900/50">
+                                <th class="py-3 pl-4 font-bold">Usuario / Email</th>
+                                <th class="py-3 font-bold">Sitio / URL</th>
+                                <th class="py-3 font-bold">Fuente de Filtración</th>
+                                <th class="py-3 pr-4 text-right font-bold">Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="mt-4 pt-3 flex justify-between items-center text-[0.6rem] text-zinc-700 border-t border-zinc-900/50">
+                 <div class="flex items-center gap-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <span>AXUR DIGITAL RISK PROTECTION</span>
+                 </div>
+                 <span>SENSITIVE DATA - DO NOT DISTRIBUTE</span>
+            </div>
+        </div></div>"#,
+        count,
+        rows
     )
 }
 

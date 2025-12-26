@@ -58,27 +58,47 @@ pub fn ReportLoader(#[prop(optional)] include_threat_intel: bool) -> impl IntoVi
 
     // Advance step every 8 seconds (to better match actual API timing)
     // Does NOT cycle - stays on last step once reached
+    // Uses create_effect with set_timeout to respect component lifecycle (auto-cleanup on unmount)
     let steps_len = steps.len();
-    set_interval(
-        move || {
-            let current = current_step.get();
-            // Only advance if not at last step
-            if (current as usize) < steps_len - 1 {
-                current_step.set(current + 1);
-            }
-        },
-        std::time::Duration::from_millis(8000),
-    );
+    create_effect(move |_| {
+        fn schedule_step_advance(current_step: RwSignal<u8>, steps_len: usize) {
+            set_timeout(
+                move || {
+                    // Check if signal is still valid before accessing
+                    if let Some(current) = current_step.try_get() {
+                        if (current as usize) < steps_len - 1 {
+                            let _ = current_step.try_set(current + 1);
+                            // Schedule next only if we're not at the end
+                            schedule_step_advance(current_step, steps_len);
+                        }
+                    }
+                },
+                std::time::Duration::from_millis(8000),
+            );
+        }
+        schedule_step_advance(current_step, steps_len);
+    });
 
-    // Keep rotating messages to show activity (this is fine to cycle)
+    // Keep rotating messages to show activity
+    // Uses create_effect with set_timeout to respect component lifecycle
     let messages_len = messages.len();
-    set_interval(
-        move || {
-            let next = (message_index.get() + 1) % messages_len;
-            message_index.set(next);
-        },
-        std::time::Duration::from_millis(4000),
-    );
+    create_effect(move |_| {
+        fn schedule_message_rotate(message_index: RwSignal<usize>, messages_len: usize) {
+            set_timeout(
+                move || {
+                    // Check if signal is still valid before accessing
+                    if let Some(current) = message_index.try_get() {
+                        let next = (current + 1) % messages_len;
+                        let _ = message_index.try_set(next);
+                        // Keep rotating indefinitely while component is alive
+                        schedule_message_rotate(message_index, messages_len);
+                    }
+                },
+                std::time::Duration::from_millis(4000),
+            );
+        }
+        schedule_message_rotate(message_index, messages_len);
+    });
 
     view! {
         <div class="fixed inset-0 bg-zinc-950/90 backdrop-blur-md flex items-center justify-center z-50">
@@ -157,7 +177,7 @@ pub fn ReportLoader(#[prop(optional)] include_threat_intel: bool) -> impl IntoVi
                         <div class="mt-4 text-center">
                             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs">
                                 <span>"🕵️"</span>
-                                "Threat Intelligence activo"
+                                "Threat Hunting activo"
                             </span>
                         </div>
                     }.into_view()

@@ -183,6 +183,7 @@ pub fn LoginPage() -> impl IntoView {
                                 placeholder=Signal::derive(move || dict.get().email_placeholder.to_string())
                                 value=email
                                 input_type="email".to_string()
+                                autocomplete="username".to_string()
                             />
 
                             <TextInput
@@ -190,6 +191,7 @@ pub fn LoginPage() -> impl IntoView {
                                 placeholder=Signal::derive(move || dict.get().password_placeholder.to_string())
                                 value=password
                                 input_type="password".to_string()
+                                autocomplete="current-password".to_string()
                             />
 
                             <div class="mt-6">

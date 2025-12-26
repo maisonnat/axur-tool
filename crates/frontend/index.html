@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axur Web - External Threat Intelligence</title>
+    <title>Axur Web - Threat Hunting</title>
     <meta name="description" content="Axur Web - Generador de reportes de inteligencia de amenazas externas">
     <link data-trunk rel="rust" href="Cargo.toml" />
 
@@ -60,6 +60,25 @@
             background: #52525b;
         }
     </style>
+    <!-- html2canvas for screenshots -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script>
+        window.captureScreenshot = async function () {
+            try {
+                // Ignore elements with class 'no-screenshot' (e.g., the modal itself if we wanted)
+                // Capture the entire body
+                const canvas = await html2canvas(document.body, {
+                    ignoreElements: (element) => element.classList.contains('no-screenshot'),
+                    logging: false,
+                    useCORS: true
+                });
+                return canvas.toDataURL("image/png");
+            } catch (e) {
+                console.error("Screenshot failed:", e);
+                return null;
+            }
+        };
+    </script>
 </head>
 
 <body class="bg-zinc-950 text-zinc-100">

@@ -19,3 +19,6 @@ tracing = "0.1"
 default = []
 web = []  # Enable web-specific code paths
 cli = []  # Enable CLI-specific code paths
+
+[dev-dependencies]
+dotenv = "0.15"

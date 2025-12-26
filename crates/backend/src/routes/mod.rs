@@ -1,6 +1,8 @@
 //! Route handlers
 
 pub mod auth;
+pub mod feedback;
+pub mod remote_log; // Private GitHub log uploads
 pub mod report;
 
 use axum::{
@@ -42,6 +44,16 @@ pub fn create_router() -> Router {
     let protected_routes = Router::new()
         .route("/api/tenants", get(report::list_tenants))
         .route("/api/report/generate", post(report::generate_report))
+        .route(
+            "/api/threat-hunting/preview",
+            post(report::threat_hunting_preview),
+        )
+        .route(
+            "/api/threat-hunting/preview-stream",
+            get(report::threat_hunting_preview_stream),
+        )
+        .route("/api/feedback", post(feedback::submit_feedback))
+        .route("/api/logs/sync", post(remote_log::sync_logs))
         .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
 
     Router::new()

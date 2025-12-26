@@ -10,8 +10,10 @@ pub fn TextInput(
     value: RwSignal<String>,
     #[prop(optional)] input_type: Option<String>,
     #[prop(optional)] disabled: Option<Signal<bool>>,
+    #[prop(optional)] autocomplete: Option<String>,
 ) -> impl IntoView {
     let input_type = input_type.unwrap_or_else(|| "text".to_string());
+    let autocomplete = autocomplete.unwrap_or_else(|| "off".to_string());
 
     view! {
         <div class="mb-4">
@@ -21,6 +23,7 @@ pub fn TextInput(
             <input
                 type=input_type
                 placeholder=move || placeholder.get()
+                autocomplete=autocomplete
                 class="w-full bg-zinc-800 border border-zinc-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white placeholder-zinc-500 rounded-lg py-3 px-4 outline-none transition-colors"
                 prop:value=move || value.try_get().unwrap_or_default()
                 on:input=move |ev| {

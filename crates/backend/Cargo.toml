@@ -36,6 +36,17 @@ tower = "0.4"
 cookie = { version = "0.18", features = ["secure"] }
 axum-extra = { version = "0.9", features = ["cookie"] }
 
+# SSE streaming
+futures = "0.3"
+tokio-stream = "0.1"
+async-stream = "0.3"
+
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.19.0", features = ["v4"] }
+dotenv = "0.15"
+
+# Remote logging
+base64 = "0.22"
+chrono = "0.4"

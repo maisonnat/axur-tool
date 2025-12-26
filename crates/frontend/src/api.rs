@@ -83,13 +83,17 @@ pub struct GenerateReportRequest {
     pub include_threat_intel: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[allow(dead_code)]
 pub struct GenerateReportResponse {
     pub success: bool,
     pub html: Option<String>,
     pub company_name: Option<String>,
     pub message: String,
+    /// Structured error code (e.g., "TI-001", "API-002")
+    pub error_code: Option<String>,
+    /// User-friendly error message
+    pub error_message: Option<String>,
 }
 
 // ========================
@@ -241,5 +245,177 @@ pub async fn generate_report(
         resp.json().await.map_err(|e| e.to_string())
     } else {
         Err(format!("Failed to generate report: {}", resp.status()))
+    }
+}
+
+// ========================
+// THREAT HUNTING PREVIEW
+// ========================
+
+#[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
+pub struct ThreatHuntingPreviewRequest {
+    pub tenant_id: String,
+    pub story_tag: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[allow(dead_code)]
+pub struct ThreatHuntingPreviewResponse {
+    pub success: bool,
+    pub preview: Option<ThreatHuntingPreview>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+#[allow(dead_code)]
+pub struct ThreatHuntingPreview {
+    pub signal_lake_count: u64,
+    pub credential_count: u64,
+    pub chat_message_count: u64,
+    pub forum_message_count: u64,
+    pub total_count: u64,
+    pub estimated_credits: u64,
+    pub tickets_count: usize,
+}
+
+/// Get preview of Threat Hunting results (counts and estimated credits)
+#[allow(dead_code)]
+pub async fn request_threat_hunting_preview(
+    tenant_id: &str,
+    story_tag: &str,
+) -> Result<ThreatHuntingPreviewResponse, String> {
+    let resp = Request::post(&format!("{}/api/threat-hunting/preview", API_BASE))
+        .header("Content-Type", "application/json")
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&ThreatHuntingPreviewRequest {
+            tenant_id: tenant_id.to_string(),
+            story_tag: story_tag.to_string(),
+        })
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to get preview: {}", resp.status()))
+    }
+}
+
+// ========================
+// SSE STREAMING TYPES
+// ========================
+
+/// SSE Event types from the streaming endpoint
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[allow(dead_code)]
+pub enum ThreatHuntingStreamEvent {
+    Started {
+        total_domains: usize,
+        total_tickets: usize,
+    },
+    DomainProcessing {
+        domain: String,
+        index: usize,
+        source: String,
+    },
+    DomainComplete {
+        domain: String,
+        source: String,
+        count: u64,
+    },
+    Finished {
+        total_count: u64,
+        signal_lake_count: u64,
+        chatter_count: u64,
+        credential_count: u64,
+        estimated_credits: f64,
+    },
+    Error {
+        message: String,
+    },
+}
+
+/// Get the SSE stream URL for threat hunting preview
+pub fn get_threat_hunting_stream_url(
+    tenant_id: &str,
+    story_tag: &str,
+    use_user_credits: bool,
+) -> String {
+    format!(
+        "{}/api/threat-hunting/preview-stream?tenant_id={}&story_tag={}&use_user_credits={}",
+        API_BASE,
+        urlencoding_encode(tenant_id),
+        urlencoding_encode(story_tag),
+        use_user_credits
+    )
+}
+
+/// Simple URL encoding helper
+fn urlencoding_encode(s: &str) -> String {
+    s.chars()
+        .map(|c| match c {
+            ' ' => "%20".to_string(),
+            '&' => "%26".to_string(),
+            '=' => "%3D".to_string(),
+            _ => c.to_string(),
+        })
+        .collect()
+}
+
+// ========================
+// FEEDBACK API
+// ========================
+
+#[derive(Debug, Serialize)]
+pub struct FeedbackRequest {
+    pub message: String,
+    pub screenshot: Option<String>,
+    pub url: String,
+    pub user_agent: String,
+    pub tenant_id: Option<String>,
+    pub user_email: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct FeedbackResponse {
+    pub success: bool,
+    pub issue_url: Option<String>,
+    pub message: String,
+}
+
+/// Helper to submit feedback
+pub async fn submit_feedback(
+    message: String,
+    screenshot: Option<String>,
+    url: String,
+    user_agent: String,
+    tenant_id: Option<String>,
+    user_email: Option<String>,
+) -> Result<FeedbackResponse, String> {
+    let resp = Request::post(&format!("{}/api/feedback", API_BASE))
+        .header("Content-Type", "application/json")
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&FeedbackRequest {
+            message,
+            screenshot,
+            url,
+            user_agent,
+            tenant_id,
+            user_email,
+        })
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to submit feedback: {}", resp.status()))
     }
 }
