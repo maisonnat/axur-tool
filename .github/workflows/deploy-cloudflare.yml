@@ -35,9 +35,11 @@ jobs:
           cd crates/frontend
           trunk build --release
         env:
-          # Production API URL (Koyeb)
-          API_BASE_URL: https://unacceptable-dennie-axur-tool-8f97679f.koyeb.app
+          # No API_BASE_URL = empty string = relative URLs for Cloudflare proxy
           TRUNK_BUILD_PUBLIC_URL: /
+          
+      - name: Copy _redirects for Cloudflare proxy
+        run: cp crates/frontend/_redirects crates/frontend/dist/_redirects
           
       - name: Deploy to Cloudflare
         run: npx wrangler pages deploy crates/frontend/dist --project-name=axtool

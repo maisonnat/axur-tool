@@ -1,0 +1,12 @@
+# Cloudflare Pages Proxy Configuration
+# Proxies API requests to Koyeb backend
+# This allows same-domain cookies to work properly
+
+# Health check
+/health https://unacceptable-dennie-axur-tool-8f97679f.koyeb.app/health 200
+
+# All API routes
+/api/* https://unacceptable-dennie-axur-tool-8f97679f.koyeb.app/api/:splat 200
+
+# SPA fallback - serve index.html for all other routes
+/* /index.html 200

@@ -3,10 +3,12 @@
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};
 
-// Use environment variable at compile time, default to localhost for development
+// Use environment variable at compile time
+// - Development: Set API_BASE_URL=http://localhost:3001
+// - Production: Use empty string for relative URLs (Cloudflare proxies /api/* to Koyeb)
 const API_BASE: &str = match option_env!("API_BASE_URL") {
     Some(url) => url,
-    None => "http://localhost:3001",
+    None => "", // Empty = relative URLs, works with Cloudflare proxy
 };
 
 // ========================
