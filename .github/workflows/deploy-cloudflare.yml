@@ -40,9 +40,14 @@ jobs:
           
       - name: Copy Cloudflare Functions for API proxy
         run: |
-          cp -r crates/frontend/functions crates/frontend/dist/functions
+          mkdir -p crates/frontend/dist/functions/api
+          cp crates/frontend/functions/health.js crates/frontend/dist/functions/health.js
+          cp "crates/frontend/functions/api/[[path]].js" "crates/frontend/dist/functions/api/[[path]].js"
           # Also copy _redirects for SPA routing fallback
           cp crates/frontend/_redirects crates/frontend/dist/_redirects
+          
+      - name: Debug - List dist content
+        run: ls -R crates/frontend/dist
           
       - name: Deploy to Cloudflare
         run: npx wrangler pages deploy crates/frontend/dist --project-name=axtool
