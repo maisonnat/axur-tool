@@ -4,6 +4,7 @@ pub mod auth;
 pub mod feedback;
 pub mod remote_log; // Private GitHub log uploads
 pub mod report;
+pub mod status; // Production health checks
 
 use axum::{
     http::{header, HeaderValue, Method},
@@ -37,9 +38,10 @@ pub fn create_router() -> Router {
         .allow_credentials(true)
         .max_age(std::time::Duration::from_secs(3600)); // Cache preflight for 1 hour
 
-    // Public routes (Auth, Health)
+    // Public routes (Auth, Health, Status)
     let public_routes = Router::new()
         .route("/health", get(health_check))
+        .route("/api/status", get(status::full_status))
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/2fa", post(auth::verify_2fa))
         .route("/api/auth/finalize", post(auth::finalize))
