@@ -25,11 +25,17 @@ pub fn create_router() -> Router {
             "http://127.0.0.1:8080".parse::<HeaderValue>().unwrap(),
             // Production (Cloudflare Pages)
             "https://axtool.pages.dev".parse::<HeaderValue>().unwrap(),
-            "https://axtool.pages.dev/".parse::<HeaderValue>().unwrap(),
         ])
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::COOKIE])
-        .allow_credentials(true);
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            header::COOKIE,
+            header::ACCEPT,
+        ])
+        .expose_headers([header::SET_COOKIE, header::CONTENT_TYPE])
+        .allow_credentials(true)
+        .max_age(std::time::Duration::from_secs(3600)); // Cache preflight for 1 hour
 
     // Public routes (Auth, Health)
     let public_routes = Router::new()
