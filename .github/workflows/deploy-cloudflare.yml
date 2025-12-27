@@ -42,7 +42,7 @@ jobs:
         run: |
           mkdir -p crates/frontend/dist/functions/api
           cp crates/frontend/functions/health.js crates/frontend/dist/functions/health.js
-          cp "crates/frontend/functions/api/[[path]].js" "crates/frontend/dist/functions/api/[[path]].js"
+          cp crates/frontend/functions/api/_middleware.js crates/frontend/dist/functions/api/_middleware.js
           # Also copy _redirects for SPA routing fallback
           cp crates/frontend/_redirects crates/frontend/dist/_redirects
           
