@@ -38,19 +38,19 @@ jobs:
           # No API_BASE_URL = empty string = relative URLs for Cloudflare proxy
           TRUNK_BUILD_PUBLIC_URL: /
           
-      - name: Copy Cloudflare Functions for API proxy
+      - name: Preparing dist folder
         run: |
-          mkdir -p crates/frontend/dist/functions/api
-          cp crates/frontend/functions/health.js crates/frontend/dist/functions/health.js
-          cp crates/frontend/functions/api/_middleware.js crates/frontend/dist/functions/api/_middleware.js
-          # Also copy _redirects for SPA routing fallback
+          # Copy _redirects (must be in dist)
           cp crates/frontend/_redirects crates/frontend/dist/_redirects
           
-      - name: Debug - List dist content
-        run: ls -R crates/frontend/dist
+      - name: Debug - List directories
+        run: |
+          ls -R crates/frontend/dist
+          ls -R crates/frontend/functions
           
       - name: Deploy to Cloudflare
-        run: npx wrangler pages deploy crates/frontend/dist --project-name=axtool
+        working-directory: crates/frontend
+        run: npx wrangler pages deploy dist --project-name=axtool
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
