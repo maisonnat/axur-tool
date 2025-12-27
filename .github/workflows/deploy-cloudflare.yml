@@ -38,8 +38,11 @@ jobs:
           # No API_BASE_URL = empty string = relative URLs for Cloudflare proxy
           TRUNK_BUILD_PUBLIC_URL: /
           
-      - name: Copy _redirects for Cloudflare proxy
-        run: cp crates/frontend/_redirects crates/frontend/dist/_redirects
+      - name: Copy Cloudflare Functions for API proxy
+        run: |
+          cp -r crates/frontend/functions crates/frontend/dist/functions
+          # Also copy _redirects for SPA routing fallback
+          cp crates/frontend/_redirects crates/frontend/dist/_redirects
           
       - name: Deploy to Cloudflare
         run: npx wrangler pages deploy crates/frontend/dist --project-name=axtool
