@@ -3243,108 +3243,169 @@ pub async fn fetch_threat_intelligence(
         search_ids.push((source, id));
     }
 
-    // Poll for results (with timeout of 10 attempts = ~30 seconds each)
-    for (source, search_id) in search_ids {
-        let Some(id) = search_id else { continue };
-
-        let results = poll_threat_search(client, auth, &id, 10)
-            .await
-            .unwrap_or_default();
-
-        // Process results based on source type
-        match source {
-            ThreatHuntingSource::ForumMessage => {
-                intel.dark_web_mentions = results.len() as u64;
-
-                // Find earliest date
-                let mut earliest: Option<String> = None;
-                for r in &results {
-                    if let Some(date) = &r.date {
-                        if earliest.as_ref().map(|e| date < e).unwrap_or(true) {
-                            earliest = Some(date.clone());
-                        }
-                    }
-                }
-                intel.earliest_dark_web_date = earliest;
-
-                // Collect unique sources
-                let sources: std::collections::HashSet<_> = results
-                    .iter()
-                    .filter_map(|r| r.source_name.clone().or(r.source.clone()))
-                    .collect();
-                intel.dark_web_sources = sources.into_iter().collect();
+    // Poll for results in PARALLEL (with timeout of 10 attempts = ~30 seconds max per source)
+    // This reduces total time from 150s (sequential) to ~30s (parallel)
+    let (forum_results, chat_results, social_results, cred_results, ads_results) = tokio::join!(
+        async {
+            if let Some((_, Some(id))) = search_ids
+                .iter()
+                .find(|(s, _)| matches!(s, ThreatHuntingSource::ForumMessage))
+            {
+                poll_threat_search(client, auth, id, 10)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                vec![]
             }
-
-            ThreatHuntingSource::ChatMessage => {
-                intel.chat_group_shares = results.len() as u64;
-
-                // Collect platforms
-                let platforms: std::collections::HashSet<_> =
-                    results.iter().filter_map(|r| r.platform.clone()).collect();
-                intel.platforms_detected.extend(platforms);
+        },
+        async {
+            if let Some((_, Some(id))) = search_ids
+                .iter()
+                .find(|(s, _)| matches!(s, ThreatHuntingSource::ChatMessage))
+            {
+                poll_threat_search(client, auth, id, 10)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                vec![]
             }
-
-            ThreatHuntingSource::SocialMediaPosts => {
-                intel.social_media_mentions = results.len() as u64;
-
-                // Add social platforms
-                let platforms: std::collections::HashSet<_> =
-                    results.iter().filter_map(|r| r.platform.clone()).collect();
-                intel.platforms_detected.extend(platforms);
+        },
+        async {
+            if let Some((_, Some(id))) = search_ids
+                .iter()
+                .find(|(s, _)| matches!(s, ThreatHuntingSource::SocialMediaPosts))
+            {
+                poll_threat_search(client, auth, id, 10)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                vec![]
             }
-
-            ThreatHuntingSource::Credential => {
-                intel.total_credentials = results.len() as u64;
-
-                for r in &results {
-                    // Classify by leak format
-                    if let Some(format) = &r.leak_format {
-                        let format_lower = format.to_lowercase();
-                        if format_lower.contains("stealer") {
-                            intel.stealer_log_count += 1;
-                        } else if format_lower.contains("combo") {
-                            intel.combolist_count += 1;
-                        }
-                    }
-
-                    // Classify by password type
-                    if let Some(pwd_type) = &r.password_type {
-                        let type_lower = pwd_type.to_lowercase();
-                        if type_lower.contains("plain") {
-                            intel.plain_password_count += 1;
-                        } else {
-                            intel.hashed_password_count += 1;
-                        }
-                    }
-
-                    // Collect access URLs
-                    if let Some(url) = &r.access_url {
-                        if intel.top_access_urls.len() < 5 && !intel.top_access_urls.contains(url) {
-                            intel.top_access_urls.push(url.clone());
-                        }
-                    }
-                }
-
-                // Compute percentages
-                if intel.total_credentials > 0 {
-                    intel.stealer_log_percent =
-                        (intel.stealer_log_count as f64 / intel.total_credentials as f64) * 100.0;
-                    intel.plain_password_percent = (intel.plain_password_count as f64
-                        / intel.total_credentials as f64)
-                        * 100.0;
-                }
+        },
+        async {
+            if let Some((_, Some(id))) = search_ids
+                .iter()
+                .find(|(s, _)| matches!(s, ThreatHuntingSource::Credential))
+            {
+                poll_threat_search(client, auth, id, 10)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                vec![]
             }
-
-            ThreatHuntingSource::SignalLakeAds => {
-                intel.paid_ads_detected = results.len() as u64;
-
-                // Collect ad platforms
-                let platforms: std::collections::HashSet<_> =
-                    results.iter().filter_map(|r| r.platform.clone()).collect();
-                intel.ad_platforms = platforms.into_iter().collect();
+        },
+        async {
+            if let Some((_, Some(id))) = search_ids
+                .iter()
+                .find(|(s, _)| matches!(s, ThreatHuntingSource::SignalLakeAds))
+            {
+                poll_threat_search(client, auth, id, 10)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                vec![]
             }
-            _ => {} // Ignore other sources for deep investigation for now
         }
+    );
+
+    // Process Forum Message results
+    {
+        let results = forum_results;
+        intel.dark_web_mentions = results.len() as u64;
+
+        // Find earliest date
+        let mut earliest: Option<String> = None;
+        for r in &results {
+            if let Some(date) = &r.date {
+                if earliest.as_ref().map(|e| date < e).unwrap_or(true) {
+                    earliest = Some(date.clone());
+                }
+            }
+        }
+        intel.earliest_dark_web_date = earliest;
+
+        // Collect unique sources
+        let sources: std::collections::HashSet<_> = results
+            .iter()
+            .filter_map(|r| r.source_name.clone().or(r.source.clone()))
+            .collect();
+        intel.dark_web_sources = sources.into_iter().collect();
+    }
+
+    // Process Chat Message results
+    {
+        let results = chat_results;
+        intel.chat_group_shares = results.len() as u64;
+
+        // Collect platforms
+        let platforms: std::collections::HashSet<_> =
+            results.iter().filter_map(|r| r.platform.clone()).collect();
+        intel.platforms_detected.extend(platforms);
+    }
+
+    // Process Social Media Posts results
+    {
+        let results = social_results;
+        intel.social_media_mentions = results.len() as u64;
+
+        // Add social platforms
+        let platforms: std::collections::HashSet<_> =
+            results.iter().filter_map(|r| r.platform.clone()).collect();
+        intel.platforms_detected.extend(platforms);
+    }
+
+    // Process Credential results
+    {
+        let results = cred_results;
+        intel.total_credentials = results.len() as u64;
+
+        for r in &results {
+            // Classify by leak format
+            if let Some(format) = &r.leak_format {
+                let format_lower = format.to_lowercase();
+                if format_lower.contains("stealer") {
+                    intel.stealer_log_count += 1;
+                } else if format_lower.contains("combo") {
+                    intel.combolist_count += 1;
+                }
+            }
+
+            // Classify by password type
+            if let Some(pwd_type) = &r.password_type {
+                let type_lower = pwd_type.to_lowercase();
+                if type_lower.contains("plain") {
+                    intel.plain_password_count += 1;
+                } else {
+                    intel.hashed_password_count += 1;
+                }
+            }
+
+            // Collect access URLs
+            if let Some(url) = &r.access_url {
+                if intel.top_access_urls.len() < 5 && !intel.top_access_urls.contains(url) {
+                    intel.top_access_urls.push(url.clone());
+                }
+            }
+        }
+
+        // Compute percentages
+        if intel.total_credentials > 0 {
+            intel.stealer_log_percent =
+                (intel.stealer_log_count as f64 / intel.total_credentials as f64) * 100.0;
+            intel.plain_password_percent =
+                (intel.plain_password_count as f64 / intel.total_credentials as f64) * 100.0;
+        }
+    }
+
+    // Process Signal Lake Ads results
+    {
+        let results = ads_results;
+        intel.paid_ads_detected = results.len() as u64;
+
+        // Collect ad platforms
+        let platforms: std::collections::HashSet<_> =
+            results.iter().filter_map(|r| r.platform.clone()).collect();
+        intel.ad_platforms = platforms.into_iter().collect();
     }
 
     // Compute days before public (if we have dark web data and incident data)

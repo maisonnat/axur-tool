@@ -144,6 +144,99 @@ pub fn upload_debug_json(category: &str, data: &serde_json::Value) {
     upload_log_async(category, &filename, content);
 }
 
+/// Log API request with metadata
+pub fn log_request<T: serde::Serialize>(operation: &str, payload: &T, tenant_id: Option<&str>) {
+    let log_data = serde_json::json!({
+        "type": "request",
+        "operation": operation,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "tenant_id": tenant_id,
+        "payload": payload
+    });
+
+    upload_debug_json(&format!("{}_requests", operation), &log_data);
+}
+
+/// Log API response with performance data
+pub fn log_response<T: serde::Serialize>(
+    operation: &str,
+    response: &T,
+    duration_ms: u128,
+    tenant_id: Option<&str>,
+    success: bool,
+) {
+    let log_data = serde_json::json!({
+        "type": "response",
+        "operation": operation,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "duration_ms": duration_ms,
+        "tenant_id": tenant_id,
+        "success": success,
+        "response": response
+    });
+
+    upload_debug_json(&format!("{}_responses", operation), &log_data);
+}
+
+/// Log error with context
+pub fn log_error(
+    operation: &str,
+    error_code: &str,
+    error_message: &str,
+    tenant_id: Option<&str>,
+    context: serde_json::Value,
+) {
+    let log_data = serde_json::json!({
+        "type": "error",
+        "operation": operation,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "error_code": error_code,
+        "error_message": error_message,
+        "tenant_id": tenant_id,
+        "context": context
+    });
+
+    upload_debug_json("errors", &log_data);
+}
+
+/// Log performance metrics with breakdown
+pub fn log_performance(
+    operation: &str,
+    total_duration_ms: u128,
+    breakdown: serde_json::Value,
+    tenant_id: Option<&str>,
+) {
+    let log_data = serde_json::json!({
+        "type": "performance",
+        "operation": operation,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "total_duration_ms": total_duration_ms,
+        "breakdown": breakdown,
+        "tenant_id": tenant_id
+    });
+
+    upload_debug_json("performance_metrics", &log_data);
+}
+
+/// Log feature usage event
+pub fn log_feature_usage(
+    feature: &str,
+    tenant_id: Option<&str>,
+    success: bool,
+    metadata: Option<serde_json::Value>,
+) {
+    let log_data = serde_json::json!({
+        "type": "feature_usage",
+        "feature": feature,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "tenant_id": tenant_id,
+        "success": success,
+        "metadata": metadata
+    });
+
+    upload_debug_json("feature_usage", &log_data);
+}
+
 // ==================== HTTP ENDPOINT ====================
 
 use axum::{http::StatusCode, response::IntoResponse, Json};

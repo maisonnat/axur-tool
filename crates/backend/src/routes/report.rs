@@ -30,7 +30,7 @@ pub struct TenantResponse {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct GenerateReportRequest {
     pub tenant_id: String,
     pub from_date: String,
@@ -60,7 +60,7 @@ pub struct GenerateReportResponse {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ThreatHuntingPreviewRequest {
     pub tenant_id: String,
     pub story_tag: String,
@@ -143,13 +143,19 @@ pub async fn generate_report(
         payload.story_tag
     );
 
+    // 📝 Log request
+    crate::routes::remote_log::log_request("report_generate", &payload, Some(&payload.tenant_id));
+
+    // ⏱️ Start performance tracking
+    let start_time = std::time::Instant::now();
+
     // Fetch report data using axur-core
     let report_data = match fetch_full_report(
         &token,
         &payload.tenant_id,
         &payload.from_date,
         &payload.to_date,
-        payload.story_tag,
+        payload.story_tag.clone(),
         payload.include_threat_intel,
     )
     .await
@@ -162,6 +168,21 @@ pub async fn generate_report(
                 context = %e.to_string(),
                 "Report generation failed"
             );
+
+            // 📝 Log error
+            crate::routes::remote_log::log_error(
+                "report_generate",
+                &error_code.code(),
+                &e.to_string(),
+                Some(&payload.tenant_id),
+                serde_json::json!({
+                    "from_date": &payload.from_date,
+                    "to_date": &payload.to_date,
+                    "include_threat_intel": payload.include_threat_intel,
+                    "story_tag": &payload.story_tag
+                }),
+            );
+
             return Ok(Json(GenerateReportResponse {
                 success: false,
                 html: None,
@@ -184,14 +205,41 @@ pub async fn generate_report(
     // Generate HTML report
     let html = generate_full_report_html(&report_data, None, &dict);
 
-    Ok(Json(GenerateReportResponse {
+    // ⏱️ Calculate duration
+    let duration_ms = start_time.elapsed().as_millis();
+
+    let response = GenerateReportResponse {
         success: true,
         html: Some(html),
-        company_name: Some(report_data.company_name),
+        company_name: Some(report_data.company_name.clone()),
         message: "Report generated successfully".into(),
         error_code: None,
         error_message: None,
-    }))
+    };
+
+    // 📝 Log successful response
+    crate::routes::remote_log::log_response(
+        "report_generate",
+        &response,
+        duration_ms,
+        Some(&payload.tenant_id),
+        true,
+    );
+
+    // 📊 Log feature usage
+    crate::routes::remote_log::log_feature_usage(
+        "report_generation",
+        Some(&payload.tenant_id),
+        true,
+        Some(serde_json::json!({
+            "include_threat_intel": payload.include_threat_intel,
+            "language": &payload.language,
+            "has_story_tag": payload.story_tag.is_some(),
+            "duration_ms": duration_ms
+        })),
+    );
+
+    Ok(Json(response))
 }
 
 /// Preview Threat Hunting results without consuming full credits
@@ -210,6 +258,12 @@ pub async fn threat_hunting_preview(
         story_tag = %payload.story_tag,
         "Starting Threat Hunting preview"
     );
+
+    // 📝 Log request
+    crate::routes::remote_log::log_request("th_preview", &payload, Some(&payload.tenant_id));
+
+    // ⏱️ Start performance tracking
+    let start_time = std::time::Instant::now();
 
     // FIXED: Fetch actual tickets with the story_tag instead of using tag as domain
     let tickets = match axur_core::api::report::fetch_tagged_tickets_for_preview(
@@ -260,6 +314,40 @@ pub async fn threat_hunting_preview(
                 tickets_used = tickets.len(),
                 "Threat Hunting preview completed"
             );
+
+            // ⏱️ Calculate duration
+            let duration_ms = start_time.elapsed().as_millis();
+
+            // 📝 Log successful response (metadata only, not full preview data)
+            crate::routes::remote_log::log_response(
+                "th_preview",
+                &serde_json::json!({
+                    "success": true,
+                    "total_count": preview.total_count,
+                    "estimated_credits": preview.estimated_credits,
+                    "signal_lake_count": preview.signal_lake_count,
+                    "credential_count": preview.credential_count,
+                    "tickets_used": tickets.len()
+                }),
+                duration_ms,
+                Some(&payload.tenant_id),
+                true,
+            );
+
+            // 📊 Log feature usage
+            crate::routes::remote_log::log_feature_usage(
+                "preview_generation",
+                Some(&payload.tenant_id),
+                true,
+                Some(serde_json::json!({
+                    "story_tag": &payload.story_tag,
+                    "tickets_count": tickets.len(),
+                    "total_results": preview.total_count,
+                    "estimated_credits": preview.estimated_credits,
+                    "duration_ms": duration_ms
+                })),
+            );
+
             Ok(Json(ThreatHuntingPreviewResponse {
                 success: true,
                 preview: Some(preview),
@@ -268,6 +356,19 @@ pub async fn threat_hunting_preview(
         }
         Err(e) => {
             tracing::error!("Threat Hunting preview failed: {}", e);
+
+            // 📝 Log error
+            crate::routes::remote_log::log_error(
+                "th_preview",
+                "TH-ERR",
+                &e.to_string(),
+                Some(&payload.tenant_id),
+                serde_json::json!({
+                    "story_tag": &payload.story_tag,
+                    "tickets_count": tickets.len()
+                }),
+            );
+
             Ok(Json(ThreatHuntingPreviewResponse {
                 success: false,
                 preview: None,
