@@ -1458,6 +1458,35 @@ impl Dictionary for Portuguese {
     fn story_subtitle(&self, count: usize) -> String {
         format!("Linha do tempo de {} incidentes relacionados", count)
     }
+
+    // Context Slides - Portuguese
+    fn ctx_risk_title(&self) -> String {
+        "O Panorama de Risco Digital".to_string()
+    }
+    fn ctx_risk_text(&self) -> String {
+        "O monitoramento de riscos digitais é essencial no mundo interconectado de hoje. Esta seção oferece uma visão geral das ameaças detectadas na web aberta, profunda e dark. Ao identificar esses riscos antecipadamente, possibilitamos estratégias de mitigação proativas para proteger a reputação da sua marca e seus ativos digitais.".to_string()
+    }
+
+    fn ctx_stealer_title(&self) -> String {
+        "Entendendo os Infostealers".to_string()
+    }
+    fn ctx_stealer_text(&self) -> String {
+        "Infostealers são malwares projetados para coletar informações sensíveis de dispositivos infectados. Eles roubam credenciais de login, cookies e detalhes do sistema, frequentemente vendidos em mercados da dark web. Detectar esses registros nos permite identificar contas de funcionários ou clientes comprometidas antes que sejam usadas para acessos não autorizados.".to_string()
+    }
+
+    fn ctx_leak_title(&self) -> String {
+        "O Perigo de Segredos Expostos".to_string()
+    }
+    fn ctx_leak_text(&self) -> String {
+        "Desenvolvedores às vezes publicam inadvertidamente chaves, tokens ou credenciais sensíveis em repositórios públicos. Esses 'segredos' podem dar aos atacantes acesso à infraestrutura em nuvem, banco de dados ou serviços internos. O monitoramento contínuo de repositórios de código público é crucial para detectar e revogar essas chaves imediatamente.".to_string()
+    }
+
+    fn ctx_takedown_title(&self) -> String {
+        "O Processo de Takedown".to_string()
+    }
+    fn ctx_takedown_text(&self) -> String {
+        "Takedown é o processo de remoção de conteúdo malicioso ou infrator da internet. Quando uma ameaça é confirmada, nossos sistemas automatizados e equipe jurídica interagem com provedores de hospedagem, registradores e plataformas de redes sociais para forçar a remoção, neutralizando a ameaça em sua origem.".to_string()
+    }
 }
 
 pub fn get_dictionary(lang: Language) -> Box<dyn Dictionary> {
