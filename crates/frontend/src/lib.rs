@@ -8,7 +8,7 @@ mod i18n;
 mod pages;
 
 use leptos::*;
-use pages::{DashboardPage, LoginPage, LogsPage};
+use pages::{AnalyticsPage, DashboardPage, LoginPage, LogsPage};
 
 pub use i18n::{get_ui_dict, UiDict, UiLanguage};
 
@@ -30,6 +30,7 @@ pub enum Page {
     Login,
     Dashboard,
     Logs,
+    Analytics,
 }
 
 impl Default for AppState {
@@ -71,6 +72,7 @@ pub fn App() -> impl IntoView {
                 Page::Login => view! { <LoginPage/> }.into_view(),
                 Page::Dashboard => view! { <DashboardPage/> }.into_view(),
                 Page::Logs => view! { <LogsPage/> }.into_view(),
+                Page::Analytics => view! { <AnalyticsPage/> }.into_view(),
             }}
         </div>
     }

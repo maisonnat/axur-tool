@@ -200,6 +200,76 @@ pub trait Dictionary {
     fn ctx_risk_title(&self) -> String;
     fn ctx_risk_text(&self) -> String;
 
+    // Advanced Storytelling & Efficiency
+    fn eff_title(&self) -> String;
+    fn eff_text_hours(&self, hours: u64, analysts: f64) -> String;
+    fn eff_text_speed(&self) -> String;
+
+    fn narrative_phishing_title(&self) -> String;
+    fn narrative_phishing_pain(&self) -> String;
+    fn narrative_phishing_solution(&self) -> String;
+
+    fn narrative_stealer_title(&self) -> String;
+    fn narrative_stealer_pain(&self) -> String;
+    fn narrative_stealer_solution(&self) -> String;
+
+    fn narrative_takedown_title(&self) -> String;
+    fn narrative_takedown_pain(&self) -> String;
+    fn narrative_takedown_solution(&self) -> String;
+
+    fn narrative_timeline_title(&self) -> String;
+    fn narrative_timeline_text(&self, percent_off_hours: u64) -> String;
+
+    fn closing_value_title(&self) -> String;
+    fn closing_value_intro(&self) -> String;
+    fn closing_value_item_1_title(&self) -> String;
+    fn closing_value_item_1_desc(&self) -> String;
+    fn closing_value_item_2_title(&self) -> String;
+    fn closing_value_item_2_desc(&self) -> String;
+    fn closing_value_item_3_title(&self) -> String;
+    fn closing_value_item_3_desc(&self) -> String;
+
+    // === Virality / Chat Narrative ===
+    fn narrative_virality_title(&self) -> String;
+    // Primary: Used when there are group shares or dark web mentions
+    // "{share_count} mentions in {source_count} groups like '{top_source}'"
+    fn narrative_virality_pain_primary(
+        &self,
+        share_count: u64,
+        source_count: usize,
+        top_source: &str,
+    ) -> String;
+    fn narrative_virality_solution_primary(&self) -> String;
+    // Fallback: Used when no detected viral activity
+    fn narrative_virality_pain_fallback(&self) -> String;
+    fn narrative_virality_solution_fallback(&self) -> String;
+
+    // === ROI Precision ===
+    fn roi_precise_title(&self) -> String;
+    fn roi_precise_text_primary(&self, median_minutes: i64) -> String;
+    fn roi_precise_text_fallback(&self) -> String;
+
+    // === AI Intent Analysis ===
+    fn intent_title(&self) -> String;
+    fn intent_fmt_primary(&self, top_intent: &str, percent: u64) -> String;
+    fn intent_fmt_fallback(&self) -> String;
+    fn intent_cat_credentials(&self) -> String;
+    fn intent_cat_infection(&self) -> String;
+    fn intent_cat_fraud(&self) -> String;
+    fn intent_cat_trust(&self) -> String;
+    fn intent_cat_chat(&self) -> String;
+    fn intent_cat_compromised(&self) -> String;
+    fn intent_cat_data_leak(&self) -> String;
+    fn intent_cat_vip(&self) -> String;
+    fn intent_cat_dark_web(&self) -> String;
+
+    // === Geospatial Intelligence ===
+    fn geo_title(&self) -> String;
+    fn geo_fmt_primary(&self, count: usize, top_country: &str) -> String;
+    fn geo_fmt_fallback(&self) -> String;
+    fn geo_lbl_countries(&self) -> String;
+    fn geo_lbl_isps(&self) -> String;
+
     fn ctx_stealer_title(&self) -> String;
     fn ctx_stealer_text(&self) -> String;
 
@@ -618,6 +688,163 @@ impl Dictionary for English {
         "Digital risk monitoring is essential in today's interconnected world. This section provides an overview of the threats detected across the open, deep, and dark web. By identifying these risks early, we enable proactive mitigation strategies to protect your brand reputation and digital assets.".to_string()
     }
 
+    // Advanced Storytelling - English
+    fn eff_title(&self) -> String {
+        "Operational Efficiency".to_string()
+    }
+    fn eff_text_hours(&self, hours: u64, analysts: f64) -> String {
+        format!("To manually analyze the threats processed by Axur, your team would have needed <strong>{} hours</strong>. This is equivalent to <strong>{:.1} full-time analysts</strong> dedicated solely to detection.", hours, analysts)
+    }
+    fn eff_text_speed(&self) -> String {
+        "Threat management with Axur was <strong>180x faster</strong> than the industry average. While a human takes ~30 mins per alert, our AI correlates threats in seconds.".to_string()
+    }
+
+    fn narrative_phishing_title(&self) -> String {
+        "Phishing & Brand Abuse".to_string()
+    }
+    fn narrative_phishing_pain(&self) -> String {
+        "Modern phishing evades traditional filters. Attempting to cover the volume of 40 million new URLs daily is humanly impossible.".to_string()
+    }
+    fn narrative_phishing_solution(&self) -> String {
+        "Our AI visually inspects every site (Computer Vision), detecting fraud even without explicit brand mentions. We don't just detect; we take down in under 4 minutes.".to_string()
+    }
+
+    fn narrative_stealer_title(&self) -> String {
+        "Understanding Infostealers".to_string()
+    }
+    fn narrative_stealer_pain(&self) -> String {
+        "Stolen credentials from infected devices (Infostealers) allow attackers to bypass MFA by mimicking the user's digital fingerprint.".to_string()
+    }
+    fn narrative_stealer_solution(&self) -> String {
+        "Manually searching the Deep Web is inefficient. Axur scans 42 billion credentials to find only those that pose a real risk to your active sessions.".to_string()
+    }
+
+    fn narrative_takedown_title(&self) -> String {
+        "The Takedown Process".to_string()
+    }
+    fn narrative_takedown_pain(&self) -> String {
+        "Managing takedowns across different platforms requires handling endless bureaucracy and forms for each provider.".to_string()
+    }
+    fn narrative_takedown_solution(&self) -> String {
+        "Axur has trusted integrations with these platforms. What takes a lawyer days, we request en masse with a 98.9% success rate.".to_string()
+    }
+
+    fn narrative_timeline_title(&self) -> String {
+        "Attack Timeline vs. Human Capacity".to_string()
+    }
+    fn narrative_timeline_text(&self, percent: u64) -> String {
+        format!("Cybercriminals don't respect office hours. <strong>{}%</strong> of critical threats were detected outside business hours. Without 24/7 automation, these would remain active for days.", percent)
+    }
+
+    fn closing_value_title(&self) -> String {
+        "Your New Extended Team".to_string()
+    }
+    fn closing_value_intro(&self) -> String {
+        "Acquiring Axur isn't just buying software; it's adding an army of virtual analysts to your SOC.".to_string()
+    }
+    fn closing_value_item_1_title(&self) -> String {
+        "Fatigue Reduction".to_string()
+    }
+    fn closing_value_item_1_desc(&self) -> String {
+        "We eliminate noise so your analysts only see what matters.".to_string()
+    }
+    fn closing_value_item_2_title(&self) -> String {
+        "Reaction Speed".to_string()
+    }
+    fn closing_value_item_2_desc(&self) -> String {
+        "From days to minutes. We drastically minimize exposure time.".to_string()
+    }
+    fn closing_value_item_3_title(&self) -> String {
+        "Total Visibility".to_string()
+    }
+    fn closing_value_item_3_desc(&self) -> String {
+        "We provide full context: 'Who, How, and Methodology', eliminating false positives so your team focuses only on real threats.".to_string()
+    }
+
+    fn narrative_virality_title(&self) -> String {
+        "DEEP WEB & VIRALITY".to_string()
+    }
+    fn narrative_virality_pain_primary(
+        &self,
+        share_count: u64,
+        source_count: usize,
+        top_source: &str,
+    ) -> String {
+        format!("Your brand was shared **{} times** in {} different fraud communities, including high-activity groups like '**{}**'. This 'chatter' often precedes a massive wave of attacks.", share_count, source_count, top_source)
+    }
+    fn narrative_virality_solution_primary(&self) -> String {
+        "Axur has infiltrated these invite-only channels (Telegram, Discord, Dark Web). We detect the threat at the *planning* stage, before it reaches your customers.".to_string()
+    }
+    fn narrative_virality_pain_fallback(&self) -> String {
+        "Attacks often incubate silently in closed groups on Telegram and the Dark Web, completely invisible to standard perimeter defenses.".to_string()
+    }
+    fn narrative_virality_solution_fallback(&self) -> String {
+        "Our Deep Web surveillance is active 24/7. In this period, **no critical viral campaigns** were detected, validating that your brand is currently not a 'trending topic' for fraudsters.".to_string()
+    }
+
+    fn roi_precise_title(&self) -> String {
+        "Velocity Wins".to_string()
+    }
+    fn roi_precise_text_primary(&self, median_minutes: i64) -> String {
+        format!("Real Data: Your median takedown time was **{} minutes**. This speed neutralizes phishing campaigns before they can claim victims.", median_minutes)
+    }
+    fn roi_precise_text_fallback(&self) -> String {
+        "Managing threats with Axur is **180x faster** than industry average. AI correlation happens in seconds, replacing 30-minute manual triage per alert.".to_string()
+    }
+
+    fn intent_title(&self) -> String {
+        "AI Intent Analysis".to_string()
+    }
+    fn intent_fmt_primary(&self, top_intent: &str, percent: u64) -> String {
+        format!("Our AI Classifiers reveal that **{}%** of attacks aim for **{}**, indicating a specific campaign against your customer base.", percent, top_intent)
+    }
+    fn intent_fmt_fallback(&self) -> String {
+        "Attacks are categorized by technical vector. Phishing remains the dominant method for initiating fraud.".to_string()
+    }
+    fn intent_cat_credentials(&self) -> String {
+        "Credential Theft".to_string()
+    }
+    fn intent_cat_infection(&self) -> String {
+        "Infection & Access".to_string()
+    }
+    fn intent_cat_fraud(&self) -> String {
+        "Fraud & Reputation".to_string()
+    }
+    fn intent_cat_trust(&self) -> String {
+        "Brand Trust & Phishing".to_string()
+    }
+    fn intent_cat_chat(&self) -> String {
+        "Chat Intelligence".to_string()
+    }
+    fn intent_cat_compromised(&self) -> String {
+        "Compromised Devices".to_string()
+    }
+    fn intent_cat_data_leak(&self) -> String {
+        "Data Leakage".to_string()
+    }
+    fn intent_cat_vip(&self) -> String {
+        "VIP Protection".to_string()
+    }
+    fn intent_cat_dark_web(&self) -> String {
+        "Deep & Dark Web".to_string()
+    }
+
+    fn geo_title(&self) -> String {
+        "Global Attack Origins".to_string()
+    }
+    fn geo_fmt_primary(&self, count: usize, top_country: &str) -> String {
+        format!("We detected attacks originating from **{} countries**. The primary source of hostile infrastructure is **{}**.", count, top_country)
+    }
+    fn geo_fmt_fallback(&self) -> String {
+        "Geographic attribution reveals jurisdiction overlaps. Monitoring international infrastructure helps predict future campaigns.".to_string()
+    }
+    fn geo_lbl_countries(&self) -> String {
+        "Top Origin Countries".to_string()
+    }
+    fn geo_lbl_isps(&self) -> String {
+        "Top ISPs (Networks)".to_string()
+    }
+
     fn ctx_stealer_title(&self) -> String {
         "Understanding Infostealers".to_string()
     }
@@ -894,6 +1121,163 @@ impl Dictionary for Spanish {
     }
     fn takedowns_not_solved(&self) -> String {
         "No resuelto".to_string()
+    }
+
+    // Advanced Storytelling - Spanish
+    fn eff_title(&self) -> String {
+        "Eficiencia Operativa".to_string()
+    }
+    fn eff_text_hours(&self, hours: u64, analysts: f64) -> String {
+        format!("Para analizar manualmente las amenazas procesadas por Axur, su equipo habría necesitado <strong>{} horas</strong>. Esto equivale a <strong>{:.1} analistas a tiempo completo</strong> dedicados solo a la detección.", hours, analysts)
+    }
+    fn eff_text_speed(&self) -> String {
+        "La gestión de amenazas con Axur fue <strong>180 veces más rápida</strong> que el promedio de la industria. Mientras un humano tarda ~30 mins por alerta, nuestra IA correlaciona amenazas en segundos.".to_string()
+    }
+
+    fn narrative_phishing_title(&self) -> String {
+        "Phishing y Abuso de Marca".to_string()
+    }
+    fn narrative_phishing_pain(&self) -> String {
+        "El phishing moderno evita los filtros tradicionales. Intentar cubrir el volumen de 40 millones de URLs nuevas diariamente es humanamente imposible.".to_string()
+    }
+    fn narrative_phishing_solution(&self) -> String {
+        "Nuestra IA inspecciona visualmente cada sitio (Computer Vision), detectando fraudes incluso sin menciones explícitas de la marca. No solo detectamos; eliminamos en menos de 4 minutos.".to_string()
+    }
+
+    fn narrative_stealer_title(&self) -> String {
+        "Entendiendo los Infostealers".to_string()
+    }
+    fn narrative_stealer_pain(&self) -> String {
+        "Las credenciales robadas de dispositivos infectados (Infostealers) permiten a los atacantes eludir el MFA imitando la huella digital del usuario.".to_string()
+    }
+    fn narrative_stealer_solution(&self) -> String {
+        "Buscar manualmente en la Deep Web es ineficiente. Axur escanea 42 mil millones de credenciales para encontrar solo aquellas que representan un riesgo real para sus sesiones activas.".to_string()
+    }
+
+    fn narrative_takedown_title(&self) -> String {
+        "El Proceso de Takedown".to_string()
+    }
+    fn narrative_takedown_pain(&self) -> String {
+        "Gestionar takedowns en diferentes plataformas requiere manejar burocracia interminable y formularios específicos para cada proveedor.".to_string()
+    }
+    fn narrative_takedown_solution(&self) -> String {
+        "Axur tiene integraciones de confianza con estas plataformas. Lo que a un abogado le toma días, nosotros lo solicitamos masivamente con una tasa de éxito del 98.9%.".to_string()
+    }
+
+    fn narrative_timeline_title(&self) -> String {
+        "Línea de Tiempo vs. Capacidad Humana".to_string()
+    }
+    fn narrative_timeline_text(&self, percent: u64) -> String {
+        format!("Los ciberdelincuentes no respetan el horario de oficina. El <strong>{}%</strong> de las amenazas críticas se detectaron fuera del horario laboral. Sin la automatización 24/7, estas habrían permanecido activas durante días.", percent)
+    }
+
+    fn closing_value_title(&self) -> String {
+        "Su Nuevo Equipo Extendido".to_string()
+    }
+    fn closing_value_intro(&self) -> String {
+        "Adquirir Axur no es solo comprar software; es sumar un ejército de analistas virtuales a su SOC.".to_string()
+    }
+    fn closing_value_item_1_title(&self) -> String {
+        "Reducción de Fatiga".to_string()
+    }
+    fn closing_value_item_1_desc(&self) -> String {
+        "Eliminamos el ruido para que sus analistas solo vean lo que importa.".to_string()
+    }
+    fn closing_value_item_2_title(&self) -> String {
+        "Velocidad de Reacción".to_string()
+    }
+    fn closing_value_item_2_desc(&self) -> String {
+        "De días a minutos. Minimizamos drásticamente el tiempo de exposición.".to_string()
+    }
+    fn closing_value_item_3_title(&self) -> String {
+        "Visibilidad Total".to_string()
+    }
+    fn closing_value_item_3_desc(&self) -> String {
+        "Entregamos el contexto completo: 'Quién, Cómo y Metodología', eliminando falsos positivos para que tu equipo se enfoque solo en amenazas reales.".to_string()
+    }
+
+    fn narrative_virality_title(&self) -> String {
+        "DEEP WEB & VIRALIDAD".to_string()
+    }
+    fn narrative_virality_pain_primary(
+        &self,
+        share_count: u64,
+        source_count: usize,
+        top_source: &str,
+    ) -> String {
+        format!("Tu marca fue compartida **{} veces** en {} comunidades de fraude, incluyendo grupos activos como '**{}**'. Este 'ruido' suele preceder una ola masiva de ataques.", share_count, source_count, top_source)
+    }
+    fn narrative_virality_solution_primary(&self) -> String {
+        "Axur está infiltrado en estos canales cerrados (Telegram, Discord, Dark Web). Detectamos la amenaza en la etapa de *planeación*, antes de que llegue a tus clientes.".to_string()
+    }
+    fn narrative_virality_pain_fallback(&self) -> String {
+        "Los ataques suelen incubarse silenciosamente en grupos cerrados de Telegram y Dark Web, invisibles para las defensas perimetrales estándar.".to_string()
+    }
+    fn narrative_virality_solution_fallback(&self) -> String {
+        "Nuestro monitoreo de Deep Web está activo 24/7. En este periodo, **no detectamos campañas virales críticas**, validando que tu marca no es actualmente un 'tema de moda' para los defraudadores.".to_string()
+    }
+
+    fn roi_precise_title(&self) -> String {
+        "La Velocidad Gana".to_string()
+    }
+    fn roi_precise_text_primary(&self, median_minutes: i64) -> String {
+        format!("Dato Real: Tu tiempo mediano de baja fue de **{} minutos**. Esta velocidad neutraliza campañas de phishing antes de que cobren víctimas.", median_minutes)
+    }
+    fn roi_precise_text_fallback(&self) -> String {
+        "Gestionar amenazas con Axur es **180x más rápido** que el promedio. Nuestra IA correlaciona en segundos, reemplazando los 30 min de triaje manual.".to_string()
+    }
+
+    fn intent_title(&self) -> String {
+        "Análisis de Intención (AI)".to_string()
+    }
+    fn intent_fmt_primary(&self, top_intent: &str, percent: u64) -> String {
+        format!("Nuestra IA revela que el **{}%** de los ataques buscan **{}**, indicando una campaña específica contra sus usuarios.", percent, top_intent)
+    }
+    fn intent_fmt_fallback(&self) -> String {
+        "Los ataques se categorizan por vector técnico. El Phishing sigue siendo el método dominante para iniciar fraudes.".to_string()
+    }
+    fn intent_cat_credentials(&self) -> String {
+        "Robo de Credenciales".to_string()
+    }
+    fn intent_cat_infection(&self) -> String {
+        "Infección y Acceso".to_string()
+    }
+    fn intent_cat_fraud(&self) -> String {
+        "Fraude y Reputación".to_string()
+    }
+    fn intent_cat_trust(&self) -> String {
+        "Fraude de Marca / Phishing".to_string()
+    }
+    fn intent_cat_chat(&self) -> String {
+        "Chat Intelligence".to_string()
+    }
+    fn intent_cat_compromised(&self) -> String {
+        "Dispositivos Comprometidos".to_string()
+    }
+    fn intent_cat_data_leak(&self) -> String {
+        "Fuga de Datos y Accesos".to_string()
+    }
+    fn intent_cat_vip(&self) -> String {
+        "Protección VIP".to_string()
+    }
+    fn intent_cat_dark_web(&self) -> String {
+        "Deep & Dark Web".to_string()
+    }
+
+    fn geo_title(&self) -> String {
+        "Orígenes Globales de Ataque".to_string()
+    }
+    fn geo_fmt_primary(&self, count: usize, top_country: &str) -> String {
+        format!("Detectamos ataques originados en **{} países**. La fuente principal de infraestructura hostil es **{}**.", count, top_country)
+    }
+    fn geo_fmt_fallback(&self) -> String {
+        "La atribución geográfica revela superposiciones de jurisdicción. Monitorear infraestructura internacional ayuda a predecir futuras campañas.".to_string()
+    }
+    fn geo_lbl_countries(&self) -> String {
+        "Principales Países de Origen".to_string()
+    }
+    fn geo_lbl_isps(&self) -> String {
+        "Top ISPs (Redes)".to_string()
     }
 
     fn roi_title(&self) -> String {
@@ -1486,6 +1870,163 @@ impl Dictionary for Portuguese {
     }
     fn ctx_takedown_text(&self) -> String {
         "Takedown é o processo de remoção de conteúdo malicioso ou infrator da internet. Quando uma ameaça é confirmada, nossos sistemas automatizados e equipe jurídica interagem com provedores de hospedagem, registradores e plataformas de redes sociais para forçar a remoção, neutralizando a ameaça em sua origem.".to_string()
+    }
+
+    // Advanced Storytelling - Portuguese
+    fn eff_title(&self) -> String {
+        "Eficiência Operacional".to_string()
+    }
+    fn eff_text_hours(&self, hours: u64, analysts: f64) -> String {
+        format!("Para analisar manualmente as ameaças processadas pela Axur, sua equipe precisaria dedicar <strong>{} horas</strong>. Isso equivale a <strong>{:.1} analistas em tempo integral</strong> dedicados apenas à detecção.", hours, analysts)
+    }
+    fn eff_text_speed(&self) -> String {
+        "A gestão de ameaças com a Axur foi <strong>180x mais rápida</strong> que a média da indústria. Enquanto um humano leva ~30 min por alerta, nossa IA correlaciona ameaças em segundos.".to_string()
+    }
+
+    fn narrative_phishing_title(&self) -> String {
+        "Phishing & Abuso de Marca".to_string()
+    }
+    fn narrative_phishing_pain(&self) -> String {
+        "O phishing moderno evita filtros tradicionais. Tentar cobrir o volume de 40 milhões de novas URLs diariamente é humanamente impossível.".to_string()
+    }
+    fn narrative_phishing_solution(&self) -> String {
+        "Nossa IA inspeciona visualmente cada site (Visão Computacional), detectando fraudes mesmo sem menções explícitas à marca. Não apenas detectamos; removemos em menos de 4 minutos.".to_string()
+    }
+
+    fn narrative_stealer_title(&self) -> String {
+        "Entendendo os Infostealers".to_string()
+    }
+    fn narrative_stealer_pain(&self) -> String {
+        "Credenciais roubadas de dispositivos infectados (Infostealers) permitem que atacantes ignorem o MFA imitando a impressão digital do usuário.".to_string()
+    }
+    fn narrative_stealer_solution(&self) -> String {
+        "Buscar manualmente na Deep Web é ineficiente. A Axur escaneia 42 bilhões de credenciais para encontrar apenas aquelas que representam risco real para suas sessões ativas.".to_string()
+    }
+
+    fn narrative_takedown_title(&self) -> String {
+        "O Processo de Takedown".to_string()
+    }
+    fn narrative_takedown_pain(&self) -> String {
+        "Gerenciar takedowns em diferentes plataformas exige lidar com burocracia sem fim e formulários específicos para cada provedor.".to_string()
+    }
+    fn narrative_takedown_solution(&self) -> String {
+        "A Axur possui integrações confiáveis com essas plataformas. O que leva dias para um advogado, solicitamos em massa com uma taxa de sucesso de 98,9%.".to_string()
+    }
+
+    fn narrative_timeline_title(&self) -> String {
+        "Linha do Tempo de Ataques vs. Capacidade Humana".to_string()
+    }
+    fn narrative_timeline_text(&self, percent: u64) -> String {
+        format!("Cibercriminosos não respeitam horário comercial. <strong>{}%</strong> das ameaças críticas foram detectadas fora do expediente. Sem a automação 24/7, elas permaneceriam ativas por dias.", percent)
+    }
+
+    fn closing_value_title(&self) -> String {
+        "Sua Nova Equipe Estendida".to_string()
+    }
+    fn closing_value_intro(&self) -> String {
+        "Adquirir a Axur não é apenas comprar software; é adicionar um exército de analistas virtuais ao seu SOC.".to_string()
+    }
+    fn closing_value_item_1_title(&self) -> String {
+        "Redução de Fadiga".to_string()
+    }
+    fn closing_value_item_1_desc(&self) -> String {
+        "Eliminamos o ruído para que seus analistas vejam apenas o que importa.".to_string()
+    }
+    fn closing_value_item_2_title(&self) -> String {
+        "Velocidade de Reação".to_string()
+    }
+    fn closing_value_item_2_desc(&self) -> String {
+        "De dias para minutos. Minimizamos drasticamente o tempo de exposição.".to_string()
+    }
+    fn closing_value_item_3_title(&self) -> String {
+        "Visibilidade Total".to_string()
+    }
+    fn closing_value_item_3_desc(&self) -> String {
+        "Entregamos contexto completo: 'Quem, Como e Metodologia', eliminando falsos positivos para que seu time foque apenas em ameaças reais.".to_string()
+    }
+
+    fn narrative_virality_title(&self) -> String {
+        "DEEP WEB & VIRALIDADE".to_string()
+    }
+    fn narrative_virality_pain_primary(
+        &self,
+        share_count: u64,
+        source_count: usize,
+        top_source: &str,
+    ) -> String {
+        format!("Sua marca foi compartilhada **{} vezes** em {} comunidades de fraude, incluindo grupos como '**{}**'. Esse 'ruído' geralmente precede uma onda massiva de ataques.", share_count, source_count, top_source)
+    }
+    fn narrative_virality_solution_primary(&self) -> String {
+        "A Axur está infiltrada nesses canais fechados (Telegram, Discord, Dark Web). Detectamos a ameaça no estágio de *planejamento*, antes que atinja seus clientes.".to_string()
+    }
+    fn narrative_virality_pain_fallback(&self) -> String {
+        "Ataques costumam ser incubados silenciosamente em grupos fechados do Telegram e Dark Web, invisíveis para defesas de perímetro padrão.".to_string()
+    }
+    fn narrative_virality_solution_fallback(&self) -> String {
+        "Nosso monitoramento de Deep Web está ativo 24/7. Neste período, **não detectamos campanhas virais críticas**, validando que sua marca não é atualmente um 'tópico de tendência' para fraudadores.".to_string()
+    }
+
+    fn roi_precise_title(&self) -> String {
+        "Velocidade é Segurança".to_string()
+    }
+    fn roi_precise_text_primary(&self, median_minutes: i64) -> String {
+        format!("Dado Real: Seu tempo mediano de takedown foi de **{} minutos**. Essa velocidade neutraliza campanhas de phishing antes de fazerem vítimas.", median_minutes)
+    }
+    fn roi_precise_text_fallback(&self) -> String {
+        "Gerenciar ameaças com a Axur é **180x mais rápido** que a média. Nossa IA correlaciona em segundos, substituindo 30 min de triagem manual.".to_string()
+    }
+
+    fn intent_title(&self) -> String {
+        "Análise de Intenção (IA)".to_string()
+    }
+    fn intent_fmt_primary(&self, top_intent: &str, percent: u64) -> String {
+        format!("Nossa IA revela que **{}%** dos ataques visam **{}**, indicando uma campanha específica contra sua base.", percent, top_intent)
+    }
+    fn intent_fmt_fallback(&self) -> String {
+        "Ataques são categorizados por vetor técnico. Phishing continua sendo o método dominante para iniciar fraudes.".to_string()
+    }
+    fn intent_cat_credentials(&self) -> String {
+        "Roubo de Credenciais".to_string()
+    }
+    fn intent_cat_infection(&self) -> String {
+        "Infecção e Acesso".to_string()
+    }
+    fn intent_cat_fraud(&self) -> String {
+        "Fraude e Reputação".to_string()
+    }
+    fn intent_cat_trust(&self) -> String {
+        "Proteção de Marca e Clientes".to_string()
+    }
+    fn intent_cat_chat(&self) -> String {
+        "Chat Intelligence".to_string()
+    }
+    fn intent_cat_compromised(&self) -> String {
+        "Dispositivos Comprometidos".to_string()
+    }
+    fn intent_cat_data_leak(&self) -> String {
+        "Fuga de Dados e Acessos".to_string()
+    }
+    fn intent_cat_vip(&self) -> String {
+        "Proteção VIP".to_string()
+    }
+    fn intent_cat_dark_web(&self) -> String {
+        "Deep & Dark Web".to_string()
+    }
+
+    fn geo_title(&self) -> String {
+        "Origens Globais de Ataque".to_string()
+    }
+    fn geo_fmt_primary(&self, count: usize, top_country: &str) -> String {
+        format!("Detectamos ataques originados em **{} países**. A principal fonte de infraestrutura hostil é **{}**.", count, top_country)
+    }
+    fn geo_fmt_fallback(&self) -> String {
+        "A atribuição geográfica revela sobreposições de jurisdição. Monitorar infraestrutura internacional ajuda a prever campanhas futuras.".to_string()
+    }
+    fn geo_lbl_countries(&self) -> String {
+        "Principais Países de Origem".to_string()
+    }
+    fn geo_lbl_isps(&self) -> String {
+        "Top ISPs (Redes)".to_string()
     }
 }
 

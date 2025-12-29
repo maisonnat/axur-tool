@@ -14,6 +14,9 @@ use serde::{Deserialize, Serialize};
 
 use super::admin_config;
 use super::remote_log::RemoteLogConfig;
+use chrono::{Duration, Utc};
+use futures::future::join_all;
+use serde_json::Value;
 
 /// Query parameters for listing logs
 #[derive(Debug, Deserialize)]
@@ -54,6 +57,25 @@ pub struct LogContentResponse {
     pub filename: String,
     pub content: String,
     pub size: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DailyStats {
+    pub date: String,
+    pub reports: usize,
+    pub errors: usize,
+    pub th_queries: usize,
+    pub total: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct StatsResponse {
+    pub success: bool,
+    pub period: String,
+    pub total_reports: usize,
+    pub total_errors: usize,
+    pub daily_stats: Vec<DailyStats>,
+    pub message: String,
 }
 
 /// List available log files
@@ -497,6 +519,142 @@ pub async fn check_log_access(Query(params): Query<AccessCheckQuery>) -> impl In
             } else {
                 "Access denied - not in admin list".to_string()
             },
+        }),
+    )
+}
+
+/// Get analytics stats for the dashboard (last N days)
+/// GET /api/logs/stats?days=7
+#[derive(Deserialize)]
+pub struct StatsQuery {
+    pub days: Option<i64>,
+}
+
+pub async fn get_log_stats(Query(params): Query<StatsQuery>) -> impl IntoResponse {
+    let days = params.days.unwrap_or(7);
+    let Some(config) = RemoteLogConfig::from_env() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(StatsResponse {
+                success: false,
+                period: format!("{}d", days),
+                total_reports: 0,
+                total_errors: 0,
+                daily_stats: vec![],
+                message: "Remote logging not configured".to_string(),
+            }),
+        );
+    };
+
+    let client = reqwest::Client::new();
+    let today = Utc::now();
+    let mut tasks = Vec::new();
+
+    // Generate tasks for the last N days
+    for i in 0..days {
+        let date = today - Duration::days(i);
+        let date_str = date.format("%Y/%m/%d").to_string();
+        let display_date = date.format("%Y-%m-%d").to_string();
+
+        let client = client.clone();
+        let owner = config.owner.clone();
+        let repo = config.repo.clone();
+        let token = config.token.clone();
+
+        tasks.push(tokio::spawn(async move {
+            let url = format!(
+                "https://api.github.com/repos/{}/{}/contents/logs/{}",
+                owner, repo, date_str
+            );
+
+            let res = client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", token))
+                .header("User-Agent", "axur-log-viewer")
+                .header("Accept", "application/vnd.github.v3+json")
+                .send()
+                .await;
+
+            let mut stats = DailyStats {
+                date: display_date,
+                reports: 0,
+                errors: 0,
+                th_queries: 0,
+                total: 0,
+            };
+
+            if let Ok(resp) = res {
+                if resp.status().is_success() {
+                    if let Ok(content) = resp.json::<Vec<Value>>().await {
+                        // Iterate through folders (categories) for this day
+                        for item in content {
+                            if let (Some(name), Some(item_type)) = (
+                                item.get("name").and_then(|n| n.as_str()),
+                                item.get("type").and_then(|t| t.as_str()),
+                            ) {
+                                if item_type == "dir" {
+                                    // Make a secondary request to count files in this category
+                                    // Optimization: This is expensive, but necessary without a recursive API or cache.
+                                    // For a dashboard, we might want to cache this result in memory or Redis later.
+                                    // For now, let's assume standard API rate limits.
+                                    let sub_url = format!("{}/{}", url, name);
+                                    if let Ok(sub_res) = client
+                                        .get(&sub_url)
+                                        .header("Authorization", format!("Bearer {}", token))
+                                        .header("User-Agent", "axur-log-viewer")
+                                        .header("Accept", "application/vnd.github.v3+json")
+                                        .send()
+                                        .await
+                                    {
+                                        if let Ok(files) = sub_res.json::<Vec<Value>>().await {
+                                            let count = files.len();
+                                            match name {
+                                                "report" | "reports" => stats.reports += count,
+                                                "error" | "errors" => stats.errors += count,
+                                                "threat_hunting" => stats.th_queries += count,
+                                                _ => {}
+                                            }
+                                            stats.total += count;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            stats
+        }));
+    }
+
+    // Execute all tasks concurrently
+    let results = join_all(tasks).await;
+
+    // Aggregate results
+    let mut daily_stats = Vec::new();
+    let mut total_reports = 0;
+    let mut total_errors = 0;
+
+    for res in results {
+        if let Ok(stats) = res {
+            total_reports += stats.reports;
+            total_errors += stats.errors;
+            daily_stats.push(stats);
+        }
+    }
+
+    // Sort by date ascending
+    daily_stats.sort_by(|a, b| a.date.cmp(&b.date));
+
+    (
+        StatusCode::OK,
+        Json(StatsResponse {
+            success: true,
+            period: format!("{}d", days),
+            total_reports,
+            total_errors,
+            daily_stats,
+            message: "OK".to_string(),
         }),
     )
 }

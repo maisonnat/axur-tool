@@ -2,8 +2,10 @@
 #![allow(unused)]
 
 use super::OfflineAssets;
-use crate::api::report::{OperationalMetrics, PocReport, PocReportData};
+use crate::api::report::{DeepAnalyticsData, PocReport, PocReportData, ResolvedTakedown};
 use crate::i18n::Dictionary;
+use chrono::{DateTime, Datelike, Timelike};
+use std::collections::HashMap;
 
 /// Check if report has meaningful takedown data to display
 fn has_takedown_data(data: &PocReportData) -> bool {
@@ -28,9 +30,13 @@ pub fn generate_full_report_html(
         render_poc_data_slide(data, dict),
         render_context_slide(dict.ctx_risk_title(), dict.ctx_risk_text(), "risk", dict),
         render_general_metrics_slide(data, dict),
-        render_threats_chart_slide(data, dict),
+        render_timeline_slide(data, dict),
+        render_virality_slide(data, dict),
+        render_ai_intent_slide(data, dict),
+        render_geospatial_slide(data, dict),
+        // render_narrative_slide(dict.narrative_phishing_title(), dict.narrative_phishing_pain(), dict.narrative_phishing_solution(), "phishing", dict), // Replaced by Intent Slide logic usually
         if data.credentials_total > 0 {
-             render_context_slide(dict.ctx_stealer_title(), dict.ctx_stealer_text(), "stealer", dict)
+             render_narrative_slide(dict.narrative_stealer_title(), dict.narrative_stealer_pain(), dict.narrative_stealer_solution(), "stealer", dict)
         } else { "".to_string() },
         render_infostealer_slide(data, dict),
         if data.secrets_total > 0 {
@@ -46,7 +52,7 @@ pub fn generate_full_report_html(
 
     // Only add takedown slides if there is takedown data
     if has_takedown_data(data) {
-        slides.push(render_context_slide(dict.ctx_takedown_title(), dict.ctx_takedown_text(), "takedown", dict));
+        slides.push(render_narrative_slide(dict.narrative_takedown_title(), dict.narrative_takedown_pain(), dict.narrative_takedown_solution(), "takedown", dict));
         slides.push(render_takedowns_realizados_slide(data, dict));
         slides.push(render_impact_roi_slide(data, dict));
     }
@@ -210,7 +216,27 @@ fn render_context_slide(title: String, text: String, icon_type: &str, dict: &Box
         title = title,
         text = text,
         icon = final_icon,
-        footer = footer_dark(0, dict), // Page 0 or handle page numbering later? Passed 0 for now
+        footer = footer_dark(0, dict),
+    )
+}
+
+fn render_narrative_slide(title: String, pain: String, solution: String, icon_type: &str, dict: &Box<dyn Dictionary>) -> String {
+    let icon_svg = match icon_type {
+        "stealer" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>"#,
+        "leak" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path></svg>"#,
+        "takedown" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>"#,
+        "phishing" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"></path></svg>"#,
+        "virality" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"></path></svg>"#,
+        _ => "",
+    };
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO & ESTRATEGIA</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">{title}</h2><div class="space-y-6"><div class="bg-red-900/20 border-l-4 border-red-500 p-6"><h3 class="text-red-400 font-bold mb-2 text-lg">EL DESAFÍO</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">{pain}</p></div><div class="bg-green-900/20 border-l-4 border-green-500 p-6"><h3 class="text-green-400 font-bold mb-2 text-lg">SOLUCIÓN AXUR</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">{solution}</p></div></div></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800">{icon}</div></div></div>{footer}</div></div>"#,
+        title = title,
+        pain = pain,
+        solution = solution,
+        icon = icon_svg,
+        footer = footer_dark(0, dict),
     )
 }
 
@@ -327,41 +353,133 @@ fn render_poc_data_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
 }
 
 fn render_general_metrics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    // Logic: 15 mins per ticket manually
+    let hours_saved = (data.total_tickets * 15) / 60;
+    let analysts_saved = (hours_saved as f64) / 160.0;
+
     format!(
-        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">{title_metrics}</h2><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{tickets}</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_tickets}</p><div class="text-zinc-600 text-sm space-y-2">{desc_tickets}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{threats}</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_threats}</p><div class="text-zinc-600 text-sm space-y-2">{desc_threats}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-5xl font-bold mb-2">{hours} h</p><p class="text-xl font-semibold text-zinc-900 mb-4">{title_time}</p><div class="text-zinc-600 text-sm space-y-2">{desc_time}</div></div><p class="text-xs text-zinc-500 italic mt-4">*Estimación basada en un promedio de 5 minutos por señal.</p></div></div></div></div>{footer}</div></div>"#,
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">{title_metrics}</h2><div class="grid grid-cols-2 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-6xl font-bold mb-4">{tickets}</p><p class="text-2xl font-semibold text-zinc-900 mb-4">{title_tickets}</p><div class="text-zinc-600 text-lg space-y-2">{desc_tickets}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200 border-l-8 border-l-orange-500"><div class="flex-grow"><h3 class="text-2xl font-bold text-zinc-900 mb-4">{eff_title}</h3><p class="text-zinc-700 text-lg mb-6">{eff_hours}</p><div class="p-4 bg-orange-50 rounded-lg border border-orange-100"><p class="text-zinc-800 font-medium">{eff_speed}</p></div></div></div></div></div></div>{footer}</div></div>"#,
         title_metrics = dict.metrics_title(),
         tickets = format_number(data.total_tickets),
         title_tickets = dict.metrics_total_tickets(),
         desc_tickets = dict.metrics_desc_tickets(),
-        threats = format_number(data.total_threats),
-        title_threats = dict.metrics_threats_detected(),
-        desc_threats = dict.metrics_desc_threats(),
-        hours = data.validation_hours as u64,
-        title_time = dict.metrics_time_saved(),
-        desc_time = dict.metrics_desc_time(),
+        eff_title = dict.eff_title(),
+        eff_hours = dict.eff_text_hours(hours_saved, analysts_saved),
+        eff_speed = dict.eff_text_speed(),
         footer = footer_light(6, dict),
     )
 }
 
-fn render_threats_chart_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
-    // Generate JSON for Chart.js
-    let labels: Vec<String> = data
-        .threats_by_type
-        .iter()
-        .map(|t| t.threat_type.clone())
-        .collect();
-    let values: Vec<u64> = data.threats_by_type.iter().map(|t| t.count).collect();
+fn render_ai_intent_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    // 1. Aggregate types into New Categories
+    let mut intents: HashMap<String, u64> = HashMap::new();
+    
+    // Initialize specific categories with 0 to ensure consistent colors/ordering if needed, 
+    // or just let them populate dynamically. Let's populate dynamically but define order later.
+    let categories = [
+        "trust", // Ataques a la Confianza
+        "chat", // Chat Intelligence
+        "compromised", // Dispositivos Comprometidos
+        "data_leak", // Fuga de Datos
+        "vip", // Protección VIP
+        "dark_web", // Deep & Dark Web
+        "fraud", // Fraude Comercial
+    ];
+
+    for cat in &categories {
+        intents.insert(cat.to_string(), 0);
+    }
+
+    let mut total_count = 0;
+
+    for t in &data.threats_by_type {
+        let intent = map_threat_to_intent(&t.threat_type);
+        *intents.entry(intent.to_string()).or_insert(0) += t.count;
+        total_count += t.count;
+    }
+
+    // 2. Determine narrative (Primary vs Fallback)
+    // Find top intent
+    let mut top_intent = "trust";
+    let mut max_count = 0;
+    for (k, v) in &intents {
+        if *v > max_count {
+            max_count = *v;
+            top_intent = k.as_str();
+        }
+    }
+
+    let percent = if total_count > 0 { (max_count * 100) / total_count } else { 0 };
+
+    let (narrative, _is_primary) = if total_count > 0 {
+        let intent_name = match top_intent {
+            "trust" => dict.intent_cat_trust(), // You need to add these to Dictionary or reuse existing
+            "chat" => dict.intent_cat_chat(),
+            "compromised" => dict.intent_cat_compromised(),
+            "data_leak" => dict.intent_cat_data_leak(),
+            "vip" => dict.intent_cat_vip(),
+            "dark_web" => dict.intent_cat_dark_web(),
+             _ => dict.intent_cat_fraud(),
+        };
+        (dict.intent_fmt_primary(&intent_name, percent), true)
+    } else {
+        (dict.intent_fmt_fallback(), false)
+    };
+
+    // 3. Prepare Chart Data (Filter out zero entries for cleaner chart, or keep top N)
+    // We want to show the top categories
+    let mut sorted_intents: Vec<(&String, &u64)> = intents.iter().collect();
+    sorted_intents.sort_by(|a, b| b.1.cmp(a.1));
+
+    let mut labels = Vec::new();
+    let mut values = Vec::new();
+    let mut colors = Vec::new();
+
+    for (k, v) in sorted_intents {
+        if *v == 0 { continue; } // Skip empty categories
+        
+        let label = match k.as_str() {
+            "trust" => dict.intent_cat_trust(),
+            "chat" => dict.intent_cat_chat(),
+            "compromised" => dict.intent_cat_compromised(),
+            "data_leak" => dict.intent_cat_data_leak(),
+            "vip" => dict.intent_cat_vip(),
+            "dark_web" => dict.intent_cat_dark_web(),
+            _ => dict.intent_cat_fraud(),
+        };
+        
+        labels.push(label);
+        values.push(*v);
+        
+        // Color mapping
+        let color = match k.as_str() {
+            "trust" => "#f97316", // Orange (Brand)
+            "chat" => "#3b82f6", // Blue (Telegram/Chat)
+            "compromised" => "#ef4444", // Red (Critical/Infection)
+            "data_leak" => "#eab308", // Yellow (Warning)
+            "vip" => "#a855f7", // Purple (VIP)
+            "dark_web" => "#1f2937", // Dark Gray (Dark Web)
+            _ => "#6b7280", // Gray
+        };
+        colors.push(color);
+    }
+
+    // If empty (no threats), add a placeholder to avoid breaking chart? 
+    // Actually if total_count is 0, we might want to hide chart or show "No Data".
+    // For now, let's just leave it empty, the chart logic handles empty arrays fine usually.
 
     let json_labels = serde_json::to_string(&labels).unwrap_or_default();
     let json_data = serde_json::to_string(&values).unwrap_or_default();
+    let json_colors = serde_json::to_string(&colors).unwrap_or_default();
 
     format!(
-        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-zinc-600 max-w-4xl text-lg">{desc}</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="threatsChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('threatsChart').getContext('2d');new Chart(ctx,{{type:'bar',data:{{labels:{json_labels},datasets:[{{label:'Amenazas',data:{json_data},backgroundColor:'#f97316',borderRadius:4}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},scales:{{y:{{beginAtZero:true,grid:{{display:true,color:'rgba(0,0,0,0.05)'}}}},x:{{grid:{{display:false}}}}}}}}}});}})();</script></div></div>"#,
-        title = dict.threats_title(),
-        desc = dict.threats_desc(data.total_threats),
-        footer = footer_light(7, dict),
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-blue-600 px-4 py-1 text-sm font-semibold">AI ANALYSIS</span><div class="flex items-start justify-between mt-4"><h2 class="text-4xl font-bold max-w-2xl">{title}</h2></div><p class="text-xl text-zinc-300 mt-4 max-w-3xl leading-relaxed">{desc}</p></div><div class="flex-grow bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 relative"><canvas id="intentChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('intentChart').getContext('2d');new Chart(ctx,{{type:'bar',data:{{labels:{json_labels},datasets:[{{label:'Attacks',data:{json_data},backgroundColor:{json_colors},borderRadius:4,barPercentage: 0.6}}]}},options:{{indexAxis: 'y',responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},scales:{{x:{{grid:{{display:true,color:'rgba(255,255,255,0.1)'}},ticks:{{color:'#a1a1aa'}}}},y:{{grid:{{display:false}},ticks:{{color:'#fff',font:{{size:14,weight:'500'}}}}}}}}}});}})();</script></div></div>"#,
+        title = dict.intent_title(),
+        desc = narrative,
+        footer = footer_dark(0, dict),
         json_labels = json_labels,
-        json_data = json_data
+        json_data = json_data,
+        json_colors = json_colors
     )
 }
 
@@ -479,6 +597,22 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         format!("{:.0}%", metrics.analysts_equivalent_monthly * 100.0)
     };
 
+    // Calculate Precise ROI (Median Takedown Time)
+    let median_minutes = calculate_median_takedown_minutes(&data.resolved_takedowns);
+    let (resp_title, resp_time, resp_desc) = if let Some(mins) = median_minutes {
+        (
+            dict.roi_precise_title(),
+            format!("{} min", mins),
+            dict.roi_precise_text_primary(mins)
+        )
+    } else {
+        (
+            dict.op_response_title(),
+            "180x".to_string(),
+            dict.roi_precise_text_fallback()
+        )
+    };
+
     format!(
         r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">{badge}</span><h2 class="text-4xl font-bold mt-4">{title}</h2></div><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{eff_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{hours} <span class="text-base font-normal text-zinc-400">{hours_unit}</span></p><p class="text-zinc-400 text-sm leading-relaxed">{eff_desc}</p><div class="mt-4 text-xs text-zinc-500"><p>• {lbl_validation}: {val_hours:.0}h</p><p>• {lbl_monitoring}: {cred_hours:.0}h</p><p>• {lbl_takedowns}: {td_hours:.0}h</p></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94-3.198a9.094 9.094 0 01-5.454-2.82m0 0a2.25 2.25 0 00-3.182 0m3.182 0a2.25 2.25 0 010 3.182m-3.182-3.182L12 12.75m0 0l3.182 3.182m-3.182-3.182L12 12.75"></path></svg></div><h3 class="text-2xl font-bold mb-2">{team_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{analysts}</p><p class="text-zinc-400 text-sm leading-relaxed">{team_desc}</p><div class="mt-4"><div class="flex items-center gap-2 text-xs text-zinc-500"><span class="w-3 h-3 rounded-full bg-green-500"></span><span>{tickets} {lbl_tickets}</span></div><div class="flex items-center gap-2 text-xs text-zinc-500 mt-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span>{creds} {lbl_creds}</span></div></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{resp_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{resp_time}</p><p class="text-zinc-400 text-sm leading-relaxed">{resp_desc}</p><div class="mt-4 space-y-2"><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_success}</span><span class="text-green-400 font-bold">{success_rate:.1}%</span></div><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_td_done}</span><span class="text-white font-bold">{takedowns}</span></div></div></div></div></div></div>{footer}</div></div>"#,
         badge = dict.op_badge(),
@@ -496,21 +630,182 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         team_title = dict.op_capacity_title(),
         analysts = analysts_display,
         team_desc = dict.op_capacity_desc(),
-        tickets = format_number(metrics.tickets_processed),
+        tickets = metrics.tickets_processed,
         lbl_tickets = dict.op_tickets_processed(),
-        creds = format_number(metrics.credentials_monitored),
+        creds = metrics.credentials_monitored,
         lbl_creds = dict.op_credentials_monitored(),
-        resp_title = dict.op_response_title(),
-        resp_time = metrics.median_response_time,
-        resp_desc = dict.op_response_desc(),
+        resp_title = resp_title,
+        resp_time = resp_time,
+        resp_desc = resp_desc,
         lbl_success = dict.op_success_rate(),
-        success_rate = metrics.takedown_success_rate,
+        success_rate = data.takedown_success_rate,
         lbl_td_done = dict.op_takedowns_completed(),
-        takedowns = metrics.takedowns_completed,
-        footer = footer_dark(12, dict),
+        takedowns = data.takedown_resolved,
+        footer = footer_dark(0, dict)
     )
 }
 
+fn map_threat_to_intent(threat_type: &str) -> &'static str {
+    let t = threat_type.to_lowercase();
+    
+    // 1. Chat Intelligence (Messages & Dark Web Activity)
+    // Matches: data-sale-message, suspicious-activity-message, dw-activity, etc.
+    if t.contains("message") || t == "dw-activity" {
+        return "chat";
+    }
+
+    // 2. Dispositivos Comprometidos (Key visual for infection)
+    if t == "infostealer-credential" {
+        return "compromised";
+    }
+
+    // 3. Ataques a la Confianza (High volume brand attacks)
+    if t == "phishing" 
+        || t == "fraudulent-brand-use" 
+        || t == "fake-mobile-app" 
+        || t == "fake-social-media-profile" 
+        || t == "similar-domain-name" 
+        || t == "paid-search" 
+        || t == "malware" {
+        return "trust";
+    }
+
+    // 4. Fuga de Datos (Corporate/Secrets)
+    if t == "corporate-credential-leak" 
+        || t == "code-secret-leak" 
+        || t == "database-exposure" 
+        || t == "other-sensitive-data" {
+        return "data_leak";
+    }
+
+    // 5. Protección VIP
+    if t.starts_with("executive-") {
+        return "vip";
+    }
+
+    // 6. Deep & Dark Web (Infrastructure & Advanced)
+    if t == "ransomware-attack" 
+        || t == "infrastructure-exposure" 
+        || t.contains("website") { // data-sale-website, etc.
+        return "dark_web";
+    }
+
+    // Default / Protection of Revenue
+    "fraud"
+}
+
+fn calculate_median_takedown_minutes(takedowns: &[ResolvedTakedown]) -> Option<i64> {
+    let mut durations: Vec<i64> = takedowns
+        .iter()
+        .filter_map(|td| {
+            if let (Some(request_date), Some(res_date)) = (&td.request_date, &td.resolution_date) {
+                // Try parsing dates. API usually returns ISO 8601.
+                if let (Ok(start), Ok(end)) = (DateTime::parse_from_rfc3339(request_date), DateTime::parse_from_rfc3339(res_date)) {
+                     let dur = end.signed_duration_since(start).num_minutes();
+                     if dur > 0 { Some(dur) } else { None }
+                } 
+                // Fallback for other formats if needed
+                else if let (Ok(start), Ok(end)) = (DateTime::parse_from_rfc2822(request_date), DateTime::parse_from_rfc2822(res_date)) {
+                    let dur = end.signed_duration_since(start).num_minutes();
+                    if dur > 0 { Some(dur) } else { None }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if durations.is_empty() {
+        return None;
+    }
+
+    durations.sort();
+    Some(durations[durations.len() / 2])
+}
+
+fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    let mut countries: HashMap<String, u64> = HashMap::new();
+    let mut isps: HashMap<String, u64> = HashMap::new();
+
+    // From Takedowns
+    for td in &data.resolved_takedowns {
+        if !td.country.is_empty() && td.country != "-" {
+            *countries.entry(td.country.clone()).or_insert(0) += 1;
+        }
+    }
+
+    // From Incidents
+    for inc in &data.latest_incidents {
+        if !inc.isp.is_empty() && inc.isp != "-" {
+            *isps.entry(inc.isp.clone()).or_insert(0) += 1;
+        }
+        if !inc.country.is_empty() && inc.country != "-" {
+            *countries.entry(inc.country.clone()).or_insert(0) += 1;
+        }
+    }
+
+    // From Deep Investigations
+    for inv in &data.deep_investigations {
+        if let Some(c) = &inv.infrastructure.country {
+            if !c.is_empty() && c != "-" {
+                *countries.entry(c.clone()).or_insert(0) += 1;
+            }
+        }
+        if let Some(isp) = &inv.infrastructure.hosting_provider {
+            if !isp.is_empty() && isp != "-" {
+                *isps.entry(isp.clone()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // Sort Countries
+    let mut country_vec: Vec<(&String, &u64)> = countries.iter().collect();
+    country_vec.sort_by(|a, b| b.1.cmp(a.1));
+    let top_countries: Vec<(&String, &u64)> = country_vec.iter().take(5).map(|&x| x).collect();
+
+    // Sort ISPs
+    let mut isp_vec: Vec<(&String, &u64)> = isps.iter().collect();
+    isp_vec.sort_by(|a, b| b.1.cmp(a.1));
+    let top_isps: Vec<(&String, &u64)> = isp_vec.iter().take(5).map(|&x| x).collect();
+
+    // Narrative
+    let total_countries = countries.len();
+    let (narrative, _is_primary) = if total_countries > 0 {
+        let top_country = if !top_countries.is_empty() { top_countries[0].0.as_str() } else { "Unknown" };
+        (dict.geo_fmt_primary(total_countries, top_country), true)
+    } else {
+        (dict.geo_fmt_fallback(), false)
+    };
+
+    // Chart Data
+    let labels: Vec<String> = top_countries.iter().map(|(k, _)| k.to_string()).collect();
+    let values: Vec<u64> = top_countries.iter().map(|(_, v)| **v).collect();
+    let json_labels = serde_json::to_string(&labels).unwrap_or_default();
+    let json_data = serde_json::to_string(&values).unwrap_or_default();
+
+    // ISP List HTML
+    let mut isp_html = String::new();
+    for (isp, count) in top_isps {
+        isp_html.push_str(&format!(
+            r#"<div class="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0"><span class="text-zinc-300 truncate pr-4">{}</span><span class="text-white font-bold">{}</span></div>"#,
+            isp, count
+        ));
+    }
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-indigo-600 px-4 py-1 text-sm font-semibold">GEOSPATIAL INTELLIGENCE</span><div class="flex items-start justify-between mt-4"><h2 class="text-4xl font-bold max-w-2xl">{title}</h2></div><p class="text-xl text-zinc-300 mt-4 max-w-3xl leading-relaxed">{desc}</p></div><div class="grid grid-cols-2 gap-8 flex-grow"><div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 relative flex flex-col"><h3 class="text-lg font-semibold mb-4 text-zinc-400">{lbl_countries}</h3><div class="flex-grow relative"><canvas id="geoChart"></canvas></div></div><div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 overflow-hidden"><h3 class="text-lg font-semibold mb-4 text-zinc-400">{lbl_isps}</h3><div class="overflow-y-auto pr-2 h-full">{isp_list}</div></div></div></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('geoChart').getContext('2d');new Chart(ctx,{{type:'bar',data:{{labels:{json_labels},datasets:[{{label:'Attacks',data:{json_data},backgroundColor:'#6366f1',borderRadius:4,barPercentage: 0.6}}]}},options:{{indexAxis: 'y',responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},scales:{{x:{{grid:{{display:true,color:'rgba(255,255,255,0.1)'}},ticks:{{color:'#a1a1aa'}}}},y:{{grid:{{display:false}},ticks:{{color:'#fff',font:{{size:14,weight:'500'}}}}}}}}}});}})();</script></div></div>"#,
+        title = dict.geo_title(),
+        desc = narrative,
+        lbl_countries = dict.geo_lbl_countries(),
+        lbl_isps = dict.geo_lbl_isps(),
+        isp_list = isp_html,
+        footer = footer_dark(0, dict),
+        json_labels = json_labels,
+        json_data = json_data
+    )
+}
 fn render_takedown_examples_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let mut examples_html = String::new();
     let example_count = data.resolved_takedowns.len().min(3);
@@ -1492,32 +1787,45 @@ fn render_closing_full(
         <!-- Right Side: Content -->
         <div class="w-7/12 h-full flex flex-col justify-center px-16 relative bg-[#0a0a0a]">
             <div class="mb-12">
-                 <h2 class="text-6xl font-bold text-white leading-tight mb-4">
+                 <h2 class="text-5xl font-bold text-white leading-tight mb-6">
                     {title}
                  </h2>
-                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-lg">
-                    {subtitle}
+                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-xl">
+                    {intro}
                  </p>
             </div>
             
-            <div class="space-y-6 mb-12">
-                <div class="flex items-center gap-6 group cursor-pointer">
-                    <div class="p-4 bg-orange-600 rounded-full shadow-lg shadow-orange-900/20 group-hover:bg-orange-500 transition-colors">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            <div class="space-y-8 mb-12">
+                <!-- Benefit 1 -->
+                <div class="flex items-start gap-4">
+                    <div class="mt-1 p-2 bg-zinc-800 rounded-lg">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-xl group-hover:text-orange-400 transition-colors">{cta_activate}</h4>
-                        <p class="text-zinc-500 text-sm">{cta_activate_desc}</p>
+                        <h4 class="text-white font-bold text-lg mb-1">{item1_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item1_desc}</p>
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-6 group cursor-pointer">
-                    <div class="p-4 border border-zinc-700 rounded-full group-hover:border-zinc-500 transition-colors">
-                        <svg class="w-6 h-6 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                <!-- Benefit 2 -->
+                <div class="flex items-start gap-4">
+                     <div class="mt-1 p-2 bg-zinc-800 rounded-lg">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-zinc-300 font-bold text-xl group-hover:text-white transition-colors">{cta_meet}</h4>
-                        <p class="text-zinc-500 text-sm">{cta_meet_desc}</p>
+                        <h4 class="text-white font-bold text-lg mb-1">{item2_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item2_desc}</p>
+                    </div>
+                </div>
+
+                <!-- Benefit 3 -->
+                <div class="flex items-start gap-4">
+                     <div class="mt-1 p-2 bg-zinc-800 rounded-lg">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-lg mb-1">{item3_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item3_desc}</p>
                     </div>
                 </div>
             </div>
@@ -1544,12 +1852,116 @@ fn render_closing_full(
     "#,
         pattern = abstract_pattern,
         image = office_image,
-        title = dict.closing_title(),
-        subtitle = dict.closing_subtitle(),
-        cta_activate = dict.closing_cta_activate(),
-        cta_activate_desc = dict.closing_cta_activate_desc(),
-        cta_meet = dict.closing_cta_meet(),
-        cta_meet_desc = dict.closing_cta_meet_desc(),
+        title = dict.closing_value_title(),
+        intro = dict.closing_value_intro(),
+        item1_title = dict.closing_value_item_1_title(),
+        item1_desc = dict.closing_value_item_1_desc(),
+        item2_title = dict.closing_value_item_2_title(),
+        item2_desc = dict.closing_value_item_2_desc(),
+        item3_title = dict.closing_value_item_3_title(),
+        item3_desc = dict.closing_value_item_3_desc(),
+    )
+}
+
+fn render_risk_context_slide(title: String, text: String, dict: &Box<dyn Dictionary>) -> String {
+    // Abstract geometric pattern (CSS only) - Refined for "Thrive" theme
+    let abstract_pattern = r#"
+        <div class="absolute top-0 left-0 w-full h-[45%] bg-[#FF4D00] overflow-hidden">
+            <div class="absolute top-[20%] left-[10%] w-[15%] h-[40%] bg-zinc-900"></div>
+            <div class="absolute top-[10%] left-[30%] w-[10%] h-[60%] bg-zinc-900"></div>
+            <div class="absolute top-0 left-[60%] w-[20%] h-[50%] bg-white"></div>
+            <div class="absolute bottom-0 right-[10%] w-[15%] h-[30%] bg-white"></div>
+            <div class="absolute bottom-[10%] left-[0%] w-[15%] h-[30%] bg-zinc-900"></div>
+        </div>
+    "#;
+
+    format!(
+        r#"
+    <div class="printable-slide aspect-[16/9] w-full p-0 relative bg-zinc-950 flex overflow-hidden">
+        <!-- Left Side: Visuals -->
+        <div class="w-5/12 h-full relative border-r border-zinc-800">
+            {pattern}
+            <div class="absolute bottom-0 left-0 w-full h-[55%] bg-zinc-800 overflow-hidden">
+                 <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1000&q=80" class="w-full h-full object-cover grayscale opacity-60 mix-blend-luminosity">
+                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+            </div>
+        </div>
+        
+        <!-- Right Side: Content -->
+        <div class="w-7/12 h-full flex flex-col justify-center px-16 relative bg-[#0a0a0a]">
+            <div class="mb-12">
+                 <h2 class="text-5xl font-bold text-white leading-tight mb-6">
+                    {title}
+                 </h2>
+                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-xl">
+                    {text}
+                 </p>
+            </div>
+            
+            <div class="space-y-8 mb-12">
+                <!-- Benefit 1 -->
+                <div class="flex items-start gap-4">
+                    <div class="mt-1 p-2 bg-zinc-800 rounded-lg">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-lg mb-1">{item1_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item1_desc}</p>
+                    </div>
+                </div>
+                
+                <!-- Benefit 2 -->
+                <div class="flex items-start gap-4">
+                     <div class="mt-1 p-2 bg-zinc-800 rounded-lg">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-lg mb-1">{item2_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item2_desc}</p>
+                    </div>
+                </div>
+
+                <!-- Benefit 3 -->
+                <div class="flex items-start gap-4">
+                     <div class="mt-1 p-2 bg-zinc-800 rounded-lg">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-lg mb-1">{item3_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item3_desc}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="absolute bottom-12 left-16 right-16 flex items-end justify-between border-t border-zinc-900 pt-8">
+                <!-- Certifications -->
+                <div class="flex items-center gap-4 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+                   <div class="flex flex-col items-center">
+                        <span class="text-[0.65rem] text-zinc-500 font-bold tracking-wider mb-1">CERTIFIED</span>
+                        <div class="border border-zinc-700 px-2 py-1 rounded">
+                            <span class="text-xs text-zinc-300 font-bold">ISO/IEC 27001</span>
+                        </div>
+                   </div>
+                </div>
+
+                <!-- Axur Logo -->
+                <div class="flex items-center gap-2 select-none">
+                    <span class="text-orange-600 text-3xl font-black italic tracking-tighter">///</span>
+                    <span class="text-white text-3xl font-bold tracking-widest">AXUR</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    "#,
+        pattern = abstract_pattern,
+        title = title,
+        text = text,
+        item1_title = dict.closing_value_item_1_title(),
+        item1_desc = dict.closing_value_item_1_desc(),
+        item2_title = dict.closing_value_item_2_title(),
+        item2_desc = dict.closing_value_item_2_desc(),
+        item3_title = dict.closing_value_item_3_title(),
+        item3_desc = dict.closing_value_item_3_desc(),
     )
 }
 
@@ -2006,5 +2418,167 @@ fn render_deep_analytics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
         dict.deep_analytics_subtitle(),
         grid_cols,
         sections.join("\n")
+    )
+}
+
+fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    // 1. Calculate Off-hours % and Histogram (0-23h)
+    let mut hour_counts = vec![0u64; 24];
+    let mut off_hours_count = 0;
+    let mut total_with_time = 0;
+
+    for ticket in &data.story_tickets {
+        if let Some(date_str) = &ticket.creation_date {
+            // Parses "2023-10-27T10:00:00..." or similar ISO string
+            if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+                let hour = dt.hour() as usize;
+                if hour < 24 {
+                    hour_counts[hour] += 1;
+                    total_with_time += 1;
+
+                    // Off-hours: < 8 or > 18 (roughly) or Weekend (Sat=6, Sun=7)
+                    let is_weekend = dt.weekday().number_from_monday() >= 6;
+                    if is_weekend || hour < 8 || hour >= 19 {
+                        off_hours_count += 1;
+                    }
+                }
+            } else if let Ok(dt) = DateTime::parse_from_rfc2822(date_str) {
+                 // Fallback for other formats if any
+                let hour = dt.hour() as usize;
+                if hour < 24 {
+                    hour_counts[hour] += 1;
+                    total_with_time += 1;
+                    let is_weekend = dt.weekday().number_from_monday() >= 6;
+                    if is_weekend || hour < 8 || hour >= 19 {
+                        off_hours_count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    let percent_off_hours = if total_with_time > 0 {
+        (off_hours_count * 100) / total_with_time
+    } else {
+        35 // Fallback default
+    };
+    
+    // Generate simple colors for the chart: Off-hours = RED, Business = Gray
+    let mut background_colors = Vec::new();
+    for h in 0..24 {
+        if h < 8 || h >= 19 {
+            background_colors.push("#ef4444"); // Red-500
+        } else {
+            background_colors.push("#e4e4e7"); // Zinc-200 (Gray)
+        }
+    }
+
+    let json_labels = serde_json::to_string(&(0..24).map(|h| format!("{:02}h", h)).collect::<Vec<String>>()).unwrap_or_default();
+    let json_data = serde_json::to_string(&hour_counts).unwrap_or_default();
+    let json_colors = serde_json::to_string(&background_colors).unwrap_or_default();
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-red-600 text-white px-4 py-1 text-sm font-semibold">24/7 COVERAGE</span></div><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-zinc-400 max-w-5xl text-xl mb-8 leading-relaxed">{desc}</p><div class="flex-grow bg-zinc-900/50 p-6 rounded-lg border border-zinc-800 relative"><canvas id="timelineChart"></canvas></div></div></div>{footer}<script>(function(){{const ctx=document.getElementById('timelineChart').getContext('2d');new Chart(ctx,{{type:'bar',data:{{labels:{json_labels},datasets:[{{label:'Detections',data:{json_data},backgroundColor:{json_colors},borderRadius:2}}]}},options:{{responsive:true,maintainAspectRatio:false,plugins:{{legend:{{display:false}}}},scales:{{y:{{beginAtZero:true,grid:{{color:'rgba(255,255,255,0.1)'}},ticks:{{color:'#a1a1aa'}}}},x:{{grid:{{display:false}},ticks:{{color:'#a1a1aa'}}}}}}}}}});}})();</script></div></div>"#,
+        title = dict.narrative_timeline_title(),
+        desc = dict.narrative_timeline_text(percent_off_hours),
+        footer = footer_dark(0, dict),
+        json_labels = json_labels,
+        json_data = json_data,
+        json_colors = json_colors
+    );
+
+    format!(
+        r#"
+    <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-900">
+        <h2 class="text-4xl font-bold text-orange-500 mb-2">{title}</h2>
+        <p class="text-zinc-400 mb-2">{text}</p>
+        
+        <div class="h-64 w-full relative">
+            <canvas id="timelineChart"></canvas>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-8 mt-6">
+             <div class="bg-zinc-800/30 p-4 rounded border border-zinc-700">
+                <span class="text-xs text-zinc-500 uppercase tracking-wider">Business Hours</span>
+                <div class="text-2xl font-bold text-zinc-300">{business_percent}%</div>
+             </div>
+             <div class="bg-red-900/20 p-4 rounded border border-red-900/50">
+                <span class="text-xs text-red-400 uppercase tracking-wider">Off-Hours Risk</span>
+                <div class="text-2xl font-bold text-red-500">{off_percent}%</div>
+             </div>
+        </div>
+
+        <script>
+            new Chart(document.getElementById('timelineChart'), {{
+                type: 'bar',
+                data: {{
+                    labels: [{labels}],
+                    datasets: [{{
+                        label: 'Detections',
+                        data: [{data}],
+                        backgroundColor: [{colors}],
+                        borderRadius: 4
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {{ legend: {{ display: false }} }},
+                    scales: {{
+                        y: {{ display: false }},
+                        x: {{ grid: {{ display: false }}, ticks: {{ color: '#71717a' }} }}
+                    }}
+                }}
+            }});
+        </script>
+        
+        <footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center">
+            <span class="text-orange-500 font-bold text-xl">AXUR</span>
+            <span class="text-xs text-zinc-400">Chaos Heatmap</span>
+        </footer>
+    </div>
+    "#,
+        // ... (existing mapped args)
+        title = dict.narrative_timeline_title(),
+        text = dict.narrative_timeline_text(percent_off_hours),
+        labels = (0..24).map(|h| format!("\"{:02}h\"", h)).collect::<Vec<_>>().join(","),
+        data = hour_counts.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(","),
+        colors = background_colors.iter().map(|c| format!("\"{}\"", c)).collect::<Vec<_>>().join(","),
+        off_percent = percent_off_hours,
+        business_percent = 100 - percent_off_hours,
+    )
+}
+
+fn render_virality_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
+    let viral_count = data.threat_intelligence.chat_group_shares + data.threat_intelligence.dark_web_mentions;
+    
+    // Choose Primary or Fallback
+    let (pain, solution) = if viral_count > 0 {
+        let source_count = if !data.threat_intelligence.dark_web_sources.is_empty() {
+             data.threat_intelligence.dark_web_sources.len() 
+        } else { 1 };
+        
+        // Safely extract top source
+        let top_source = data.threat_intelligence.dark_web_sources.first()
+            .map(|s| s.as_str())
+            .unwrap_or("Telegram Fraud Groups");
+            
+        (
+            dict.narrative_virality_pain_primary(viral_count, source_count, top_source),
+            dict.narrative_virality_solution_primary()
+        )
+    } else {
+        (
+            dict.narrative_virality_pain_fallback(),
+            dict.narrative_virality_solution_fallback()
+        )
+    };
+
+    render_narrative_slide(
+        dict.narrative_virality_title(),
+        pain,
+        solution,
+        "virality",
+        dict
     )
 }

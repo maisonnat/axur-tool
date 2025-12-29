@@ -37,20 +37,41 @@ impl RemoteLogConfig {
     }
 }
 
+/// Get the SHA of an existing file (if it exists)
+async fn get_file_sha(config: &RemoteLogConfig, path: &str) -> Option<String> {
+    let client = reqwest::Client::new();
+    let url = format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        config.owner, config.repo, path
+    );
+
+    let res = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", config.token))
+        .header("User-Agent", "axur-bot")
+        .header("Accept", "application/vnd.github.v3+json")
+        .send()
+        .await
+        .ok()?;
+
+    if res.status().is_success() {
+        let json: serde_json::Value = res.json().await.ok()?;
+        json.get("sha")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string())
+    } else {
+        None
+    }
+}
+
 /// Generic function to upload a file to the private GitHub repository
-///
-/// # Arguments
-/// * `config` - GitHub configuration
-/// * `path` - Full path in the repository (e.g. "reports/2024/01/01/report.html")
-/// * `content` - File content (will be base64 encoded)
-/// * `message` - Commit message
+/// Handles "Upsert" (Create or Update) logic by checking for 409/422 errors
 pub async fn upload_to_github(
     config: &RemoteLogConfig,
     path: &str,
     content: &str,
     message: &str,
 ) -> Result<String, String> {
-    let client = reqwest::Client::new();
     let upload_url = format!(
         "https://api.github.com/repos/{}/{}/contents/{}",
         config.owner, config.repo, path
@@ -59,44 +80,78 @@ pub async fn upload_to_github(
     // Base64 encode the content
     let encoded_content = BASE64.encode(content.as_bytes());
 
-    let body = json!({
-        "message": message,
-        "content": encoded_content,
-        "committer": {
-            "name": "Axur Bot",
-            "email": "bot@axur.local"
+    // Helper to perform the PUT request
+    let perform_upload = |sha: Option<String>| async {
+        let mut body_map = serde_json::Map::new();
+        body_map.insert("message".to_string(), json!(message));
+        body_map.insert("content".to_string(), json!(encoded_content));
+        body_map.insert(
+            "committer".to_string(),
+            json!({
+                "name": "Axur Bot",
+                "email": "bot@axur.local"
+            }),
+        );
+
+        if let Some(s) = sha {
+            body_map.insert("sha".to_string(), json!(s));
         }
-    });
 
-    let res = client
-        .put(&upload_url)
-        .header("Authorization", format!("Bearer {}", config.token))
-        .header("User-Agent", "axur-bot")
-        .header("Accept", "application/vnd.github.v3+json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {}", e))?;
+        let body = serde_json::Value::Object(body_map);
+        let client = reqwest::Client::new(); // Re-create client to avoid move issues in retry
 
-    if res.status().is_success() {
-        let resp_json: serde_json::Value = res
-            .json()
+        client
+            .put(&upload_url)
+            .header("Authorization", format!("Bearer {}", config.token))
+            .header("User-Agent", "axur-bot")
+            .header("Accept", "application/vnd.github.v3+json")
+            .json(&body)
+            .send()
             .await
-            .map_err(|e| format!("Failed to parse response: {}", e))?;
+    };
 
-        let html_url = resp_json
+    // 1. Try to create (no SHA)
+    let res = perform_upload(None).await.map_err(|e| e.to_string())?;
+
+    // 2. If success, return URL
+    if res.status().is_success() {
+        let resp_json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+        return Ok(resp_json
             .get("content")
             .and_then(|c| c.get("html_url"))
             .and_then(|u| u.as_str())
             .unwrap_or("")
-            .to_string();
-
-        Ok(html_url)
-    } else {
-        let status = res.status();
-        let err_text = res.text().await.unwrap_or_default();
-        Err(format!("GitHub API error {}: {}", status, err_text))
+            .to_string());
     }
+
+    // 3. If Conflict (409) or Unprocessable (422) -> File likely exists
+    if res.status() == StatusCode::CONFLICT || res.status() == StatusCode::UNPROCESSABLE_ENTITY {
+        // Fetch current SHA
+        if let Some(sha) = get_file_sha(config, path).await {
+            // Retry with SHA (Update)
+            let retry_res = perform_upload(Some(sha)).await.map_err(|e| e.to_string())?;
+
+            if retry_res.status().is_success() {
+                let resp_json: serde_json::Value =
+                    retry_res.json().await.map_err(|e| e.to_string())?;
+                return Ok(resp_json
+                    .get("content")
+                    .and_then(|c| c.get("html_url"))
+                    .and_then(|u| u.as_str())
+                    .unwrap_or("")
+                    .to_string());
+            } else {
+                let status = retry_res.status();
+                let err_text = retry_res.text().await.unwrap_or_default();
+                return Err(format!("Retry update failed {}: {}", status, err_text));
+            }
+        }
+    }
+
+    // 4. Fallback error
+    let status = res.status();
+    let err_text = res.text().await.unwrap_or_default();
+    Err(format!("GitHub API error {}: {}", status, err_text))
 }
 
 /// Upload a log file to the private GitHub repository

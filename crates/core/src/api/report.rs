@@ -449,6 +449,7 @@ pub struct IncidentExample {
     pub ip: String,
     pub isp: String,
     pub url: String,
+    pub country: String,
     pub screenshot_url: Option<String>,
 }
 
@@ -1054,6 +1055,7 @@ struct CurrentInfo {
     isp: Option<String>,
     domain: Option<String>,
     host: Option<String>,
+    country: Option<String>,
 
     // Nested date fields (old API format)
     #[serde(rename = "open")]
@@ -2446,7 +2448,7 @@ async fn fetch_resolved_takedowns(
                 .unwrap_or_else(|| "resolved".to_string()),
             host: current.and_then(|c| c.host.clone()).unwrap_or_default(),
             ip: current.and_then(|c| c.ip.clone()).unwrap_or_default(),
-            country: String::new(), // Not available directly
+            country: current.and_then(|c| c.country.clone()).unwrap_or_default(),
             request_date: current.and_then(|c| c.takedown_request_date()),
             resolution_date: current.and_then(|c| c.close_date()),
             url: ticket_info
@@ -2570,6 +2572,9 @@ async fn fetch_latest_incidents(
                                 isp: current.and_then(|c| c.isp.clone()).unwrap_or_default(),
                                 url: ticket_info
                                     .and_then(|ti| ti.reference.clone())
+                                    .unwrap_or_default(),
+                                country: current
+                                    .and_then(|c| c.country.clone())
                                     .unwrap_or_default(),
                                 screenshot_url: screenshot,
                             });

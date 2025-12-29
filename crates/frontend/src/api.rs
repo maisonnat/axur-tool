@@ -575,3 +575,46 @@ pub async fn check_log_access(email: &str) -> Result<bool, String> {
         Ok(false)
     }
 }
+
+// ========================
+// ANALYTICS API
+// ========================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DailyStats {
+    pub date: String,
+    pub reports: usize,
+    pub errors: usize,
+    pub th_queries: usize,
+    pub total: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatsResponse {
+    pub success: bool,
+    pub period: String,
+    pub total_reports: usize,
+    pub total_errors: usize,
+    pub daily_stats: Vec<DailyStats>,
+    pub message: String,
+}
+
+/// Get analytics stats
+pub async fn get_log_stats(days: Option<i64>) -> Result<StatsResponse, String> {
+    let mut url = format!("{}/api/logs/stats", API_BASE);
+    if let Some(d) = days {
+        url = format!("{}?days={}", url, d);
+    }
+
+    let resp = Request::get(&url)
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to get stats: {}", resp.status()))
+    }
+}

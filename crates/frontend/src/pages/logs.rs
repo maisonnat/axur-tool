@@ -149,6 +149,12 @@ pub fn LogsPage() -> impl IntoView {
                     >
                         "← Dashboard"
                     </button>
+                    <button
+                        class="back-btn ml-2"
+                        on:click=move |_| current_page.set(crate::Page::Analytics)
+                    >
+                        "📊 Analytics"
+                    </button>
                 </div>
                 <h1 class="logs-title">"📋 Log Viewer"</h1>
                 <p class="logs-subtitle">"Browse and search application logs"</p>

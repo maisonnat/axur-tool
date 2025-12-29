@@ -334,6 +334,12 @@ pub fn DashboardPage() -> impl IntoView {
                         <Show when=move || has_log_access.get()>
                             <button
                                 class="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-2"
+                                on:click=move |_| current_page.set(Page::Analytics)
+                            >
+                                "📊 Analytics"
+                            </button>
+                            <button
+                                class="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-2"
                                 on:click=move |_| current_page.set(Page::Logs)
                             >
                                 "📋 Logs"

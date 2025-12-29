@@ -70,6 +70,7 @@ pub fn create_router() -> Router {
         .route("/api/logs/categories", get(logs_api::list_log_categories))
         .route("/api/logs/content/*path", get(logs_api::get_log_content))
         .route("/api/logs/access", get(logs_api::check_log_access))
+        .route("/api/logs/stats", get(logs_api::get_log_stats))
         .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
 
     Router::new()
