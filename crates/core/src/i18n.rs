@@ -195,6 +195,19 @@ pub trait Dictionary {
     // Incident Story
     fn story_title(&self) -> String;
     fn story_subtitle(&self, count: usize) -> String;
+
+    // Context Slides
+    fn ctx_risk_title(&self) -> String;
+    fn ctx_risk_text(&self) -> String;
+
+    fn ctx_stealer_title(&self) -> String;
+    fn ctx_stealer_text(&self) -> String;
+
+    fn ctx_leak_title(&self) -> String;
+    fn ctx_leak_text(&self) -> String;
+
+    fn ctx_takedown_title(&self) -> String;
+    fn ctx_takedown_text(&self) -> String;
 }
 
 pub struct English;
@@ -596,6 +609,35 @@ impl Dictionary for English {
     fn story_subtitle(&self, count: usize) -> String {
         format!("Timeline of {} related incidents", count)
     }
+
+    // Context Slides - English
+    fn ctx_risk_title(&self) -> String {
+        "The Digital Risk Landscape".to_string()
+    }
+    fn ctx_risk_text(&self) -> String {
+        "Digital risk monitoring is essential in today's interconnected world. This section provides an overview of the threats detected across the open, deep, and dark web. By identifying these risks early, we enable proactive mitigation strategies to protect your brand reputation and digital assets.".to_string()
+    }
+
+    fn ctx_stealer_title(&self) -> String {
+        "Understanding Infostealers".to_string()
+    }
+    fn ctx_stealer_text(&self) -> String {
+        "Infostealers are malware designed to harvest sensitive information from infected devices. They collect login credentials, cookies, and system details, often sold on dark web marketplaces. Detecting these logs allows us to identify compromised employee or customer accounts before they are used for unauthorized access.".to_string()
+    }
+
+    fn ctx_leak_title(&self) -> String {
+        "The Danger of Exposed Secrets".to_string()
+    }
+    fn ctx_leak_text(&self) -> String {
+        "Developers sometimes inadvertently commit sensitive keys, tokens, or credentials to public repositories. These 'secrets' can grant attackers access to cloud infrastructure, databases, or internal services. Continuous monitoring of public code repositories is crucial to detect and revoke these keys immediately.".to_string()
+    }
+
+    fn ctx_takedown_title(&self) -> String {
+        "The Takedown Process".to_string()
+    }
+    fn ctx_takedown_text(&self) -> String {
+        "Takedown is the process of removing malicious or infringing content from the internet. When a threat is confirmed, our automated systems and legal team interact with hosting providers, registrars, and social media platforms to enforce removal, neutralizing the threat at its source.".to_string()
+    }
 }
 
 impl Dictionary for Spanish {
@@ -798,6 +840,37 @@ impl Dictionary for Spanish {
         "Takedowns".to_string()
     }
     fn takedowns_requested(&self) -> String {
+        "solicitudes de takedown".to_string()
+    }
+
+    // Context Slides - Spanish
+    fn ctx_risk_title(&self) -> String {
+        "El Panorama de Riesgo Digital".to_string()
+    }
+    fn ctx_risk_text(&self) -> String {
+        "El monitoreo de riesgos digitales es esencial en el mundo interconectado de hoy. Esta sección ofrece una visión general de las amenazas detectadas en la web abierta, profunda y oscura. Al identificar estos riesgos temprano, permitimos estrategias de mitigación proactivas para proteger la reputación de su marca y sus activos digitales.".to_string()
+    }
+
+    fn ctx_stealer_title(&self) -> String {
+        "Entendiendo los Infostealers".to_string()
+    }
+    fn ctx_stealer_text(&self) -> String {
+        "Los Infostealers son malware diseñado para recolectar información sensible de dispositivos infectados. Roban credenciales de inicio de sesión, cookies y detalles del sistema, que a menudo se venden en mercados de la dark web. Detectar estos registros nos permite identificar cuentas de empleados o clientes comprometidas antes de que sean utilizadas para accesos no autorizados.".to_string()
+    }
+
+    fn ctx_leak_title(&self) -> String {
+        "El Peligro de Secretos Expuestos".to_string()
+    }
+    fn ctx_leak_text(&self) -> String {
+        "Los desarrolladores a veces publican inadvertidamente claves, tokens o credenciales sensibles en repositorios públicos. Estos 'secretos' pueden dar a los atacantes acceso a infraestructura en la nube, bases de datos o servicios internos. El monitoreo continuo de repositorios de código público es crucial para detectar y revocar estas claves de inmediato.".to_string()
+    }
+
+    fn ctx_takedown_title(&self) -> String {
+        "El Proceso de Takedown".to_string()
+    }
+    fn ctx_takedown_text(&self) -> String {
+        "El Takedown es el proceso de eliminación de contenido malicioso o infractor de internet. Cuando se confirma una amenaza, nuestros sistemas automatizados y equipo legal interactúan con proveedores de alojamiento, registradores y plataformas de redes sociales para forzar su eliminación, neutralizando la amenaza en su origen.".to_string()
+    }
         "takedowns solicitados".to_string()
     }
     fn takedowns_success_rate(&self) -> String {

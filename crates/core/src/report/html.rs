@@ -26,16 +26,27 @@ pub fn generate_full_report_html(
         render_solutions_slide(dict),
         render_toc_slide(dict),
         render_poc_data_slide(data, dict),
+        render_context_slide(dict.ctx_risk_title(), dict.ctx_risk_text(), "risk", dict),
         render_general_metrics_slide(data, dict),
         render_threats_chart_slide(data, dict),
+        if data.credentials_total > 0 {
+             render_context_slide(dict.ctx_stealer_title(), dict.ctx_stealer_text(), "stealer", dict)
+        } else { "".to_string() },
         render_infostealer_slide(data, dict),
+        if data.secrets_total > 0 {
+             render_context_slide(dict.ctx_leak_title(), dict.ctx_leak_text(), "leak", dict)
+        } else { "".to_string() },
         render_code_leak_slide(data, dict),
         render_incidents_chart_slide(data, dict),
         render_incident_story_slide(data, dict),
     ];
 
+    // Filter out empty strings from conditional slides in the initial vec
+    slides.retain(|s| !s.is_empty());
+
     // Only add takedown slides if there is takedown data
     if has_takedown_data(data) {
+        slides.push(render_context_slide(dict.ctx_takedown_title(), dict.ctx_takedown_text(), "takedown", dict));
         slides.push(render_takedowns_realizados_slide(data, dict));
         slides.push(render_impact_roi_slide(data, dict));
     }
@@ -176,6 +187,31 @@ fn footer_light(page: u32, dict: &Box<dyn Dictionary>) -> String {
 
 fn geometric_pattern() -> &'static str {
     r#"<div class="absolute inset-0 overflow-hidden" style="opacity:1"><div class="absolute -top-10 -left-10 w-40 h-40 bg-orange-500"></div><div class="absolute top-1/4 right-1/4 w-60 h-60 bg-zinc-900"></div><div class="absolute -bottom-10 -right-10 w-52 h-52 bg-orange-500"></div><div class="absolute bottom-1/2 right-10 w-24 h-24 bg-white"></div><div class="absolute top-10 right-20 w-32 h-32 bg-white"></div><div class="absolute bottom-10 left-10 w-48 h-48 bg-zinc-900"></div><div class="absolute top-1/3 left-1/4 w-20 h-20 bg-orange-500"></div><div class="absolute -right-20 top-1/2 w-48 h-48 bg-zinc-900"></div><div class="absolute right-1/3 bottom-1/3 w-32 h-32 bg-white"></div><div class="absolute h-full w-20 bg-orange-500 right-0 top-1/4"></div><div class="absolute w-full h-10 bg-zinc-900 bottom-0 left-1/3"></div></div>"#
+}
+
+fn render_context_slide(title: String, text: String, icon_type: &str, dict: &Box<dyn Dictionary>) -> String {
+    let icon_svg = match icon_type {
+        "risk" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"></path></svg>"#,
+        "stealer" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>"#,
+        "leak" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75v-4.5m0 4.5h4.5m-4.5 0l6-6m-3 18c-8.284 0-15-6.716-15-15V4.5A2.25 2.25 0 014.5 2.25h1.372c.516 0 .966.351 1.091.852l1.106 4.423c.11.44-.054.902-.417 1.173l-1.293.97a1.062 1.062 0 00-.38 1.21 12.035 12.035 0 007.143 7.143c.441.162.928-.004 1.21-.38l.97-1.293a1.125 1.125 0 011.173-.417l4.423 1.106c.5.125.852.575.852 1.091V19.5a2.25 2.25 0 01-2.25 2.25h-2.25z"></path></svg>"#, // Fallback icon, maybe telephone was wrong copy/paste. Let's use Code brackets logic or similar
+        "takedown" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>"#,
+        _ => "",
+    };
+    
+    // Override leak icon with actual code brackets
+    let final_icon = if icon_type == "leak" {
+        r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path></svg>"#
+    } else {
+        icon_svg
+    };
+
+    format!(
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">{title}</h2><p class="text-xl text-zinc-300 leading-relaxed text-justify">{text}</p></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800">{icon}</div></div></div>{footer}</div></div>"#,
+        title = title,
+        text = text,
+        icon = final_icon,
+        footer = footer_dark(0, dict), // Page 0 or handle page numbering later? Passed 0 for now
+    )
 }
 
 fn render_cover_full(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
