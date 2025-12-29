@@ -210,7 +210,7 @@ pub async fn generate_report(
 
     let response = GenerateReportResponse {
         success: true,
-        html: Some(html),
+        html: Some(html.clone()),
         company_name: Some(report_data.company_name.clone()),
         message: "Report generated successfully".into(),
         error_code: None,
@@ -246,7 +246,7 @@ pub async fn generate_report(
         company_name.replace(' ', "_"),
         chrono::Utc::now().format("%Y-%m-%d_%H%M%S")
     );
-    crate::routes::remote_log::upload_report_async(&company_name, &filename, html.clone());
+    crate::routes::remote_log::upload_report_async(&company_name, &filename, html);
 
     Ok(Json(response))
 }
