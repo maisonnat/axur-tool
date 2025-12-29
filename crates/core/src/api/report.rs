@@ -272,6 +272,9 @@ pub struct PocReportData {
 
     // NEW: Enriched Credential Exposures
     pub credential_exposures: Vec<CredentialExposure>,
+    // NEW: Critical Credentials (password contains tenant name)
+    #[serde(default)]
+    pub critical_credentials: Vec<CredentialExposure>,
 
     // UI FLAGS
     pub is_dynamic_window: bool,
@@ -1269,13 +1272,15 @@ pub async fn fetch_full_report(
         resolved_takedowns,
         latest_incidents,
         credential_leaks_summary,
+        critical_credentials_res,
     ) = tokio::join!(
         fetch_smart_evidence(&client, &auth, from, to, &top_types, 3, tenant_id),
         fetch_code_leaks_summary(&client, &auth, from, to, tenant_id),
         fetch_takedown_examples(&client, &auth, from, to, 10, tenant_id),
         fetch_resolved_takedowns(&client, &auth, from, to, 10, tenant_id),
         fetch_latest_incidents(&client, &auth, from, to, 5, tenant_id),
-        fetch_credential_leaks_summary(&client, &auth, from, to, tenant_id), // NEW
+        fetch_credential_leaks_summary(&client, &auth, from, to, tenant_id),
+        fetch_critical_credentials(&client, &auth, tenant_id), // NEW
     );
 
     let evidence = smart_evidence.unwrap_or_default();
@@ -1387,6 +1392,8 @@ pub async fn fetch_full_report(
 
         // NEW: Enriched Credential Exposures
         credential_exposures: credential_exposures_res,
+        // NEW: Critical Credentials
+        critical_credentials: critical_credentials_res,
 
         is_dynamic_window: false, // Default to fixed window
     };
@@ -3847,6 +3854,60 @@ pub async fn fetch_tagged_credentials(
         }
         Err(e) => {
             tracing::error!("Failed to parse credential response: {}", e);
+            Vec::new()
+        }
+    }
+}
+
+/// Fetch critical credentials where password contains the tenant ID/NAME
+pub async fn fetch_critical_credentials(
+    client: &reqwest::Client,
+    auth: &str,
+    tenant_id: &str,
+) -> Vec<CredentialExposure> {
+    if tenant_id.is_empty() || tenant_id.eq_ignore_ascii_case("default") {
+        return Vec::new();
+    }
+
+    // "password=contains:{tenant_id}"
+    // We request 10 items.
+    let url = format!(
+        "https://api.axur.com/gateway/1.0/api/exposure-api/credentials?password=contains:{}&customer={}&pageSize=10&sortBy=created&order=desc",
+        tenant_id,
+        tenant_id
+    );
+
+    tracing::info!(
+        "Fetching critical credentials for tenant: {} (URL: {})",
+        tenant_id,
+        url
+    );
+
+    let resp = match client.get(&url).header("Authorization", auth).send().await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("Failed to fetch critical credentials: {}", e);
+            return Vec::new();
+        }
+    };
+
+    if !resp.status().is_success() {
+        tracing::error!("Credential API error (critical): {}", resp.status());
+        return Vec::new();
+    }
+
+    match resp.json::<CredentialSearchResponse>().await {
+        Ok(body) => {
+            let count = body.pageable.as_ref().and_then(|p| p.total).unwrap_or(0);
+            tracing::info!(
+                "Found {} CRITICAL credentials for tenant '{}'",
+                count,
+                tenant_id
+            );
+            body.detections.unwrap_or_default()
+        }
+        Err(e) => {
+            tracing::error!("Failed to parse critical credential response: {}", e);
             Vec::new()
         }
     }

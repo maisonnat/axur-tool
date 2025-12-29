@@ -11,7 +11,8 @@ $env:API_BASE_URL = "http://localhost:3001"
 $backend = Get-Process -Name "axur-backend" -ErrorAction SilentlyContinue
 if ($backend) {
     Write-Host "⚠️  Backend already running (PID: $($backend.Id))" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "📦 Starting Backend on http://localhost:3001..." -ForegroundColor Green
     Start-Process -NoNewWindow -FilePath "cargo" -ArgumentList "run", "-p", "axur-backend" -WorkingDirectory $PSScriptRoot
     Start-Sleep -Seconds 2
@@ -24,5 +25,5 @@ Write-Host ""
 Write-Host "Press Ctrl+C to stop" -ForegroundColor DarkGray
 Write-Host ""
 
-Set-Location "$PSScriptRoot\crates\frontend"
+Set-Location (Join-Path $PSScriptRoot "crates\frontend")
 trunk serve

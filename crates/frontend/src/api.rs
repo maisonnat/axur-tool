@@ -1,4 +1,5 @@
 //! API client for communicating with backend
+// Force rebuild for env var
 
 use gloo_net::http::Request;
 use serde::{Deserialize, Serialize};

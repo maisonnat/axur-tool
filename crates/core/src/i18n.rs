@@ -109,6 +109,8 @@ pub trait Dictionary {
     fn stealer_box_hosts(&self) -> String;
     fn stealer_box_high_risk(&self) -> String;
     fn stealer_action(&self) -> String;
+    fn stealer_critical_title(&self) -> String;
+    fn stealer_critical_desc(&self, count: usize) -> String;
 
     // Code Leak
     fn code_leak_title(&self) -> String;
@@ -146,6 +148,11 @@ pub trait Dictionary {
     fn roi_intel_desc(&self, count: u64) -> String;
     fn roi_intel_stealer(&self) -> String;
     fn roi_intel_plaintext(&self) -> String;
+
+    // Data Exposure (Unified)
+    fn exposure_title(&self) -> String;
+    fn exposure_sub_code(&self) -> String;
+    fn exposure_sub_stealer(&self) -> String;
 
     // Operational Impact Slide (new)
     fn op_badge(&self) -> String; // "OPERATIONAL IMPACT"
@@ -454,6 +461,12 @@ impl Dictionary for English {
     fn stealer_action(&self) -> String {
         "Immediate Action: Force password reset for exposed users and prioritize isolating infected hosts.".to_string()
     }
+    fn stealer_critical_title(&self) -> String {
+        "CRITICAL: Corporate Pattern Detected".to_string()
+    }
+    fn stealer_critical_desc(&self, count: usize) -> String {
+        format!("Found <span class=\"text-white font-bold\">{}</span> identities using variations of the company name in their passwords.", count)
+    }
 
     fn code_leak_title(&self) -> String {
         "Risk Landscape: Code Credential Leaks".to_string()
@@ -555,6 +568,16 @@ impl Dictionary for English {
         "Plaintext Passwords".to_string()
     }
 
+    fn exposure_title(&self) -> String {
+        "Sensitive Data Exposure".to_string()
+    }
+    fn exposure_sub_code(&self) -> String {
+        "Source Code Leaks".to_string()
+    }
+    fn exposure_sub_stealer(&self) -> String {
+        "Infostealer Credentials".to_string()
+    }
+
     // Operational Impact Slide
     fn op_badge(&self) -> String {
         "OPERATIONAL IMPACT".to_string()
@@ -647,9 +670,9 @@ impl Dictionary for English {
         "Personalized onboarding and strategic planning.".to_string()
     }
 
-    // Deep Analytics
+    // Deep Analytics -> Executive Summary
     fn deep_analytics_title(&self) -> String {
-        "🔍 Deep Analytics".to_string()
+        "🔍 Executive Threat Summary".to_string()
     }
     fn deep_analytics_subtitle(&self) -> String {
         "Advanced insights computed from your threat data".to_string()
@@ -1036,9 +1059,25 @@ impl Dictionary for Spanish {
     fn stealer_action(&self) -> String {
         "Acción Inmediata: Forzar el reseteo de contraseña para los usuarios expuestos y priorizar el aislamiento de los hosts infectados.".to_string()
     }
+    fn stealer_critical_title(&self) -> String {
+        "CRÍTICO: Patrón Corporativo Detectado".to_string()
+    }
+    fn stealer_critical_desc(&self, count: usize) -> String {
+        format!("Se encontraron <span class=\"text-white font-bold\">{}</span> identidades usando variaciones del nombre de la empresa en sus contraseñas.", count)
+    }
 
     fn code_leak_title(&self) -> String {
         "Panorama de Riesgo: Fugas de Credenciales en Código".to_string()
+    }
+
+    fn exposure_title(&self) -> String {
+        "Exposición de Datos Sensibles".to_string()
+    }
+    fn exposure_sub_code(&self) -> String {
+        "Fugas en Código Fuente".to_string()
+    }
+    fn exposure_sub_stealer(&self) -> String {
+        "Credenciales (Infostealer)".to_string()
     }
     fn code_leak_subtitle(&self, count: u64) -> String {
         format!("Análisis de {} secretos expuestos públicamente", count)
@@ -1417,9 +1456,9 @@ impl Dictionary for Spanish {
         "Onboarding personalizado y planificación estratégica.".to_string()
     }
 
-    // Deep Analytics
+    // Deep Analytics -> Executive Summary
     fn deep_analytics_title(&self) -> String {
-        "🔍 Análisis Profundo".to_string()
+        "🔍 Resumen Ejecutivo de Amenazas".to_string()
     }
     fn deep_analytics_subtitle(&self) -> String {
         "Insights avanzados computados a partir de tus datos de amenazas".to_string()
@@ -1617,11 +1656,27 @@ impl Dictionary for Portuguese {
         "Usuários de Alto Risco".to_string()
     }
     fn stealer_action(&self) -> String {
-        "Ação Imediata: Forçar a redefinição de senha para usuários expostos e priorizar o isolamento dos hosts infectados.".to_string()
+        "Ação Imediata: Forçar a redefinição de senha para usuários expostos e priorizar o isolamento de hosts infectados.".to_string()
+    }
+    fn stealer_critical_title(&self) -> String {
+        "CRÍTICO: Padrão Corporativo Detectado".to_string()
+    }
+    fn stealer_critical_desc(&self, count: usize) -> String {
+        format!("Foram encontradas <span class=\"text-white font-bold\">{}</span> identidades usando variações do nome da empresa em suas senhas.", count)
     }
 
     fn code_leak_title(&self) -> String {
-        "Cenário de Risco: Vazamento de Credenciais em Código".to_string()
+        "Panorama de Risco: Vazamento de Credenciais em Código".to_string()
+    }
+
+    fn exposure_title(&self) -> String {
+        "Exposição de Dados Sensíveis".to_string()
+    }
+    fn exposure_sub_code(&self) -> String {
+        "Vazamentos em Código Fonte".to_string()
+    }
+    fn exposure_sub_stealer(&self) -> String {
+        "Credenciais (Infostealer)".to_string()
     }
     fn code_leak_subtitle(&self, count: u64) -> String {
         format!("Análise de {} segredos expostos publicamente", count)
@@ -1811,8 +1866,9 @@ impl Dictionary for Portuguese {
     }
 
     // Deep Analytics
+    // Deep Analytics -> Executive Summary
     fn deep_analytics_title(&self) -> String {
-        "🔍 Análise Profunda".to_string()
+        "🔍 Resumo Executivo de Ameaças".to_string()
     }
     fn deep_analytics_subtitle(&self) -> String {
         "Insights avançados computados a partir dos seus dados de ameaças".to_string()
