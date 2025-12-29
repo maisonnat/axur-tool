@@ -28,6 +28,13 @@ pub fn create_router() -> Router {
             "http://127.0.0.1:8080".parse::<HeaderValue>().unwrap(),
             // Production (Cloudflare Pages)
             "https://axtool.pages.dev".parse::<HeaderValue>().unwrap(),
+            // Leapcell
+            "https://axur-tool-maisonnat2655-5j70lozi.leapcell.dev"
+                .parse::<HeaderValue>()
+                .unwrap(),
+            "https://axur-tool-maisonnat2655-dc5ya68vc4dbqraqq0.leapcell-async.dev"
+                .parse::<HeaderValue>()
+                .unwrap(),
         ])
         .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
         .allow_headers([

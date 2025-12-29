@@ -2,125 +2,144 @@
 description: Security audit workflow using RustSec/cargo-audit and OWASP 2025 guidelines
 ---
 
-# Security Audit Workflow
+```markdown
+# Security Audit Workflow (Rust 2025 Edition)
 
-Run comprehensive security audits aligned with RustSec, OWASP 2025, NIST, and CAST guidelines.
+Run comprehensive security audits aligned with RustSec, OWASP Top 10 2025, NIST SP 800-63B Rev 4, and SSDF v1.2.
 
-## Quick Audit
+## Quick Audit (Local Dev)
 // turbo
 ```powershell
 cargo audit
+cargo deny check licenses
+
 ```
 
 ## Full Security Audit Steps
 
 ### 1. Dependency Vulnerability Check (RustSec)
+
+**Objective:** Detect known vulnerabilities in the dependency tree.
+
 // turbo
+
 ```powershell
 cargo audit --deny warnings
+
 ```
 
 If vulnerabilities found:
-- Check RustSec advisory database: https://rustsec.org/advisories/
-- Update dependencies: `cargo update`
-- If no patch available, consider alternative crates
 
-### 2. Update Advisory Database
-// turbo
+* Check RustSec advisory database: https://rustsec.org/advisories/
+* Update dependencies: `cargo update` or replace the crate if unmaintained.
+
+### 2. Supply Chain Integrity (OWASP A03:2025)
+
+**Objective:** Verify the integrity of the software supply chain beyond just vulnerabilities.
+
+**Audit Trusted Publishers:**
+
 ```powershell
-cargo audit fetch
+cargo vet
+
 ```
 
-### 3. Check for Outdated Dependencies
+*Use cargo-vet to ensure dependencies have been audited by trusted entities (Google, Mozilla, or internal team).*
+
+**Source & License Control:**
+
 ```powershell
-cargo outdated -R
+cargo deny check sources
+
 ```
 
-### 4. License Compliance Check
+*Ensure no dependencies are pulled from untrusted git registries or unverified crates.io mirrors.*
+
+### 3. Production Build with SBOM (Evidence Collection)
+
+**Objective:** Embed dependency data into the binary for runtime auditing (Compliance with NIST SSDF 1.2).
+
 ```powershell
-cargo deny check licenses
+cargo auditable build --release
+
 ```
+
+*Uses cargo-auditable to embed the dependency tree into the compiled binary.*
+
+### 4. Unsafe Code Audit (Memory Safety)
+
+**Objective:** Audit blocks that bypass Rust's memory safety guarantees (NIST/NSA Focus).
+
+```powershell
+cargo geiger
+
+```
+
+*Rule: Any use of `unsafe` must be documented and justified. Ideally, replace with safe abstractions.*
 
 ---
 
 ## OWASP 2025 Security Checklist
 
-### A01: Broken Access Control (Risk #1)
-- [ ] All API endpoints have proper authorization middleware
-- [ ] Session tokens are validated on every request
-- [ ] Role-based access control (RBAC) is enforced
-- [ ] No direct object references without access checks
-- [ ] Cookie security flags set (HttpOnly, Secure, SameSite)
+### A01: Broken Access Control (Risk #1) & SSRF
 
-**Code Review Points:**
-- Check `middleware/` for auth guards
-- Verify all routes in `routes/` use auth middleware
-- Review cookie settings in auth handlers
+* [ ] **Middleware:** Ensure axum or actix-web middleware enforces authentication on all protected routes
+* [ ] **IDOR Prevention:** Use typed identifiers (e.g., `struct UserId(Uuid)`) instead of raw integers
+* [ ] **SSRF Check:** Validate all user-supplied URLs if the server makes outbound requests (block localhost/metadata services)
 
-### A03: Software Supply Chain Failures (New emphasis 2025)
-- [ ] All dependencies audited with `cargo audit`
-- [ ] Dependency versions pinned in Cargo.lock
-- [ ] No `git` dependencies from untrusted sources
-- [ ] `cargo-vet` or `cargo-crev` for supply chain verification
-- [ ] CI/CD runs security checks on PRs
+### A02: Security Misconfiguration (Risk #2)
 
-**Commands:**
-```powershell
-cargo audit
-cargo tree --duplicates
-cargo deny check
-```
+* [ ] **Headers:** Ensure security headers (HSTS, Content-Security-Policy) are set
+* [ ] **Debug Mode:** Verify debug assertions are disabled in release builds (`[profile.release] debug = false`)
+* [ ] **Panic Strategy:** Set `panic = "abort"` in Cargo.toml for production release profiles
+
+### A03: Software Supply Chain Failures (New Emphasis 2025)
+
+* [ ] **Binary Auditing:** Verify production binaries contain embedded SBOMs (`cargo auditable`)
+* [ ] **CI/CD Integrity:** Ensure CI pipelines use immutable tags for actions/containers
+* [ ] **Dependency Pinning:** `Cargo.lock` must be committed to version control
+
+### A07: Authentication Failures (NIST 800-63B Rev 4 Alignment)
+
+* [ ] **Password Length:** Enforce minimum 15 characters for single-factor passwords
+* [ ] **Composition Rules:** REMOVE requirements for special characters/numbers. Allow spaces (Unicode 64+ chars)
+* [ ] **Blocklist:** Check new passwords against a "banned list" (e.g., "Password123")
+* [ ] **MFA:** Offer Phishing-Resistant MFA (Passkeys/FIDO2) using `webauthn-rs`. Avoid SMS/Email OTP
 
 ### A10: Mishandling of Exceptional Conditions (New 2025)
-- [ ] All `Result` types are properly handled (no `.unwrap()` in production)
-- [ ] `Option` types use `.ok_or()` or pattern matching
-- [ ] Errors are logged with appropriate detail level
-- [ ] User-facing errors don't leak internal details
-- [ ] Panic handlers are configured for WASM
+
+* [ ] **No Panics:** Prohibit `.unwrap()` and `.expect()` in production code
+* [ ] **Fail Closed:** Ensure auth logic fails to a "deny" state if errors occur (e.g., DB unreachable)
+* [ ] **Error Leakage:** Ensure API error responses do not leak internal stack traces
 
 **Rust-Specific Patterns:**
+
 ```rust
-// GOOD: Proper error handling
+// Use clippy to enforce strict error handling
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+
+// GOOD: Mapped errors for external consumers
 result.map_err(|e| ApiError::from(e))?;
 
-// BAD: Panics in production
+// BAD: Leaking internal DB errors / Panics
 result.unwrap(); // ❌
-result.expect("should work"); // ❌
+
 ```
 
 ---
 
-## NIST Compliance Notes
+## NIST & Regulatory Compliance
 
-### NIST SP 800-53 Controls
-- **AC-3**: Access Enforcement → Use Axum middleware
-- **AU-3**: Audit Logging → Use tracing crate
-- **SC-8**: Transmission Confidentiality → HTTPS/TLS
-- **SI-10**: Information Input Validation → Validate all API inputs
+### NIST SP 800-218 (SSDF 1.2)
 
-### NIST SSDF (Secure Software Development Framework)
-- PO.1: Define security requirements
-- PW.1: Design software to meet security requirements
-- PW.6: Use compiler options to improve security
-- RV.1: Identify and confirm vulnerabilities
+* **PO.6 (Continuous Improvement):** Document audit results over time to show trend improvement
+* **PS.4 (Robust Updates):** Use `cargo-auditable` to prove exactly what is running in production
 
----
+### NIST SP 800-53 Rev 5
 
-## CAST/CISQ Quality Rules
-
-### Reliability
-- No unhandled exceptions → Rust's Result/Option
-- No null pointer dereferences → Rust's type system
-
-### Security
-- No SQL injection → Use parameterized queries
-- No hardcoded credentials → Use environment variables
-- Input validation on all user data
-
-### Maintainability
-- Avoid excessive cyclomatic complexity
-- Keep function lengths reasonable
-- Document public APIs
+* **SI-7 (Software Integrity):** Use cryptographic hashes (SHA-256) for all release artifacts
+* **SC-8 (Transmission Confidentiality):** Enforce TLS 1.3 via `rustls` (avoid OpenSSL where possible)
 
 ---
 
@@ -128,10 +147,20 @@ result.expect("should work"); // ❌
 
 When vulnerabilities are found:
 
-1. **Document** the vulnerability in an implementation plan
-2. **Assess** impact (CVSS score, exploitability)
-3. **Prioritize** based on severity
-4. **Propose fix** with code changes
-5. **Get approval** before applying
-6. **Verify** fix with re-audit
-7. **Update** any affected tests
+1. **Identify**: Run `cargo audit` and `cargo geiger`
+2. **Assess**:
+* Is it a Supply Chain issue (A03)? → Check `cargo-vet`
+* Is it a Logic issue (A10)? → Review error handling paths
+
+
+3. **Fix**:
+* Dependencies: `cargo update` or patch via `[patch.crates-io]`
+* Code: Refactor unsafe blocks or replace `.unwrap()` with Result propagation
+
+
+4. **Verify**: Re-run the audit suite
+5. **Document**: Update the Digital Identity Acceptance Statement (if applicable)
+
+```
+
+```

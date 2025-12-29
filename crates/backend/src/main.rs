@@ -23,7 +23,12 @@ async fn main() {
     let app = create_router();
 
     // Run server
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3001));
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "3001".to_string())
+        .parse::<u16>()
+        .unwrap_or(3001);
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("🚀 Axur Backend listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
