@@ -8,7 +8,7 @@ mod i18n;
 mod pages;
 
 use leptos::*;
-use pages::{DashboardPage, LoginPage};
+use pages::{DashboardPage, LoginPage, LogsPage};
 
 pub use i18n::{get_ui_dict, UiDict, UiLanguage};
 
@@ -19,12 +19,17 @@ pub struct AppState {
     pub current_page: RwSignal<Page>,
     pub error_message: RwSignal<Option<String>>,
     pub ui_language: RwSignal<UiLanguage>,
+    /// User email (set during login)
+    pub user_email: RwSignal<Option<String>>,
+    /// Whether user has access to logs
+    pub has_log_access: RwSignal<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Page {
     Login,
     Dashboard,
+    Logs,
 }
 
 impl Default for AppState {
@@ -34,6 +39,8 @@ impl Default for AppState {
             current_page: create_rw_signal(Page::Login),
             error_message: create_rw_signal(None),
             ui_language: create_rw_signal(UiLanguage::Es),
+            user_email: create_rw_signal(None),
+            has_log_access: create_rw_signal(false),
         }
     }
 }
@@ -63,6 +70,7 @@ pub fn App() -> impl IntoView {
             {move || match state.current_page.get() {
                 Page::Login => view! { <LoginPage/> }.into_view(),
                 Page::Dashboard => view! { <DashboardPage/> }.into_view(),
+                Page::Logs => view! { <LogsPage/> }.into_view(),
             }}
         </div>
     }

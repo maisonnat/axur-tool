@@ -421,3 +421,151 @@ pub async fn submit_feedback(
         Err(format!("Failed to submit feedback: {}", resp.status()))
     }
 }
+
+// ========================
+// LOGS API
+// ========================
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogEntry {
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+    pub sha: String,
+    pub download_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ListLogsResponse {
+    pub success: bool,
+    pub files: Vec<LogEntry>,
+    pub total: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogContentResponse {
+    pub success: bool,
+    pub filename: String,
+    pub content: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ListCategoriesResponse {
+    pub success: bool,
+    pub categories: Vec<String>,
+    pub date: Option<String>,
+    pub message: String,
+}
+
+/// List log files with optional filters
+pub async fn list_logs(
+    date: Option<&str>,
+    category: Option<&str>,
+    limit: Option<usize>,
+    offset: Option<usize>,
+) -> Result<ListLogsResponse, String> {
+    let mut url = format!("{}/api/logs", API_BASE);
+    let mut params = Vec::new();
+
+    if let Some(d) = date {
+        params.push(format!("date={}", urlencoding_encode(d)));
+    }
+    if let Some(c) = category {
+        params.push(format!("category={}", urlencoding_encode(c)));
+    }
+    if let Some(l) = limit {
+        params.push(format!("limit={}", l));
+    }
+    if let Some(o) = offset {
+        params.push(format!("offset={}", o));
+    }
+
+    if !params.is_empty() {
+        url = format!("{}?{}", url, params.join("&"));
+    }
+
+    let resp = Request::get(&url)
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to list logs: {}", resp.status()))
+    }
+}
+
+/// Get log file content
+pub async fn get_log_content(path: &str) -> Result<LogContentResponse, String> {
+    let url = format!("{}/api/logs/content/{}", API_BASE, path);
+
+    let resp = Request::get(&url)
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to get log content: {}", resp.status()))
+    }
+}
+
+/// List available log categories for a date
+pub async fn list_log_categories(date: Option<&str>) -> Result<ListCategoriesResponse, String> {
+    let mut url = format!("{}/api/logs/categories", API_BASE);
+
+    if let Some(d) = date {
+        url = format!("{}?date={}", url, urlencoding_encode(d));
+    }
+
+    let resp = Request::get(&url)
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to list categories: {}", resp.status()))
+    }
+}
+
+// ========================
+// LOG ACCESS CHECK
+// ========================
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogAccessResponse {
+    pub has_access: bool,
+    pub message: String,
+}
+
+/// Check if user has access to logs
+pub async fn check_log_access(email: &str) -> Result<bool, String> {
+    let url = format!(
+        "{}/api/logs/access?email={}",
+        API_BASE,
+        urlencoding_encode(email)
+    );
+
+    let resp = Request::get(&url)
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        let data: LogAccessResponse = resp.json().await.map_err(|e| e.to_string())?;
+        Ok(data.has_access)
+    } else {
+        // On error, default to no access
+        Ok(false)
+    }
+}

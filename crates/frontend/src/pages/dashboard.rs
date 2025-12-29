@@ -43,6 +43,7 @@ pub fn DashboardPage() -> impl IntoView {
     let ui_language = state.ui_language;
     let is_authenticated = state.is_authenticated;
     let current_page = state.current_page;
+    let has_log_access = state.has_log_access;
 
     // Get dictionary based on current language
     let dict = Signal::derive(move || get_ui_dict(ui_language.get()));
@@ -329,12 +330,22 @@ pub fn DashboardPage() -> impl IntoView {
                         <span class="text-white text-xl font-bold tracking-widest">"AXUR"</span>
                         <span class="text-zinc-500 ml-2">"Web"</span>
                     </div>
-                    <button
-                        class="text-zinc-400 hover:text-white transition-colors"
-                        on:click=move |_| logout_action.dispatch(())
-                    >
-                        {move || dict.get().logout}
-                    </button>
+                    <div class="flex items-center gap-4">
+                        <Show when=move || has_log_access.get()>
+                            <button
+                                class="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-2"
+                                on:click=move |_| current_page.set(Page::Logs)
+                            >
+                                "📋 Logs"
+                            </button>
+                        </Show>
+                        <button
+                            class="text-zinc-400 hover:text-white transition-colors"
+                            on:click=move |_| logout_action.dispatch(())
+                        >
+                            {move || dict.get().logout}
+                        </button>
+                    </div>
                 </div>
             </header>
 

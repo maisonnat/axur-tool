@@ -37,30 +37,20 @@ impl RemoteLogConfig {
     }
 }
 
-/// Upload a log file to the private GitHub repository
+/// Generic function to upload a file to the private GitHub repository
 ///
 /// # Arguments
 /// * `config` - GitHub configuration
-/// * `category` - Log category (e.g., "th_response", "exposure_api")  
-/// * `filename` - Original filename
-/// * `content` - Log content (will be base64 encoded)
-///
-/// # Returns
-/// * `Ok(url)` - URL of the uploaded file
-/// * `Err(e)` - Error message
-pub async fn upload_log(
+/// * `path` - Full path in the repository (e.g. "reports/2024/01/01/report.html")
+/// * `content` - File content (will be base64 encoded)
+/// * `message` - Commit message
+pub async fn upload_to_github(
     config: &RemoteLogConfig,
-    category: &str,
-    filename: &str,
+    path: &str,
     content: &str,
+    message: &str,
 ) -> Result<String, String> {
     let client = reqwest::Client::new();
-
-    // Organize logs by date and category
-    let now = chrono::Utc::now();
-    let date_folder = now.format("%Y/%m/%d").to_string();
-    let path = format!("logs/{}/{}/{}", date_folder, category, filename);
-
     let upload_url = format!(
         "https://api.github.com/repos/{}/{}/contents/{}",
         config.owner, config.repo, path
@@ -70,18 +60,18 @@ pub async fn upload_log(
     let encoded_content = BASE64.encode(content.as_bytes());
 
     let body = json!({
-        "message": format!("Log: {} - {}", category, filename),
+        "message": message,
         "content": encoded_content,
         "committer": {
-            "name": "Axur Log Bot",
-            "email": "logs@axur.local"
+            "name": "Axur Bot",
+            "email": "bot@axur.local"
         }
     });
 
     let res = client
         .put(&upload_url)
         .header("Authorization", format!("Bearer {}", config.token))
-        .header("User-Agent", "axur-log-bot")
+        .header("User-Agent", "axur-bot")
         .header("Accept", "application/vnd.github.v3+json")
         .json(&body)
         .send()
@@ -109,6 +99,22 @@ pub async fn upload_log(
     }
 }
 
+/// Upload a log file to the private GitHub repository
+pub async fn upload_log(
+    config: &RemoteLogConfig,
+    category: &str,
+    filename: &str,
+    content: &str,
+) -> Result<String, String> {
+    // Organize logs by date and category
+    let now = chrono::Utc::now();
+    let date_folder = now.format("%Y/%m/%d").to_string();
+    let path = format!("logs/{}/{}/{}", date_folder, category, filename);
+    let message = format!("Log: {} - {}", category, filename);
+
+    upload_to_github(config, &path, content, &message).await
+}
+
 /// Upload multiple logs in batch (fire-and-forget style)
 /// Spawns a background task to avoid blocking the main flow
 pub fn upload_log_async(category: &str, filename: &str, content: String) {
@@ -127,6 +133,37 @@ pub fn upload_log_async(category: &str, filename: &str, content: String) {
             }
             Err(e) => {
                 tracing::warn!("Failed to upload log to GitHub: {}", e);
+            }
+        }
+    });
+}
+
+/// Upload a generated report to the private GitHub repository
+/// Spawns a background task (fire-and-forget)
+pub fn upload_report_async(tenant: &str, filename: &str, content: String) {
+    let Some(config) = RemoteLogConfig::from_env() else {
+        return;
+    };
+
+    let tenant = tenant.to_string();
+    let filename = filename.to_string();
+
+    tokio::spawn(async move {
+        // Organize reports by date and tenant
+        let now = chrono::Utc::now();
+        let date_folder = now.format("%Y/%m/%d").to_string();
+        // Sanitize tenant name for path
+        let safe_tenant = tenant.replace(['/', '\\', ':', '.'], "_");
+
+        let path = format!("reports/{}/{}/{}", date_folder, safe_tenant, filename);
+        let message = format!("Report: {} - {}", tenant, filename);
+
+        match upload_to_github(&config, &path, &content, &message).await {
+            Ok(url) => {
+                tracing::info!("Report archived to GitHub: {}", url);
+            }
+            Err(e) => {
+                tracing::warn!("Failed to archive report to GitHub: {}", e);
             }
         }
     });

@@ -239,6 +239,15 @@ pub async fn generate_report(
         })),
     );
 
+    // 📦 Archive report to GitHub (async)
+    let company_name = report_data.company_name.clone();
+    let filename = format!(
+        "{}_{}_report.html",
+        company_name.replace(' ', "_"),
+        chrono::Utc::now().format("%Y-%m-%d_%H%M%S")
+    );
+    crate::routes::remote_log::upload_report_async(&company_name, &filename, html.clone());
+
     Ok(Json(response))
 }
 

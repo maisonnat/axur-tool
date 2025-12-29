@@ -1,7 +1,9 @@
 //! Route handlers
 
+pub mod admin_config; // Admin access control
 pub mod auth;
 pub mod feedback;
+pub mod logs_api; // Log viewing API
 pub mod remote_log; // Private GitHub log uploads
 pub mod report;
 pub mod status; // Production health checks
@@ -62,6 +64,12 @@ pub fn create_router() -> Router {
         )
         .route("/api/feedback", post(feedback::submit_feedback))
         .route("/api/logs/sync", post(remote_log::sync_logs))
+        // Log viewer API
+        .route("/api/logs", get(logs_api::list_logs))
+        .route("/api/logs/dates", get(logs_api::list_log_dates))
+        .route("/api/logs/categories", get(logs_api::list_log_categories))
+        .route("/api/logs/content/*path", get(logs_api::get_log_content))
+        .route("/api/logs/access", get(logs_api::check_log_access))
         .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
 
     Router::new()

@@ -124,6 +124,19 @@ pub fn LoginPage() -> impl IntoView {
                             Ok(resp) => {
                                 leptos::logging::log!("Finalize response: {:?}", resp);
                                 if resp.success {
+                                    // Store email in state
+                                    state.user_email.set(Some(email_val.clone()));
+
+                                    // Check log access asynchronously
+                                    let email_for_check = email_val.clone();
+                                    spawn_local(async move {
+                                        if let Ok(has_access) =
+                                            api::check_log_access(&email_for_check).await
+                                        {
+                                            state.has_log_access.set(has_access);
+                                        }
+                                    });
+
                                     is_authenticated.set(true);
                                     current_page.set(Page::Dashboard);
                                 } else {
