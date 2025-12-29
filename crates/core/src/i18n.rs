@@ -871,8 +871,6 @@ impl Dictionary for Spanish {
     fn ctx_takedown_text(&self) -> String {
         "El Takedown es el proceso de eliminación de contenido malicioso o infractor de internet. Cuando se confirma una amenaza, nuestros sistemas automatizados y equipo legal interactúan con proveedores de alojamiento, registradores y plataformas de redes sociales para forzar su eliminación, neutralizando la amenaza en su origen.".to_string()
     }
-        "takedowns solicitados".to_string()
-    }
     fn takedowns_success_rate(&self) -> String {
         "tasa de éxito".to_string()
     }
