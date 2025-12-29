@@ -8,7 +8,7 @@
 | Frontend | Rust + Leptos (WASM) |
 | Shared | axur-core crate |
 | Build | wasm-pack, trunk |
-| Deployment | Koyeb + Docker Hub |
+| Deployment | Leapcell (Native Rust) |
 
 ## Prerequisites
 
@@ -127,10 +127,9 @@ Follow the `/security-audit` workflow for comprehensive security checks includin
 
 ## Deployment
 
-Using Koyeb + Docker Hub:
+Using Leapcell (Native Rust Builder):
 
-1. GitHub Actions builds the binary
-2. Image pushed to Docker Hub
-3. Koyeb pulls and runs the image
+1. Push to main branch
+2. Leapcell auto-builds and deploys
 
 See [DEPLOY.md](../DEPLOY.md) for full instructions.

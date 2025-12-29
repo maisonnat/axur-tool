@@ -1,7 +1,7 @@
 /**
  * Cloudflare Pages Function - API Proxy
  * 
- * Proxies ALL HTTP methods (GET, POST, PUT, DELETE) to Koyeb backend.
+ * Proxies ALL HTTP methods (GET, POST, PUT, DELETE) to Leapcell backend.
  * This is needed because _redirects only works for GET requests.
  */
 

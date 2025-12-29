@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 // Use environment variable at compile time
 // - Development: Set API_BASE_URL=http://localhost:3001
-// - Production: Use empty string for relative URLs (Cloudflare proxies /api/* to Koyeb)
+// - Production: Use empty string for relative URLs (Cloudflare proxies /api/* to Leapcell)
 const API_BASE: &str = match option_env!("API_BASE_URL") {
     Some(url) => url,
     None => "", // Empty = relative URLs, works with Cloudflare proxy

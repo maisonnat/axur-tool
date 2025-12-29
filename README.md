@@ -103,7 +103,7 @@ See the [Wiki](../../wiki) for:
 - Architecture Overview
 - API Reference
 
-Supports [Koyeb](https://koyeb.com) for easy deployment (free tier):
+Supports [Leapcell](https://leapcell.io) for easy deployment (native Rust builder):
 
 See [DEPLOY.md](DEPLOY.md) for full instructions.
 
