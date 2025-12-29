@@ -432,6 +432,7 @@ pub struct LogEntry {
     pub path: String,
     pub size: u64,
     pub sha: String,
+    #[allow(dead_code)]
     pub download_url: Option<String>,
 }
 
@@ -446,8 +447,10 @@ pub struct ListLogsResponse {
 #[derive(Debug, Clone, Deserialize)]
 pub struct LogContentResponse {
     pub success: bool,
+    #[allow(dead_code)]
     pub filename: String,
     pub content: String,
+    #[allow(dead_code)]
     pub size: u64,
 }
 
@@ -455,7 +458,9 @@ pub struct LogContentResponse {
 pub struct ListCategoriesResponse {
     pub success: bool,
     pub categories: Vec<String>,
+    #[allow(dead_code)]
     pub date: Option<String>,
+    #[allow(dead_code)]
     pub message: String,
 }
 
@@ -544,6 +549,7 @@ pub async fn list_log_categories(date: Option<&str>) -> Result<ListCategoriesRes
 #[derive(Debug, Clone, Deserialize)]
 pub struct LogAccessResponse {
     pub has_access: bool,
+    #[allow(dead_code)]
     pub message: String,
 }
 
