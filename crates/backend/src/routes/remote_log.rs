@@ -1,13 +1,15 @@
-//! Remote logging module - uploads debug logs to private GitHub repository
+//! Remote logging module - Hybrid (PostgreSQL + GitHub)
 //!
-//! This module provides functionality to upload debug logs to a private
-//! GitHub repository for production monitoring and debugging.
+//! - Writes full log content to GitHub (Unlimited storage)
+//! - Writes metadata and indexed fields to PostgreSQL (Fast queries)
+//! - Respects 100MB limit on free Postgres tier by truncating content in DB
 
+use crate::db::get_db;
+use axum::http::StatusCode;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde_json::json;
-use std::env;
 
-/// Configuration for remote logging
+/// Configuration for remote logging (GitHub)
 pub struct RemoteLogConfig {
     pub token: String,
     pub owner: String,
@@ -16,21 +18,17 @@ pub struct RemoteLogConfig {
 
 impl RemoteLogConfig {
     /// Load config from environment variables
-    /// Checks for both GH_* (production) and GITHUB_* (local dev) naming conventions
     pub fn from_env() -> Option<Self> {
-        // Try GH_PAT first (production), then GITHUB_TOKEN (local dev)
-        let token = env::var("GH_PAT")
-            .or_else(|_| env::var("GITHUB_TOKEN"))
+        let token = std::env::var("GH_PAT")
+            .or_else(|_| std::env::var("GITHUB_TOKEN"))
             .ok()?;
 
-        // Try GH_OWNER first, then GITHUB_OWNER
-        let owner = env::var("GH_OWNER")
-            .or_else(|_| env::var("GITHUB_OWNER"))
+        let owner = std::env::var("GH_OWNER")
+            .or_else(|_| std::env::var("GITHUB_OWNER"))
             .ok()?;
 
-        // Try GH_LOGS_REPO first, then GITHUB_LOGS_REPO
-        let repo = env::var("GH_LOGS_REPO")
-            .or_else(|_| env::var("GITHUB_LOGS_REPO"))
+        let repo = std::env::var("GH_LOGS_REPO")
+            .or_else(|_| std::env::var("GITHUB_LOGS_REPO"))
             .unwrap_or_else(|_| "axur-logs-private".to_string());
 
         Some(Self { token, owner, repo })
@@ -64,9 +62,8 @@ async fn get_file_sha(config: &RemoteLogConfig, path: &str) -> Option<String> {
     }
 }
 
-/// Generic function to upload a file to the private GitHub repository
-/// Handles "Upsert" (Create or Update) logic by checking for 409/422 errors
-pub async fn upload_to_github(
+/// Upload a file to the private GitHub repository
+async fn upload_to_github(
     config: &RemoteLogConfig,
     path: &str,
     content: &str,
@@ -77,14 +74,14 @@ pub async fn upload_to_github(
         config.owner, config.repo, path
     );
 
-    // Base64 encode the content
     let encoded_content = BASE64.encode(content.as_bytes());
 
-    // Helper to perform the PUT request
     let perform_upload = |sha: Option<String>| async {
         let mut body_map = serde_json::Map::new();
         body_map.insert("message".to_string(), json!(message));
         body_map.insert("content".to_string(), json!(encoded_content));
+
+        // Committer is optional, GitHub uses authenticated user by default
         body_map.insert(
             "committer".to_string(),
             json!({
@@ -98,7 +95,7 @@ pub async fn upload_to_github(
         }
 
         let body = serde_json::Value::Object(body_map);
-        let client = reqwest::Client::new(); // Re-create client to avoid move issues in retry
+        let client = reqwest::Client::new();
 
         client
             .put(&upload_url)
@@ -110,10 +107,8 @@ pub async fn upload_to_github(
             .await
     };
 
-    // 1. Try to create (no SHA)
     let res = perform_upload(None).await.map_err(|e| e.to_string())?;
 
-    // 2. If success, return URL
     if res.status().is_success() {
         let resp_json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
         return Ok(resp_json
@@ -124,13 +119,10 @@ pub async fn upload_to_github(
             .to_string());
     }
 
-    // 3. If Conflict (409) or Unprocessable (422) -> File likely exists
+    // Handle conflict (update)
     if res.status() == StatusCode::CONFLICT || res.status() == StatusCode::UNPROCESSABLE_ENTITY {
-        // Fetch current SHA
         if let Some(sha) = get_file_sha(config, path).await {
-            // Retry with SHA (Update)
             let retry_res = perform_upload(Some(sha)).await.map_err(|e| e.to_string())?;
-
             if retry_res.status().is_success() {
                 let resp_json: serde_json::Value =
                     retry_res.json().await.map_err(|e| e.to_string())?;
@@ -140,86 +132,108 @@ pub async fn upload_to_github(
                     .and_then(|u| u.as_str())
                     .unwrap_or("")
                     .to_string());
-            } else {
-                let status = retry_res.status();
-                let err_text = retry_res.text().await.unwrap_or_default();
-                return Err(format!("Retry update failed {}: {}", status, err_text));
             }
         }
     }
 
-    // 4. Fallback error
-    let status = res.status();
-    let err_text = res.text().await.unwrap_or_default();
-    Err(format!("GitHub API error {}: {}", status, err_text))
+    Err(format!("GitHub upload failed: {}", res.status()))
 }
 
-/// Upload a log file to the private GitHub repository
-pub async fn upload_log(
-    config: &RemoteLogConfig,
-    category: &str,
-    filename: &str,
-    content: &str,
-) -> Result<String, String> {
-    // Organize logs by date and category
+/// Upload a log entry (Hybrid: GitHub + DB)
+pub async fn upload_log(category: &str, filename: &str, content: &str) -> Result<String, String> {
     let now = chrono::Utc::now();
-    let date_folder = now.format("%Y/%m/%d").to_string();
-    let path = format!("logs/{}/{}/{}", date_folder, category, filename);
     let message = format!("Log: {} - {}", category, filename);
 
-    upload_to_github(config, &path, content, &message).await
+    // 1. Upload to GitHub
+    let mut github_url = String::new();
+    let mut github_path = String::new();
+
+    if let Some(config) = RemoteLogConfig::from_env() {
+        let date_folder = now.format("%Y/%m/%d").to_string();
+        github_path = format!("logs/{}/{}/{}", date_folder, category, filename);
+
+        match upload_to_github(&config, &github_path, content, &message).await {
+            Ok(url) => github_url = url,
+            Err(e) => tracing::warn!("GitHub upload failed: {}, continuing to DB", e),
+        }
+    }
+
+    let pool = match get_db() {
+        Some(p) => p,
+        None => return Err("Database pool not initialized".to_string()),
+    };
+
+    let level = if category.contains("error") {
+        "error"
+    } else if category.contains("warn") {
+        "warn"
+    } else {
+        "info"
+    };
+
+    // 2. Insert into DB (Truncate content if large)
+    let max_db_content_size = 2000; // 2KB preview
+    let db_content = if content.len() > max_db_content_size {
+        format!(
+            "{}... (truncated, see GitHub)",
+            &content[..max_db_content_size]
+        )
+    } else {
+        content.to_string()
+    };
+
+    let metadata = serde_json::from_str::<serde_json::Value>(content).ok();
+
+    let res = sqlx::query(
+        r#"
+        INSERT INTO system_logs (category, message, level, content, metadata, github_path, github_html_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id
+        "#,
+    )
+    .bind(category)
+    .bind(message)
+    .bind(level)
+    .bind(db_content)
+    .bind(metadata)
+    .bind(&github_path)
+    .bind(&github_url)
+    .fetch_one(pool)
+    .await;
+
+    match res {
+        Ok(row) => {
+            use sqlx::Row;
+            let id: uuid::Uuid = row.get("id");
+            Ok(id.to_string())
+        }
+        Err(e) => Err(format!("Database error: {}", e)),
+    }
 }
 
 /// Upload multiple logs in batch (fire-and-forget style)
-/// Spawns a background task to avoid blocking the main flow
 pub fn upload_log_async(category: &str, filename: &str, content: String) {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        // Remote logging not configured, skip silently
-        return;
-    };
-
     let category = category.to_string();
     let filename = filename.to_string();
 
     tokio::spawn(async move {
-        match upload_log(&config, &category, &filename, &content).await {
-            Ok(url) => {
-                tracing::debug!("Log uploaded to GitHub: {}", url);
-            }
-            Err(e) => {
-                tracing::warn!("Failed to upload log to GitHub: {}", e);
-            }
+        match upload_log(&category, &filename, &content).await {
+            Ok(id) => tracing::debug!("Log saved: {}", id),
+            Err(e) => tracing::warn!("Failed to save log: {}", e),
         }
     });
 }
 
-/// Upload a generated report to the private GitHub repository
-/// Spawns a background task (fire-and-forget)
+/// Upload a generated report (Hybrid)
 pub fn upload_report_async(tenant: &str, filename: &str, content: String) {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return;
-    };
-
     let tenant = tenant.to_string();
     let filename = filename.to_string();
+    let category = "reports".to_string();
 
     tokio::spawn(async move {
-        // Organize reports by date and tenant
-        let now = chrono::Utc::now();
-        let date_folder = now.format("%Y/%m/%d").to_string();
-        // Sanitize tenant name for path
-        let safe_tenant = tenant.replace(['/', '\\', ':', '.'], "_");
-
-        let path = format!("reports/{}/{}/{}", date_folder, safe_tenant, filename);
-        let message = format!("Report: {} - {}", tenant, filename);
-
-        match upload_to_github(&config, &path, &content, &message).await {
-            Ok(url) => {
-                tracing::info!("Report archived to GitHub: {}", url);
-            }
-            Err(e) => {
-                tracing::warn!("Failed to archive report to GitHub: {}", e);
-            }
+        // We reuse upload_log which handles both GitHub and DB
+        if let Err(e) = upload_log(&category, &filename, &content).await {
+            tracing::warn!("Failed to archive report: {}", e);
         }
     });
 }
@@ -238,6 +252,26 @@ pub fn upload_debug_json(category: &str, data: &serde_json::Value) {
 
 /// Log API request with metadata
 pub fn log_request<T: serde::Serialize>(operation: &str, payload: &T, tenant_id: Option<&str>) {
+    if let Some(pool) = get_db() {
+        let op = operation.to_string();
+        let tid = tenant_id.map(|s| s.to_string());
+        let props = serde_json::to_value(payload).unwrap_or(json!({}));
+
+        tokio::spawn(async move {
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO analytics_events (event_type, tenant_id, properties)
+                VALUES ($1, $2, $3)
+                "#,
+            )
+            .bind("api_request")
+            .bind(tid)
+            .bind(json!({ "operation": op, "payload": props }))
+            .execute(pool)
+            .await;
+        });
+    }
+
     let log_data = serde_json::json!({
         "type": "request",
         "operation": operation,
@@ -257,6 +291,29 @@ pub fn log_response<T: serde::Serialize>(
     tenant_id: Option<&str>,
     success: bool,
 ) {
+    if let Some(pool) = get_db() {
+        let op = operation.to_string();
+        let tid = tenant_id.map(|s| s.to_string());
+
+        tokio::spawn(async move {
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO analytics_events (event_type, tenant_id, properties)
+                VALUES ($1, $2, $3)
+                "#,
+            )
+            .bind("api_response")
+            .bind(tid)
+            .bind(json!({
+                "operation": op,
+                "duration_ms": duration_ms as i64,
+                "success": success
+            }))
+            .execute(pool)
+            .await;
+        });
+    }
+
     let log_data = serde_json::json!({
         "type": "response",
         "operation": operation,
@@ -278,6 +335,33 @@ pub fn log_error(
     tenant_id: Option<&str>,
     context: serde_json::Value,
 ) {
+    if let Some(pool) = get_db() {
+        let op = operation.to_string();
+        let code = error_code.to_string();
+        let msg = error_message.to_string();
+        let tid = tenant_id.map(|s| s.to_string());
+        let ctx = context.clone();
+
+        tokio::spawn(async move {
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO analytics_events (event_type, tenant_id, properties)
+                VALUES ($1, $2, $3)
+                "#,
+            )
+            .bind("error")
+            .bind(tid)
+            .bind(json!({
+                "operation": op,
+                "error_code": code,
+                "error_message": msg,
+                "context": ctx
+            }))
+            .execute(pool)
+            .await;
+        });
+    }
+
     let log_data = serde_json::json!({
         "type": "error",
         "operation": operation,
@@ -317,6 +401,30 @@ pub fn log_feature_usage(
     success: bool,
     metadata: Option<serde_json::Value>,
 ) {
+    if let Some(pool) = get_db() {
+        let feat = feature.to_string();
+        let tid = tenant_id.map(|s| s.to_string());
+        let meta = metadata.clone().unwrap_or(json!({}));
+
+        tokio::spawn(async move {
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO analytics_events (event_type, tenant_id, properties)
+                VALUES ($1, $2, $3)
+                "#,
+            )
+            .bind("feature_usage")
+            .bind(tid)
+            .bind(json!({
+                "feature": feat,
+                "success": success,
+                "metadata": meta
+            }))
+            .execute(pool)
+            .await;
+        });
+    }
+
     let log_data = serde_json::json!({
         "type": "feature_usage",
         "feature": feature,
@@ -331,7 +439,7 @@ pub fn log_feature_usage(
 
 // ==================== HTTP ENDPOINT ====================
 
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{response::IntoResponse, Json};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -342,21 +450,9 @@ pub struct SyncLogsResponse {
     pub message: String,
 }
 
-/// Endpoint to sync all local debug logs to the private GitHub repository
+/// Endpoint to sync all local debug logs to the database
 /// POST /api/logs/sync
 pub async fn sync_logs() -> impl IntoResponse {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(SyncLogsResponse {
-                success: false,
-                uploaded: 0,
-                failed: 0,
-                message: "Remote logging not configured. Set GITHUB_TOKEN, GITHUB_OWNER, GITHUB_LOGS_REPO".to_string(),
-            }),
-        );
-    };
-
     let debug_dir = std::path::Path::new("debug_logs");
     if !debug_dir.exists() {
         return (
@@ -397,7 +493,7 @@ pub async fn sync_logs() -> impl IntoResponse {
 
                 // Read and upload
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    match upload_log(&config, category, &filename, &content).await {
+                    match upload_log(category, &filename, &content).await {
                         Ok(_) => {
                             uploaded += 1;
                             // Delete local file after successful upload
@@ -419,7 +515,7 @@ pub async fn sync_logs() -> impl IntoResponse {
             success: failed == 0,
             uploaded,
             failed,
-            message: format!("Synced {} files, {} failed", uploaded, failed),
+            message: format!("Synced {} files to DB, {} failed", uploaded, failed),
         }),
     )
 }

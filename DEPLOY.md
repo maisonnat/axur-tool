@@ -24,6 +24,11 @@ Before deployment works, you need to configure GitHub Secrets.
    - `RUST_LOG`: `axur_backend=info,tower_http=info`
    - `GITHUB_TOKEN`: Your GitHub token
    - `AXUR_API_TOKEN`: Your Axur API token
+   - `DATABASE_URL`: Connection string (e.g., `postgresql://user:pass@host:port/dbname`)
+   - `GH_PAT`: GitHub Personal Access Token (for logs)
+   - `GH_OWNER`: GitHub username/org (e.g., `maisonnat`)
+   - `GH_LOGS_REPO`: Log repository (e.g., `axur-logs-private`)
+   - `AXUR_ADMIN_EMAIL`: Your email (e.g., `your_email@example.com`)
 
 ### 2. Cloudflare Credentials
 

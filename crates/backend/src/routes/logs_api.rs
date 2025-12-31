@@ -1,7 +1,7 @@
-//! Logs API - Fetch and list logs from private GitHub repository
+//! Logs API - Fetch and list logs from database (Hybrid)
 //!
-//! Provides endpoints to browse and search logs stored in GitHub.
-//! Access is controlled via config/admins.json in the logs repository.
+//! Provides endpoints to browse and search logs.
+//! Fetches metadata from PostgreSQL and content from GitHub if truncated.
 
 use axum::{
     extract::{Path, Query},
@@ -9,45 +9,56 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
 
 use super::admin_config;
 use super::remote_log::RemoteLogConfig;
-use chrono::{Duration, Utc};
-use futures::future::join_all;
-use serde_json::Value;
+use crate::db::get_db;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use chrono::{DateTime, Duration, TimeZone, Utc};
 
 /// Query parameters for listing logs
 #[derive(Debug, Deserialize)]
 pub struct ListLogsQuery {
     /// Date filter in YYYY-MM-DD format
     pub date: Option<String>,
-    /// Category filter (e.g., "threat_hunting", "errors")
+    /// Category filter
     pub category: Option<String>,
     /// Maximum number of results
-    pub limit: Option<usize>,
+    pub limit: Option<i64>,
     /// Offset for pagination
-    pub offset: Option<usize>,
+    pub offset: Option<i64>,
 }
 
 /// Log file entry in the list
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct LogEntry {
-    pub name: String,
-    pub path: String,
-    pub size: u64,
-    pub sha: String,
-    pub download_url: Option<String>,
+    pub id: uuid::Uuid,
+    pub timestamp: DateTime<Utc>,
+    pub category: String,
+    pub message: String,
+    #[sqlx(default)]
+    pub content: String,
+    #[sqlx(default)]
+    pub github_path: Option<String>,
 }
 
 /// Response for listing logs
 #[derive(Debug, Serialize)]
 pub struct ListLogsResponse {
     pub success: bool,
-    pub files: Vec<LogEntry>,
-    pub total: usize,
+    pub files: Vec<LogEntryInternal>,
+    pub total: i64,
     pub message: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LogEntryInternal {
+    pub name: String, // timestamp + category
+    pub path: String, // ID
+    pub size: u64,
+    pub sha: String, // ID
+    pub download_url: Option<String>,
 }
 
 /// Response for getting log content
@@ -62,18 +73,18 @@ pub struct LogContentResponse {
 #[derive(Debug, Serialize)]
 pub struct DailyStats {
     pub date: String,
-    pub reports: usize,
-    pub errors: usize,
-    pub th_queries: usize,
-    pub total: usize,
+    pub reports: i64,
+    pub errors: i64,
+    pub th_queries: i64,
+    pub total: i64,
 }
 
 #[derive(Debug, Serialize)]
 pub struct StatsResponse {
     pub success: bool,
     pub period: String,
-    pub total_reports: usize,
-    pub total_errors: usize,
+    pub total_reports: i64,
+    pub total_errors: i64,
     pub daily_stats: Vec<DailyStats>,
     pub message: String,
 }
@@ -81,331 +92,235 @@ pub struct StatsResponse {
 /// List available log files
 /// GET /api/logs
 pub async fn list_logs(Query(params): Query<ListLogsQuery>) -> impl IntoResponse {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(ListLogsResponse {
-                success: false,
-                files: vec![],
-                total: 0,
-                message: "Remote logging not configured".to_string(),
-            }),
-        );
-    };
-
-    // Build the path to search
-    let date_path = params
-        .date
-        .unwrap_or_else(|| chrono::Utc::now().format("%Y/%m/%d").to_string());
-
-    let base_path = if let Some(ref category) = params.category {
-        format!("logs/{}/{}", date_path, category)
-    } else {
-        format!("logs/{}", date_path)
-    };
-
-    // Fetch directory listing from GitHub
-    let client = reqwest::Client::new();
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        config.owner, config.repo, base_path
-    );
-
-    let res = match client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", config.token))
-        .header("User-Agent", "axur-log-viewer")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
+    let pool = match get_db() {
+        Some(p) => p,
+        None => {
             return (
-                StatusCode::BAD_GATEWAY,
+                StatusCode::SERVICE_UNAVAILABLE,
                 Json(ListLogsResponse {
                     success: false,
                     files: vec![],
                     total: 0,
-                    message: format!("GitHub API error: {}", e),
+                    message: "Database not available".to_string(),
                 }),
-            );
+            )
         }
     };
 
-    if !res.status().is_success() {
-        let status = res.status();
-        let err_text = res.text().await.unwrap_or_default();
+    let limit = params.limit.unwrap_or(50);
+    let offset = params.offset.unwrap_or(0);
 
-        // 404 means no logs for that date/category (not an error)
-        if status.as_u16() == 404 {
-            return (
+    // Build date range
+    let date_str = params
+        .date
+        .unwrap_or_else(|| Utc::now().format("%Y-%m-%d").to_string());
+
+    // Parse date safely
+    let start_date = match chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+        .or_else(|_| chrono::NaiveDate::parse_from_str(&date_str, "%Y/%m/%d"))
+    {
+        Ok(d) => Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap()),
+        Err(_) => Utc::now(), // Fallback
+    };
+    let end_date = start_date + Duration::days(1);
+
+    let category_filter = params.category.as_deref();
+
+    // Query logs
+    // Optimization: Don't select 'content' for listing, it's heavy
+    let logs = if let Some(cat) = category_filter {
+        sqlx::query_as::<_, LogEntry>(
+            r#"
+            SELECT id, timestamp, category, message, '' as content, github_path
+            FROM system_logs 
+            WHERE timestamp >= $1 AND timestamp < $2 AND category = $3
+            ORDER BY timestamp DESC
+            LIMIT $4 OFFSET $5
+            "#,
+        )
+        .bind(start_date)
+        .bind(end_date)
+        .bind(cat)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+    } else {
+        sqlx::query_as::<_, LogEntry>(
+            r#"
+            SELECT id, timestamp, category, message, '' as content, github_path
+            FROM system_logs 
+            WHERE timestamp >= $1 AND timestamp < $2
+            ORDER BY timestamp DESC
+            LIMIT $3 OFFSET $4
+            "#,
+        )
+        .bind(start_date)
+        .bind(end_date)
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(pool)
+        .await
+    };
+
+    match logs {
+        Ok(rows) => {
+            let files: Vec<LogEntryInternal> = rows
+                .into_iter()
+                .map(|row| {
+                    LogEntryInternal {
+                        name: format!("{} - {}", row.timestamp.format("%H:%M:%S"), row.message),
+                        path: row.id.to_string(),
+                        size: 0, // Unknown size without content
+                        sha: row.id.to_string(),
+                        download_url: None,
+                    }
+                })
+                .collect();
+
+            let total: i64 = files.len() as i64;
+
+            (
                 StatusCode::OK,
                 Json(ListLogsResponse {
                     success: true,
-                    files: vec![],
-                    total: 0,
-                    message: "No logs found for the specified criteria".to_string(),
+                    files,
+                    total,
+                    message: "OK".to_string(),
                 }),
-            );
+            )
         }
-
-        return (
-            StatusCode::BAD_GATEWAY,
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(ListLogsResponse {
                 success: false,
                 files: vec![],
                 total: 0,
-                message: format!("GitHub API error {}: {}", status, err_text),
+                message: format!("Database error: {}", e),
             }),
-        );
+        ),
     }
-
-    // Parse response - could be array (directory) or object (single file)
-    let content: serde_json::Value = match res.json().await {
-        Ok(v) => v,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ListLogsResponse {
-                    success: false,
-                    files: vec![],
-                    total: 0,
-                    message: format!("Failed to parse response: {}", e),
-                }),
-            );
-        }
-    };
-
-    let mut files = Vec::new();
-
-    // Handle array (directory listing)
-    if let Some(arr) = content.as_array() {
-        for item in arr {
-            if item.get("type").and_then(|t| t.as_str()) == Some("file") {
-                files.push(LogEntry {
-                    name: item
-                        .get("name")
-                        .and_then(|n| n.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    path: item
-                        .get("path")
-                        .and_then(|p| p.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    size: item.get("size").and_then(|s| s.as_u64()).unwrap_or(0),
-                    sha: item
-                        .get("sha")
-                        .and_then(|s| s.as_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    download_url: item
-                        .get("download_url")
-                        .and_then(|u| u.as_str())
-                        .map(String::from),
-                });
-            }
-        }
-    }
-
-    // Sort by name descending (newest first based on timestamp in name)
-    files.sort_by(|a, b| b.name.cmp(&a.name));
-
-    let total = files.len();
-
-    // Apply pagination
-    let offset = params.offset.unwrap_or(0);
-    let limit = params.limit.unwrap_or(50);
-    let files: Vec<LogEntry> = files.into_iter().skip(offset).take(limit).collect();
-
-    (
-        StatusCode::OK,
-        Json(ListLogsResponse {
-            success: true,
-            files,
-            total,
-            message: "OK".to_string(),
-        }),
-    )
 }
 
-/// Get specific log file content
-/// GET /api/logs/content/*path
-pub async fn get_log_content(Path(path): Path<String>) -> impl IntoResponse {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(LogContentResponse {
-                success: false,
-                filename: String::new(),
-                content: "Remote logging not configured".to_string(),
-                size: 0,
-            }),
-        );
-    };
-
+/// Helper to fetch content from GitHub
+async fn fetch_from_github(path: &str) -> Option<String> {
+    let config = RemoteLogConfig::from_env()?;
     let client = reqwest::Client::new();
     let url = format!(
         "https://api.github.com/repos/{}/{}/contents/{}",
         config.owner, config.repo, path
     );
 
-    let res = match client
+    let res = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", config.token))
         .header("User-Agent", "axur-log-viewer")
         .header("Accept", "application/vnd.github.v3+json")
         .send()
         .await
-    {
-        Ok(r) => r,
-        Err(e) => {
+        .ok()?;
+
+    if !res.status().is_success() {
+        return None;
+    }
+
+    let file_info: serde_json::Value = res.json().await.ok()?;
+
+    let encoded = file_info.get("content").and_then(|c| c.as_str())?;
+    let clean = encoded.replace('\n', "");
+
+    match BASE64.decode(&clean) {
+        Ok(bytes) => Some(String::from_utf8_lossy(&bytes).to_string()),
+        Err(_) => None,
+    }
+}
+
+/// Get specific log file content
+/// GET /api/logs/content/*path
+pub async fn get_log_content(Path(id_str): Path<String>) -> impl IntoResponse {
+    let pool = match get_db() {
+        Some(p) => p,
+        None => {
             return (
-                StatusCode::BAD_GATEWAY,
+                StatusCode::SERVICE_UNAVAILABLE,
                 Json(LogContentResponse {
                     success: false,
                     filename: String::new(),
-                    content: format!("GitHub API error: {}", e),
+                    content: "Database not available".to_string(),
                     size: 0,
                 }),
-            );
+            )
         }
     };
 
-    if !res.status().is_success() {
-        let status = res.status();
-        let err_text = res.text().await.unwrap_or_default();
+    let Ok(id) = uuid::Uuid::parse_str(&id_str) else {
         return (
-            StatusCode::from_u16(status.as_u16()).unwrap_or(StatusCode::BAD_GATEWAY),
+            StatusCode::BAD_REQUEST,
             Json(LogContentResponse {
                 success: false,
                 filename: String::new(),
-                content: format!("GitHub API error {}: {}", status, err_text),
+                content: "Invalid ID format".to_string(),
                 size: 0,
             }),
         );
-    }
-
-    let file_info: serde_json::Value = match res.json().await {
-        Ok(v) => v,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(LogContentResponse {
-                    success: false,
-                    filename: String::new(),
-                    content: format!("Failed to parse response: {}", e),
-                    size: 0,
-                }),
-            );
-        }
     };
 
-    let filename = file_info
-        .get("name")
-        .and_then(|n| n.as_str())
-        .unwrap_or("unknown")
-        .to_string();
-
-    let size = file_info.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
-
-    // Decode base64 content
-    let encoded_content = file_info
-        .get("content")
-        .and_then(|c| c.as_str())
-        .unwrap_or("");
-
-    // GitHub returns content with newlines, remove them before decoding
-    let clean_content = encoded_content.replace('\n', "");
-
-    let content = match BASE64.decode(&clean_content) {
-        Ok(bytes) => String::from_utf8_lossy(&bytes).to_string(),
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(LogContentResponse {
-                    success: false,
-                    filename,
-                    content: format!("Failed to decode content: {}", e),
-                    size,
-                }),
-            );
-        }
-    };
-
-    (
-        StatusCode::OK,
-        Json(LogContentResponse {
-            success: true,
-            filename,
-            content,
-            size,
-        }),
+    let res = sqlx::query_as::<_, LogEntry>(
+        "SELECT id, timestamp, category, message, content, github_path FROM system_logs WHERE id = $1"
     )
+    .bind(id)
+    .fetch_optional(pool)
+    .await;
+
+    match res {
+        Ok(Some(mut row)) => {
+            // Check if content is truncated/missing
+            let is_truncated = row.content.contains("... (truncated");
+
+            if (row.content.is_empty() || is_truncated) && row.github_path.is_some() {
+                if let Some(gh_path) = row.github_path {
+                    if let Some(full_content) = fetch_from_github(&gh_path).await {
+                        row.content = full_content;
+                    }
+                }
+            }
+
+            (
+                StatusCode::OK,
+                Json(LogContentResponse {
+                    success: true,
+                    filename: row.message,
+                    content: row.content.clone(),
+                    size: row.content.len() as u64,
+                }),
+            )
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(LogContentResponse {
+                success: false,
+                filename: String::new(),
+                content: "Log not found".to_string(),
+                size: 0,
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(LogContentResponse {
+                success: false,
+                filename: String::new(),
+                content: format!("Database error: {}", e),
+                size: 0,
+            }),
+        ),
+    }
 }
 
 /// List available dates with logs
 /// GET /api/logs/dates
 pub async fn list_log_dates() -> impl IntoResponse {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_json::json!({
-                "success": false,
-                "dates": [],
-                "message": "Remote logging not configured"
-            })),
-        );
-    };
-
-    // Get years first
-    let client = reqwest::Client::new();
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/logs",
-        config.owner, config.repo
-    );
-
-    let res = match client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", config.token))
-        .header("User-Agent", "axur-log-viewer")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::BAD_GATEWAY,
-                Json(serde_json::json!({
-                    "success": false,
-                    "dates": [],
-                    "message": format!("GitHub API error: {}", e)
-                })),
-            );
-        }
-    };
-
-    if !res.status().is_success() {
-        return (
-            StatusCode::OK,
-            Json(serde_json::json!({
-                "success": true,
-                "dates": [],
-                "message": "No logs found"
-            })),
-        );
-    }
-
-    let content: Vec<serde_json::Value> = res.json().await.unwrap_or_default();
-
-    // Just return the current year/month structure for now
-    let years: Vec<String> = content
-        .iter()
-        .filter(|item| item.get("type").and_then(|t| t.as_str()) == Some("dir"))
-        .filter_map(|item| item.get("name").and_then(|n| n.as_str()).map(String::from))
-        .collect();
+    // For now, let's just return current year structure to match frontend expectations
+    let years = vec!["2024".to_string(), "2025".to_string()];
 
     (
         StatusCode::OK,
@@ -420,76 +335,67 @@ pub async fn list_log_dates() -> impl IntoResponse {
 /// List categories for a specific date
 /// GET /api/logs/categories?date=YYYY/MM/DD
 pub async fn list_log_categories(Query(params): Query<ListLogsQuery>) -> impl IntoResponse {
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_json::json!({
-                "success": false,
-                "categories": [],
-                "message": "Remote logging not configured"
-            })),
-        );
-    };
-
-    let date_path = params
-        .date
-        .unwrap_or_else(|| chrono::Utc::now().format("%Y/%m/%d").to_string());
-
-    let client = reqwest::Client::new();
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/logs/{}",
-        config.owner, config.repo, date_path
-    );
-
-    let res = match client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", config.token))
-        .header("User-Agent", "axur-log-viewer")
-        .header("Accept", "application/vnd.github.v3+json")
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => {
+    let pool = match get_db() {
+        Some(p) => p,
+        None => {
             return (
-                StatusCode::BAD_GATEWAY,
+                StatusCode::SERVICE_UNAVAILABLE,
                 Json(serde_json::json!({
                     "success": false,
                     "categories": [],
-                    "message": format!("GitHub API error: {}", e)
+                    "message": "Database not available"
                 })),
-            );
+            )
         }
     };
 
-    if !res.status().is_success() {
-        return (
-            StatusCode::OK,
-            Json(serde_json::json!({
-                "success": true,
-                "categories": [],
-                "message": "No logs found for this date"
-            })),
-        );
+    let date_str = params
+        .date
+        .unwrap_or_else(|| Utc::now().format("%Y-%m-%d").to_string());
+    // Parse date
+    let start_date = match chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
+        .or_else(|_| chrono::NaiveDate::parse_from_str(&date_str, "%Y/%m/%d"))
+    {
+        Ok(d) => Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap()),
+        Err(_) => Utc::now(), // Fallback
+    };
+    let end_date = start_date + Duration::days(1);
+
+    #[derive(sqlx::FromRow)]
+    struct CatRow {
+        category: String,
     }
 
-    let content: Vec<serde_json::Value> = res.json().await.unwrap_or_default();
-
-    let categories: Vec<String> = content
-        .iter()
-        .filter(|item| item.get("type").and_then(|t| t.as_str()) == Some("dir"))
-        .filter_map(|item| item.get("name").and_then(|n| n.as_str()).map(String::from))
-        .collect();
-
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "success": true,
-            "categories": categories,
-            "date": date_path,
-            "message": "OK"
-        })),
+    let res = sqlx::query_as::<_, CatRow>(
+        "SELECT DISTINCT category FROM system_logs WHERE timestamp >= $1 AND timestamp < $2",
     )
+    .bind(start_date)
+    .bind(end_date)
+    .fetch_all(pool)
+    .await;
+
+    match res {
+        Ok(rows) => {
+            let categories: Vec<String> = rows.into_iter().map(|r| r.category).collect();
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "success": true,
+                    "categories": categories,
+                    "date": date_str,
+                    "message": "OK"
+                })),
+            )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "success": false,
+                "categories": [],
+                "message": format!("Database error: {}", e)
+            })),
+        ),
+    }
 }
 
 /// Query parameters for access check
@@ -532,129 +438,118 @@ pub struct StatsQuery {
 
 pub async fn get_log_stats(Query(params): Query<StatsQuery>) -> impl IntoResponse {
     let days = params.days.unwrap_or(7);
-    let Some(config) = RemoteLogConfig::from_env() else {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
+    let pool = match get_db() {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(StatsResponse {
+                    success: false,
+                    period: format!("{}d", days),
+                    total_reports: 0,
+                    total_errors: 0,
+                    daily_stats: vec![],
+                    message: "Database not available".to_string(),
+                }),
+            )
+        }
+    };
+
+    let start_date = Utc::now() - Duration::days(days);
+
+    #[derive(sqlx::FromRow)]
+    struct StatRow {
+        day: Option<chrono::NaiveDate>, // date_trunc returns timestamp, we cast to date
+        category: String,
+        count: Option<i64>,
+    }
+
+    // Efficient aggregation query
+    let res = sqlx::query_as::<_, StatRow>(
+        r#"
+        SELECT 
+            DATE(timestamp) as day, 
+            category, 
+            COUNT(*) as count 
+        FROM system_logs 
+        WHERE timestamp >= $1 
+        GROUP BY 1, 2
+        ORDER BY 1 ASC
+        "#,
+    )
+    .bind(start_date)
+    .fetch_all(pool)
+    .await;
+
+    match res {
+        Ok(rows) => {
+            // Process rows in memory to group by day struct
+            use std::collections::HashMap;
+            let mut day_map: HashMap<String, DailyStats> = HashMap::new();
+            let mut total_reports = 0;
+            let mut total_errors = 0;
+
+            // Pre-fill days
+            for i in 0..days {
+                let d = Utc::now() - Duration::days(i);
+                let date_str = d.format("%Y-%m-%d").to_string();
+                day_map.insert(
+                    date_str.clone(),
+                    DailyStats {
+                        date: date_str,
+                        reports: 0,
+                        errors: 0,
+                        th_queries: 0,
+                        total: 0,
+                    },
+                );
+            }
+
+            for row in rows {
+                if let Some(day) = row.day {
+                    let date_str = day.format("%Y-%m-%d").to_string();
+                    let count = row.count.unwrap_or(0);
+
+                    if let Some(stats) = day_map.get_mut(&date_str) {
+                        stats.total += count;
+                        if row.category.contains("report") {
+                            stats.reports += count;
+                            total_reports += count;
+                        } else if row.category.contains("error") {
+                            stats.errors += count;
+                            total_errors += count;
+                        } else if row.category.contains("threat") {
+                            stats.th_queries += count;
+                        }
+                    }
+                }
+            }
+
+            let mut daily_stats: Vec<DailyStats> = day_map.into_values().collect();
+            daily_stats.sort_by(|a, b| a.date.cmp(&b.date));
+
+            (
+                StatusCode::OK,
+                Json(StatsResponse {
+                    success: true,
+                    period: format!("{}d", days),
+                    total_reports,
+                    total_errors,
+                    daily_stats,
+                    message: "OK".to_string(),
+                }),
+            )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
             Json(StatsResponse {
                 success: false,
                 period: format!("{}d", days),
                 total_reports: 0,
                 total_errors: 0,
                 daily_stats: vec![],
-                message: "Remote logging not configured".to_string(),
+                message: format!("Database error: {}", e),
             }),
-        );
-    };
-
-    let client = reqwest::Client::new();
-    let today = Utc::now();
-    let mut tasks = Vec::new();
-
-    // Generate tasks for the last N days
-    for i in 0..days {
-        let date = today - Duration::days(i);
-        let date_str = date.format("%Y/%m/%d").to_string();
-        let display_date = date.format("%Y-%m-%d").to_string();
-
-        let client = client.clone();
-        let owner = config.owner.clone();
-        let repo = config.repo.clone();
-        let token = config.token.clone();
-
-        tasks.push(tokio::spawn(async move {
-            let url = format!(
-                "https://api.github.com/repos/{}/{}/contents/logs/{}",
-                owner, repo, date_str
-            );
-
-            let res = client
-                .get(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .header("User-Agent", "axur-log-viewer")
-                .header("Accept", "application/vnd.github.v3+json")
-                .send()
-                .await;
-
-            let mut stats = DailyStats {
-                date: display_date,
-                reports: 0,
-                errors: 0,
-                th_queries: 0,
-                total: 0,
-            };
-
-            if let Ok(resp) = res {
-                if resp.status().is_success() {
-                    if let Ok(content) = resp.json::<Vec<Value>>().await {
-                        // Iterate through folders (categories) for this day
-                        for item in content {
-                            if let (Some(name), Some(item_type)) = (
-                                item.get("name").and_then(|n| n.as_str()),
-                                item.get("type").and_then(|t| t.as_str()),
-                            ) {
-                                if item_type == "dir" {
-                                    // Make a secondary request to count files in this category
-                                    // Optimization: This is expensive, but necessary without a recursive API or cache.
-                                    // For a dashboard, we might want to cache this result in memory or Redis later.
-                                    // For now, let's assume standard API rate limits.
-                                    let sub_url = format!("{}/{}", url, name);
-                                    if let Ok(sub_res) = client
-                                        .get(&sub_url)
-                                        .header("Authorization", format!("Bearer {}", token))
-                                        .header("User-Agent", "axur-log-viewer")
-                                        .header("Accept", "application/vnd.github.v3+json")
-                                        .send()
-                                        .await
-                                    {
-                                        if let Ok(files) = sub_res.json::<Vec<Value>>().await {
-                                            let count = files.len();
-                                            match name {
-                                                "report" | "reports" => stats.reports += count,
-                                                "error" | "errors" => stats.errors += count,
-                                                "threat_hunting" => stats.th_queries += count,
-                                                _ => {}
-                                            }
-                                            stats.total += count;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            stats
-        }));
+        ),
     }
-
-    // Execute all tasks concurrently
-    let results = join_all(tasks).await;
-
-    // Aggregate results
-    let mut daily_stats = Vec::new();
-    let mut total_reports = 0;
-    let mut total_errors = 0;
-
-    for res in results {
-        if let Ok(stats) = res {
-            total_reports += stats.reports;
-            total_errors += stats.errors;
-            daily_stats.push(stats);
-        }
-    }
-
-    // Sort by date ascending
-    daily_stats.sort_by(|a, b| a.date.cmp(&b.date));
-
-    (
-        StatusCode::OK,
-        Json(StatsResponse {
-            success: true,
-            period: format!("{}d", days),
-            total_reports,
-            total_errors,
-            daily_stats,
-            message: "OK".to_string(),
-        }),
-    )
 }

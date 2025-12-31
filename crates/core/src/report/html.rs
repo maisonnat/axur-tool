@@ -969,11 +969,22 @@ fn calculate_median_takedown_minutes(takedowns: &[ResolvedTakedown]) -> Option<i
 fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let mut countries: HashMap<String, u64> = HashMap::new();
     let mut isps: HashMap<String, u64> = HashMap::new();
+    let mut registrars: HashMap<String, u64> = HashMap::new();
 
     // From Takedowns
     for td in &data.resolved_takedowns {
         if !td.country.is_empty() && td.country != "-" {
             *countries.entry(td.country.clone()).or_insert(0) += 1;
+        }
+        if let Some(isp) = &td.isp {
+             if !isp.is_empty() && isp != "-" {
+                *isps.entry(isp.clone()).or_insert(0) += 1;
+            }
+        }
+        if let Some(reg) = &td.registrar {
+             if !reg.is_empty() && reg != "-" {
+                *registrars.entry(reg.clone()).or_insert(0) += 1;
+            }
         }
     }
 
@@ -984,6 +995,12 @@ fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         }
         if !inc.country.is_empty() && inc.country != "-" {
             *countries.entry(inc.country.clone()).or_insert(0) += 1;
+        }
+        // New: Registrars
+        if let Some(reg) = &inc.registrar {
+            if !reg.is_empty() && reg != "-" {
+                *registrars.entry(reg.clone()).or_insert(0) += 1;
+            }
         }
     }
 
@@ -1001,15 +1018,73 @@ fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         }
     }
 
-    // Sort Countries
-    let mut country_vec: Vec<(&String, &u64)> = countries.iter().collect();
-    country_vec.sort_by(|a, b| b.1.cmp(a.1));
-    let top_countries: Vec<(&String, &u64)> = country_vec.iter().take(5).map(|&x| x).collect();
+    // Sort for charts
+    let mut sorted_countries: Vec<(&String, &u64)> = countries.iter().collect();
+    sorted_countries.sort_by(|a, b| b.1.cmp(a.1));
+    let top_countries: Vec<(&String, &u64)> = sorted_countries.into_iter().take(10).collect();
 
     // Sort ISPs
-    let mut isp_vec: Vec<(&String, &u64)> = isps.iter().collect();
-    isp_vec.sort_by(|a, b| b.1.cmp(a.1));
-    let top_isps: Vec<(&String, &u64)> = isp_vec.iter().take(6).map(|&x| x).collect();
+    let mut sorted_isps: Vec<(&String, &u64)> = isps.iter().collect();
+    sorted_isps.sort_by(|a, b| b.1.cmp(a.1));
+    let top_isps: Vec<(&String, &u64)> = sorted_isps.iter().take(6).map(|&x| x).collect();
+
+    // Sort Registrars
+    let mut sorted_registrars: Vec<(&String, &u64)> = registrars.iter().collect();
+    sorted_registrars.sort_by(|a, b| b.1.cmp(a.1));
+    let top_registrars: Vec<(&String, &u64)> = sorted_registrars.iter().take(6).map(|&x| x).collect();
+
+    // If no data, render "No Data" state
+    if top_countries.is_empty() && top_isps.is_empty() && top_registrars.is_empty() {
+        return r#"
+        <section class="slide geospatial-slide">
+            <div class="field-title">
+                <i class="fas fa-globe-americas"></i>
+                <h1 class="field-title-text" data-i18n="geospatial_intelligence">Geospatial Intelligence</h1>
+            </div>
+            <div class="content-wrapper centered-message">
+                <div class="no-data-container">
+                    <i class="fas fa-map-marked-alt fa-3x"></i>
+                    <h2>No Geographic Data Available</h2>
+                    <p>Geolocation information for the detected incidents was not provided by the source.</p>
+                </div>
+            </div>
+            <div class="slide-footer">
+                <div class="confidential-badge">
+                   <i class="fas fa-user-secret"></i>
+                   CONFIDENTIAL - TLP:AMBER
+                </div>
+                <div class="logo-container">
+                     <img src="https://axur.com/wp-content/uploads/2023/02/Logo-Axur-1.svg" class="axur-logo" alt="Axur">
+                </div>
+            </div>
+            <style>
+                .centered-message {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100%;
+                    text-align: center;
+                    color: var(--text-secondary);
+                }
+                .no-data-container {
+                    padding: 2rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 12px;
+                    border: 1px dashed var(--border-color);
+                }
+                .no-data-container i {
+                    margin-bottom: 1rem;
+                    opacity: 0.5;
+                }
+                .no-data-container h2 {
+                    font-size: 1.5rem;
+                    margin-bottom: 0.5rem;
+                    color: var(--text-primary);
+                }
+            </style>
+        </section>
+        "#.to_string();
+    }
 
     // Narrative
     let total_countries = countries.len();
@@ -1042,6 +1117,21 @@ fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">{}</span>
             </div>"#,
             isp, count
+        ));
+    }
+
+    // Registrars List HTML (Jurisdiction)
+    let mut registrar_html = String::new();
+    for (reg, count) in top_registrars {
+        registrar_html.push_str(&format!(
+            r#"<div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs text-blue-400"><i class="fas fa-gavel"></i></div>
+                    <span class="text-zinc-300 truncate text-sm">{}</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">{}</span>
+            </div>"#,
+            reg, count
         ));
     }
 
@@ -3146,25 +3236,25 @@ mod tests {
 
             resolved_takedowns: vec![
                 ResolvedTakedown {
-                    ticket_key: "TK-1".to_string(), name: "US Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Cloudflare".to_string(), ip: "1.1.1.1".to_string(), country: "United States".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-1".to_string(), name: "US Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Google".to_string(), ip: "1.1.1.1".to_string(), country: "USA".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Google".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-2".to_string(), name: "BR Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Locaweb".to_string(), ip: "2.2.2.2".to_string(), country: "Brazil".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-2".to_string(), name: "BR Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Locaweb".to_string(), ip: "2.2.2.2".to_string(), country: "Brazil".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Locaweb".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-3".to_string(), name: "CN Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Alibaba".to_string(), ip: "3.3.3.3".to_string(), country: "China".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-3".to_string(), name: "CN Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Alibaba".to_string(), ip: "3.3.3.3".to_string(), country: "China".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Alibaba".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-4".to_string(), name: "RU Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Yandex".to_string(), ip: "4.4.4.4".to_string(), country: "Russia".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-4".to_string(), name: "RU Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Yandex".to_string(), ip: "4.4.4.4".to_string(), country: "Russia".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Yandex".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-5".to_string(), name: "DE Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Hetzner".to_string(), ip: "5.5.5.5".to_string(), country: "Germany".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-5".to_string(), name: "DE Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Hetzner".to_string(), ip: "5.5.5.5".to_string(), country: "Germany".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Hetzner".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-6".to_string(), name: "BR Takedown 2".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "UOL".to_string(), ip: "6.6.6.6".to_string(), country: "Brasil".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-6".to_string(), name: "BR Takedown 2".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "UOL".to_string(), ip: "6.6.6.6".to_string(), country: "Brasil".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("UOL".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-7".to_string(), name: "US Takedown 2".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "AWS".to_string(), ip: "7.7.7.7".to_string(), country: "USA".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None,
+                    ticket_key: "TK-7".to_string(), name: "US Takedown 2".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "AWS".to_string(), ip: "7.7.7.7".to_string(), country: "USA".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("AWS".to_string()),
                 },
             ],
             
@@ -3179,9 +3269,10 @@ mod tests {
                      host: "Cloudflare".to_string(),
                      ip: "1.1.1.1".to_string(),
                      isp: "Cloudflare".to_string(),
-                     url: "http://malicious.com".to_string(),
-                     country: "US".to_string(),
-                     screenshot_url: Some("http://example.com/inc.png".to_string()),
+                     url: "http://fake-login.com".to_string(),
+                     country: "USA".to_string(),
+                     registrar: None,
+                     screenshot_url: None,
                 }
             ],
             

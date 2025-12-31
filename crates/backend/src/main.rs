@@ -19,6 +19,14 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Initialize database
+    if let Err(e) = axur_backend::db::init_db_pool().await {
+        tracing::error!("Failed to initialize database: {}", e);
+        // We continue even if DB fails, but logs won't be saved to DB
+    } else {
+        tracing::info!("Database connection established");
+    }
+
     // Build router (from routes module)
     let app = create_router();
 

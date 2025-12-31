@@ -44,9 +44,10 @@ async-stream = "0.3"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uuid = { version = "1.19.0", features = ["v4"] }
+uuid = { version = "1.10.0", features = ["v4", "serde"] }
 dotenv = "0.15"
 
 # Remote logging
 base64 = "0.22"
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "chrono", "uuid", "json", "macros"] }

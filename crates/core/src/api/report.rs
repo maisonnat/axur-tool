@@ -70,12 +70,12 @@ async fn download_image_as_base64(
 // ========================
 
 fn ensure_debug_dir() {
-    let _ = fs::create_dir_all("json_temp");
+    let _ = fs::create_dir_all("debug_logs");
 }
 
 fn log_api_call(endpoint_name: &str, url: &str, status: u16, success: bool, body: &str) {
     // Only log when debug mode is enabled via --debug flag
-    if std::env::var("AXUR_DEBUG").is_err() {
+    if std::env::var("AXUR_DEBUG").unwrap_or_default() != "1" {
         return;
     }
 
@@ -83,7 +83,7 @@ fn log_api_call(endpoint_name: &str, url: &str, status: u16, success: bool, body
 
     // Save response JSON
     let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("json_temp/{}_{}.json", endpoint_name, timestamp);
+    let filename = format!("debug_logs/{}_{}.json", endpoint_name, timestamp);
     if let Ok(mut file) = fs::File::create(&filename) {
         let _ = file.write_all(body.as_bytes());
     }
@@ -101,7 +101,7 @@ fn log_api_call(endpoint_name: &str, url: &str, status: u16, success: bool, body
     if let Ok(mut log_file) = fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open("json_temp/api_calls.log")
+        .open("debug_logs/api_calls.log")
     {
         let _ = log_file.write_all(log_line.as_bytes());
         // Also log the URL
@@ -437,6 +437,8 @@ pub struct ResolvedTakedown {
     pub request_date: Option<String>,
     pub resolution_date: Option<String>,
     pub url: String,
+    pub registrar: Option<String>,
+    pub isp: Option<String>,
     pub screenshot_url: Option<String>,
 }
 
@@ -453,6 +455,7 @@ pub struct IncidentExample {
     pub isp: String,
     pub url: String,
     pub country: String,
+    pub registrar: Option<String>,
     pub screenshot_url: Option<String>,
 }
 
@@ -1035,7 +1038,7 @@ struct Pageable {
 struct TicketItem {
     ticket: Option<TicketInfo>,
     current: Option<CurrentInfo>,
-    detection: Option<CurrentInfo>, // detection field (sometimes used instead of current)
+    detection: Option<serde_json::Value>, // Changed to Value to handle dynamic structure
     #[serde(default)]
     snapshots: serde_json::Value, // Can be object or array depending on API version
     #[serde(default)]
@@ -1118,6 +1121,12 @@ impl CurrentInfo {
             .and_then(|t| t.request.as_ref())
             .and_then(|r| r.date.clone())
     }
+    fn takedown_resolution_date(&self) -> Option<String> {
+        self.takedown
+            .as_ref()
+            .and_then(|t| t.done.as_ref())
+            .and_then(|d| d.date.clone())
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -1160,6 +1169,33 @@ struct CredentialInfo {
 }
 
 // ========================
+// GEOIP HELPER
+// ========================
+
+#[derive(Deserialize)]
+struct GeoIpResponse {
+    country: String,
+}
+
+/// Resolve IP to Country using ip-api.com (free, rate limited 45/min)
+async fn resolve_ip_country(client: &reqwest::Client, ip: &str) -> Option<String> {
+    let url = format!("http://ip-api.com/json/{}", ip);
+    match client.get(&url).send().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                if let Ok(geo) = resp.json::<GeoIpResponse>().await {
+                    return Some(geo.country);
+                }
+            }
+        }
+        Err(e) => {
+            tracing::warn!("GeoIP lookup failed for {}: {}", ip, e);
+        }
+    }
+    None
+}
+
+// ========================
 // MAIN FETCH FUNCTION
 // ========================
 
@@ -1172,21 +1208,21 @@ pub async fn fetch_full_report(
     story_tag: Option<String>,
     include_threat_intel: bool,
 ) -> Result<PocReportData> {
-    // DEBUG: Write to file to trace story_tag
-    use std::io::Write;
-    if let Ok(mut file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("story_debug.log")
+    // TRACE EXECUTION
     {
-        let _ = writeln!(
-            file,
-            "[{}] fetch_full_report called with story_tag: {:?}",
-            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-            story_tag
-        );
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        let _ = std::fs::create_dir_all("debug_logs");
+        if let Ok(mut file) = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("debug_logs/trace_exec.txt")
+        {
+            let _ = writeln!(file, "fetch_full_report called at {}", chrono::Local::now());
+        }
     }
 
+    let start_time = std::time::Instant::now();
     let client = create_client()?;
     let auth = format!("Bearer {}", token);
 
@@ -2082,7 +2118,8 @@ async fn fetch_smart_evidence(
                         for ticket in data.tickets.into_iter().take(examples_per_type) {
                             let ticket_info = ticket.ticket.as_ref();
                             // Use detection field as fallback for current (per colleague's docs)
-                            let current = ticket.current.as_ref().or(ticket.detection.as_ref());
+                            // Use current field directly - detection is now Value and handled manually elsewhere
+                            let current = ticket.current.as_ref();
 
                             // Find screenshot from TOP-LEVEL attachments (per colleague's docs)
                             // Look for files ending in .png, .jpg, .jpeg
@@ -2404,10 +2441,16 @@ async fn fetch_resolved_takedowns(
     let text = resp.text().await?;
     log_api_call("fetch_resolved_takedowns", &url, status, true, &text);
 
-    let data: TicketsResponse = serde_json::from_str(&text).unwrap_or(TicketsResponse {
-        tickets: vec![],
-        pageable: None,
-    });
+    let data: TicketsResponse = match serde_json::from_str(&text) {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::error!("Failed to parse resolved takedowns JSON: {}", e);
+            // Log a snippet of the JSON to help debug
+            let snippet: String = text.chars().take(200).collect();
+            tracing::error!("JSON Snippet: {}", snippet);
+            return Ok(vec![]);
+        }
+    };
 
     // We need to iterate and await inside map, which isn't directly supported by iterator map.
     // So we'll use a loop and build the vector.
@@ -2417,8 +2460,52 @@ async fn fetch_resolved_takedowns(
         let ticket_info = t.ticket.as_ref();
         let current = t.current.as_ref();
 
+        let ticket_key = ticket_info
+            .and_then(|t| t.ticket_key.clone())
+            .unwrap_or_default();
+
+        let detection = t.detection.as_ref();
+
+        // 1. IP Extraction
+        let mut ip = current.and_then(|c| c.ip.clone()).unwrap_or_default();
+        if ip.is_empty() {
+            if let Some(d) = detection {
+                if let Some(val) = d.get("ip").and_then(|v| v.as_str()) {
+                    ip = val.to_string();
+                }
+            }
+        }
+
+        // 2. ISP Extraction
+        let mut isp = current.and_then(|c| c.isp.clone()).unwrap_or_default();
+        if isp.is_empty() {
+            if let Some(d) = detection {
+                if let Some(val) = d.get("isp").and_then(|v| v.as_str()) {
+                    isp = val.to_string();
+                }
+            }
+        }
+
+        // 3. Registrar Extraction
+        let mut registrar = None;
+        if let Some(d) = detection {
+            if let Some(dom) = d.get("domain") {
+                if let Some(reg) = dom.get("registrar").and_then(|r| r.as_str()) {
+                    registrar = Some(reg.to_string());
+                }
+            }
+        }
+
+        // 4. Country Extraction with GeoIP Fallback
+        let mut country = current.and_then(|c| c.country.clone()).unwrap_or_default();
+        if country.is_empty() && !ip.is_empty() {
+            if let Some(c) = resolve_ip_country(client, &ip).await {
+                country = c;
+            }
+        }
+
         // Find screenshot from TOP-LEVEL attachments (ticket.attachments)
-        let screenshot_url = t
+        let screenshot = t
             .attachments
             .iter()
             .find(|a| {
@@ -2434,16 +2521,14 @@ async fn fetch_resolved_takedowns(
             .and_then(|a| a.url.clone());
 
         // Download image with auth and convert to base64
-        let screenshot_base64 = if let Some(ref img_url) = screenshot_url {
+        let screenshot_base64 = if let Some(ref img_url) = screenshot {
             download_image_as_base64(client, auth, img_url).await
         } else {
             None
         };
 
         resolved_list.push(ResolvedTakedown {
-            ticket_key: ticket_info
-                .and_then(|ti| ti.ticket_key.clone())
-                .unwrap_or_default(),
+            ticket_key,
             name: ticket_info
                 .and_then(|ti| ti.reference.clone())
                 .unwrap_or_else(|| "N/A".to_string()),
@@ -2452,15 +2537,17 @@ async fn fetch_resolved_takedowns(
                 .unwrap_or_else(|| "unknown".to_string()),
             status: current
                 .and_then(|c| c.status.clone())
-                .unwrap_or_else(|| "resolved".to_string()),
-            host: current.and_then(|c| c.host.clone()).unwrap_or_default(),
-            ip: current.and_then(|c| c.ip.clone()).unwrap_or_default(),
-            country: current.and_then(|c| c.country.clone()).unwrap_or_default(),
+                .unwrap_or_else(|| "unknown".to_string()),
             request_date: current.and_then(|c| c.takedown_request_date()),
-            resolution_date: current.and_then(|c| c.close_date()),
+            resolution_date: current.and_then(|c| c.takedown_resolution_date()),
+            host: current.and_then(|c| c.host.clone()).unwrap_or_default(),
+            ip,
             url: ticket_info
                 .and_then(|ti| ti.reference.clone())
                 .unwrap_or_default(),
+            country,
+            registrar,
+            isp: if isp.is_empty() { None } else { Some(isp) },
             screenshot_url: screenshot_base64,
         });
     }
@@ -2520,6 +2607,18 @@ async fn fetch_latest_incidents(
         // Per API documentation line 220: status field supports [open, quarantine, incident, treatment, closed]
         // Per API documentation line 242: type field is for detection-type filter
         // Using status=incident (not current.status) with type= filter and open.date range
+
+        // DEBUG PRINT
+        println!(
+            "DEBUG: fetch_latest_incidents processing type: {}",
+            incident_type
+        );
+        if let Err(e) = std::env::var("AXUR_DEBUG") {
+            println!("DEBUG: AXUR_DEBUG env var NOT FOUND: {:?}", e);
+        } else {
+            println!("DEBUG: AXUR_DEBUG env var FOUND");
+        }
+
         let url = format!(
             "{}/tickets-api/tickets?type={}&status=incident&open.date=ge:{}&open.date=le:{}&sortBy=open.date&order=desc&pageSize={}&include=fields,attachments&ticket.customer={}",
             API_URL, incident_type, from, to, page_size, customer
@@ -2543,6 +2642,48 @@ async fn fetch_latest_incidents(
                         for t in data.tickets.into_iter().take(page_size) {
                             let ticket_info = t.ticket.as_ref();
                             let current = t.current.as_ref();
+                            let detection = t.detection.as_ref();
+
+                            // 1. Robust IP Extraction
+                            let mut ip = current.and_then(|c| c.ip.clone()).unwrap_or_default();
+                            if ip.is_empty() {
+                                if let Some(d) = detection {
+                                    if let Some(val) = d.get("ip").and_then(|v| v.as_str()) {
+                                        ip = val.to_string();
+                                    }
+                                }
+                            }
+
+                            // 2. Robust ISP Extraction
+                            let mut isp = current.and_then(|c| c.isp.clone()).unwrap_or_default();
+                            if isp.is_empty() {
+                                if let Some(d) = detection {
+                                    if let Some(val) = d.get("isp").and_then(|v| v.as_str()) {
+                                        isp = val.to_string();
+                                    }
+                                }
+                            }
+
+                            // 3. Registrar Extraction (Jurisdiction)
+                            let mut registrar = None;
+                            if let Some(d) = detection {
+                                if let Some(dom) = d.get("domain") {
+                                    if let Some(reg) = dom.get("registrar").and_then(|r| r.as_str())
+                                    {
+                                        registrar = Some(reg.to_string());
+                                    }
+                                }
+                            }
+
+                            // 4. Country Extraction & GeoIP Fallback
+                            let mut country =
+                                current.and_then(|c| c.country.clone()).unwrap_or_default();
+                            if country.is_empty() && !ip.is_empty() {
+                                // Try to resolve via GeoIP API
+                                if let Some(c) = resolve_ip_country(client, &ip).await {
+                                    country = c;
+                                }
+                            }
 
                             // Find screenshot from attachments
                             let screenshot = t
@@ -2575,14 +2716,13 @@ async fn fetch_latest_incidents(
                                 open_date: current.and_then(|c| c.open_date()),
                                 incident_date: current.and_then(|c| c.incident_date()),
                                 host: current.and_then(|c| c.host.clone()).unwrap_or_default(),
-                                ip: current.and_then(|c| c.ip.clone()).unwrap_or_default(),
-                                isp: current.and_then(|c| c.isp.clone()).unwrap_or_default(),
+                                ip,
+                                isp,
                                 url: ticket_info
                                     .and_then(|ti| ti.reference.clone())
                                     .unwrap_or_default(),
-                                country: current
-                                    .and_then(|c| c.country.clone())
-                                    .unwrap_or_default(),
+                                country,
+                                registrar,
                                 screenshot_url: screenshot,
                             });
                         }
@@ -2860,9 +3000,32 @@ async fn fetch_tagged_tickets(
             let key = ticket.ticket_key.unwrap_or_default();
 
             // Determine date (Incident > Open > Created)
-            let date = detection
-                .incident_date()
-                .or_else(|| detection.open_date())
+            // HELPER: Extract date from Value (nested object or flat string)
+            let extract_date =
+                |val: &serde_json::Value, field: &str, flat_field: &str| -> Option<String> {
+                    val.get(flat_field)
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                        .or_else(|| {
+                            val.get(field)
+                                .and_then(|obj| obj.get("date"))
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string())
+                        })
+                };
+
+            // Extract dates
+            let creation_date = detection
+                .get("creation.date")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let open_date = extract_date(&detection, "open", "open.date");
+            let incident_date = extract_date(&detection, "incident", "incident.date");
+            let close_date = extract_date(&detection, "close", "close.date");
+
+            let date = incident_date
+                .clone()
+                .or_else(|| open_date.clone())
                 .unwrap_or_else(|| "N/A".to_string());
 
             // Format date nicely if possible
@@ -2872,11 +3035,13 @@ async fn fetch_tagged_tickets(
                 date
             };
 
-            // Determine Target
-            let target = detection
-                .host
-                .clone()
-                .or(detection.domain.clone())
+            // Determine Target & Description fields
+            let host = detection.get("host").and_then(|v| v.as_str());
+            let domain = detection.get("domain").and_then(|v| v.as_str());
+
+            let target = host
+                .map(|s| s.to_string())
+                .or_else(|| domain.map(|s| s.to_string()))
                 .or(ticket.reference.clone())
                 .unwrap_or_else(|| "Unknown Target".to_string());
 
@@ -2899,29 +3064,14 @@ async fn fetch_tagged_tickets(
                 None
             };
 
-            // Extract dates (prefer flat format, fallback to nested)
-            let creation_date = detection.creation_date_flat.clone();
-            let open_date = detection
-                .open_date_flat
-                .clone()
-                .or_else(|| detection.open_date());
-            let incident_date = detection
-                .incident_date_flat
-                .clone()
-                .or_else(|| detection.incident_date());
-            let close_date = detection
-                .close_date_flat
-                .clone()
-                .or_else(|| detection.close_date());
-
             // Parse prediction metrics
             let risk_score = detection
-                .prediction_risk
-                .as_ref()
+                .get("prediction.risk")
+                .and_then(|v| v.as_str())
                 .and_then(|s| s.parse::<f64>().ok());
             let brand_confidence = detection
-                .prediction_brand_logo
-                .as_ref()
+                .get("prediction.brand-logo")
+                .and_then(|v| v.as_str())
                 .and_then(|s| s.parse::<f64>().ok());
 
             // Extract page title from snapshots if available
@@ -2937,16 +3087,34 @@ async fn fetch_tagged_tickets(
             let incident_age_hours = incident_date.as_ref().and_then(|d| compute_hours_since(d));
 
             // Description (Type + Host)
-            let threat_type = detection.type_.clone().unwrap_or_default();
+            let threat_type = detection
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
             let desc = format!("{} on {}", &threat_type, &target);
+
+            // Extract ISP and IP
+            let isp = detection
+                .get("isp")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let ip = detection
+                .get("ip")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
+            // Extract Status
+            let status = detection
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("open")
+                .to_string();
 
             story_tickets.push(StoryTicket {
                 ticket_key: key,
                 target,
-                status: detection
-                    .status
-                    .clone()
-                    .unwrap_or_else(|| "open".to_string()),
+                status,
                 threat_type,
                 description: desc,
                 screenshot_url: screenshot_base64,
@@ -2954,8 +3122,8 @@ async fn fetch_tagged_tickets(
                 open_date,
                 incident_date,
                 close_date,
-                isp: detection.isp.clone(),
-                ip: detection.ip.clone(),
+                isp,
+                ip,
                 risk_score,
                 brand_confidence,
                 page_title,
