@@ -176,6 +176,78 @@ pub async fn fetch_available_tenants(token: &str) -> Result<Vec<TenantInfo>> {
 }
 
 // ========================
+// RISK SCORE V3 STRUCTURES
+// ========================
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct IncidentStats {
+    #[serde(rename = "totalByTicketType")]
+    pub total_by_ticket_type: Option<Vec<TicketTypeStat>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TicketTypeStat {
+    #[serde(rename = "ticketType")]
+    pub ticket_type: String,
+    pub count: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct MarketSegmentStats {
+    #[serde(rename = "marketSegment")]
+    pub market_segment: Option<String>,
+    pub medians: Vec<MonthlyStat>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct MonthlyStat {
+    pub date: String,
+    pub value: f64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TakedownStats {
+    pub total: TakedownTotal,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TakedownTotal {
+    #[serde(rename = "successRate")]
+    pub success_rate: f64,
+    #[serde(rename = "rawMedianUptime")]
+    pub raw_median_uptime: f64, // Milliseconds
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WebComplaintsResponse {
+    pub content: Vec<WebComplaint>,
+    #[serde(rename = "totalElements")]
+    pub total_elements: u64,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WebComplaint {
+    pub id: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CredentialCount {
+    pub total: u64,
+}
+
+// ========================
+// RISK SCORE STRUCTURE
+// ========================
+
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct RiskScore {
+    pub current: f64,
+    pub history: Vec<f64>,
+    pub label: String,
+    pub color: String,
+}
+
+// ========================
 // COMPLETE POC REPORT DATA
 // ========================
 
@@ -275,6 +347,9 @@ pub struct PocReportData {
     // NEW: Critical Credentials (password contains tenant name)
     #[serde(default)]
     pub critical_credentials: Vec<CredentialExposure>,
+
+    // NEW: Risk Score
+    pub risk_score: RiskScore,
 
     // UI FLAGS
     pub is_dynamic_window: bool,
@@ -734,6 +809,7 @@ pub struct CodeLeaksSummary {
     pub high_severity_secrets: u64,
     pub exposure_platforms: Vec<NameValuePair>,
     pub secret_types: Vec<NameValuePair>,
+    pub top_repositories: Vec<NameValuePair>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -743,6 +819,7 @@ pub struct CredentialLeaksSummary {
     pub sources: Vec<NameValuePair>,
     pub plaintext_passwords: u64,
     pub stealer_logs_count: u64,
+    pub top_affected_domains: Vec<NameValuePair>,
 }
 
 /// Deep Analytics computed insights - only populated sections are rendered
@@ -1237,6 +1314,7 @@ pub async fn fetch_full_report(
         code_leaks_total,
         takedown_stats,
         story_tickets_res,
+        risk_metrics, // NEW
         credential_exposures_res,
     ) = tokio::join!(
         fetch_customer_data(&client, &auth, tenant_id),
@@ -1248,6 +1326,8 @@ pub async fn fetch_full_report(
         fetch_code_leaks_count(&client, &auth, from, to, tenant_id),
         fetch_takedown_stats_full(&client, &auth, from, to, tenant_id),
         fetch_tagged_tickets(&client, &auth, tenant_id, story_tag.as_deref()),
+        // RISK SCORE V3 FETCH
+        fetch_risk_score_metrics(&client, &auth, tenant_id, from, to),
         async {
             if let Some(tag) = story_tag.as_deref() {
                 if !tag.is_empty() {
@@ -1261,7 +1341,7 @@ pub async fn fetch_full_report(
 
     let customer = customer_data.unwrap_or_default();
     let threats_map = threats_by_type.unwrap_or_default();
-    let tk = takedown_stats.unwrap_or(TakedownStats {
+    let tk = takedown_stats.unwrap_or(ReportTakedownStats {
         resolved: 0,
         pending: 0,
         aborted: 0,
@@ -1326,6 +1406,7 @@ pub async fn fetch_full_report(
         high_severity_secrets: 0,
         exposure_platforms: vec![],
         secret_types: vec![],
+        top_repositories: vec![],
     });
     let takedown_ex = takedown_examples.unwrap_or_default();
     let resolved_td = resolved_takedowns.unwrap_or_default();
@@ -1336,6 +1417,7 @@ pub async fn fetch_full_report(
         sources: vec![],
         plaintext_passwords: 0,
         stealer_logs_count: 0,
+        top_affected_domains: vec![],
     });
 
     // Calculate metrics
@@ -1361,8 +1443,15 @@ pub async fn fetch_full_report(
         })
         .collect();
 
-    // Compute Deep Analytics BEFORE building the struct (to avoid borrow issues)
-    let deep_analytics = compute_deep_analytics(&code_summary, &cred_summary, &resolved_td);
+    // Compute Deep Analytics BEFORE building the struct
+    let mut deep_analytics = compute_deep_analytics(&code_summary, &cred_summary, &resolved_td);
+
+    // Enrich with Risk Score V3 data (more accurate takedown uptime)
+    if let Some(td) = &risk_metrics.takedown_stats {
+        let uptime_hours = td.total.raw_median_uptime / (1000.0 * 3600.0);
+        deep_analytics.avg_takedown_time_hours = Some(uptime_hours);
+        deep_analytics.has_takedown_insights = true;
+    }
 
     let report = PocReportData {
         company_name: customer.name,
@@ -1431,6 +1520,9 @@ pub async fn fetch_full_report(
         // NEW: Critical Credentials
         critical_credentials: critical_credentials_res,
 
+        // NEW: Risk Score V3
+        risk_score: calculate_risk_score_v3(&risk_metrics),
+
         is_dynamic_window: false, // Default to fixed window
     };
 
@@ -1484,7 +1576,7 @@ fn compute_deep_analytics(
     if code_summary.unique_repos >= 3 {
         analytics.has_code_leak_insights = true;
         analytics.secret_types_breakdown = code_summary.secret_types.clone();
-        // Note: top_repositories would need separate API call for detailed breakdown
+        analytics.top_repositories = code_summary.top_repositories.clone();
     }
 
     // ===== Credential Insights =====
@@ -1492,7 +1584,7 @@ fn compute_deep_analytics(
     if cred_summary.total_credentials >= 100 {
         analytics.has_credential_insights = true;
         analytics.leak_source_breakdown = cred_summary.sources.clone();
-        // top_affected_domains would need parsing from credential data
+        analytics.top_affected_domains = cred_summary.top_affected_domains.clone();
     }
 
     // ===== Takedown Efficiency Insights =====
@@ -1883,7 +1975,7 @@ async fn fetch_code_leaks_count(
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct TakedownStats {
+pub struct ReportTakedownStats {
     pub resolved: u64,
     pub pending: u64,
     pub aborted: u64,
@@ -1899,7 +1991,7 @@ async fn fetch_takedown_stats_full(
     from: &str,
     to: &str,
     customer: &str,
-) -> Result<TakedownStats> {
+) -> Result<ReportTakedownStats> {
     let url = format!(
         "{}/tickets-api/stats/takedown?from={}&to={}&customer={}",
         API_URL, from, to, customer
@@ -1921,7 +2013,7 @@ async fn fetch_takedown_stats_full(
             false,
             "Request failed",
         );
-        return Ok(TakedownStats {
+        return Ok(ReportTakedownStats {
             resolved: 0,
             pending: 0,
             aborted: 0,
@@ -1978,7 +2070,7 @@ async fn fetch_takedown_stats_full(
         }
     };
 
-    Ok(TakedownStats {
+    Ok(ReportTakedownStats {
         resolved: t.resolved.unwrap_or(0),
         pending: t.pending.unwrap_or(0),
         aborted: t.aborted.unwrap_or(0),
@@ -2212,6 +2304,7 @@ async fn fetch_code_leaks_summary(
             high_severity_secrets: 0,
             exposure_platforms: vec![],
             secret_types: vec![],
+            top_repositories: vec![],
         });
     }
 
@@ -2231,7 +2324,7 @@ async fn fetch_code_leaks_summary(
     let ssh_re = Regex::new(r"(?i)ssh|private.?key|rsa|ecdsa").unwrap();
     let jwt_re = Regex::new(r"(?i)jwt|oauth|bearer").unwrap();
 
-    let mut repo_set: HashSet<String> = HashSet::new();
+    let mut repo_counts: HashMap<String, u64> = HashMap::new();
     let mut high_severity = 0u64;
     let mut platform_counts: HashMap<String, u64> = HashMap::new();
     let mut secret_type_counts: HashMap<String, u64> = HashMap::new();
@@ -2245,7 +2338,7 @@ async fn fetch_code_leaks_summary(
 
             // Try to extract repo from URL
             if let Some(repo) = extract_repo_from_url(url_str) {
-                repo_set.insert(repo);
+                *repo_counts.entry(repo).or_insert(0) += 1;
             }
         }
 
@@ -2292,12 +2385,23 @@ async fn fetch_code_leaks_summary(
         .collect();
     secret_types.sort_by(|a, b| b.value.cmp(&a.value));
 
+    let mut top_repositories: Vec<NameValuePair> = repo_counts
+        .iter()
+        .map(|(name, value)| NameValuePair {
+            name: name.clone(),
+            value: *value,
+        })
+        .collect();
+    top_repositories.sort_by(|a, b| b.value.cmp(&a.value));
+    top_repositories.truncate(5);
+
     Ok(CodeLeaksSummary {
         total_secrets: total,
-        unique_repos: repo_set.len() as u64,
+        unique_repos: repo_counts.len() as u64,
         high_severity_secrets: high_severity,
         exposure_platforms,
         secret_types,
+        top_repositories,
     })
 }
 
@@ -2609,15 +2713,6 @@ async fn fetch_latest_incidents(
         // Using status=incident (not current.status) with type= filter and open.date range
 
         // DEBUG PRINT
-        println!(
-            "DEBUG: fetch_latest_incidents processing type: {}",
-            incident_type
-        );
-        if let Err(e) = std::env::var("AXUR_DEBUG") {
-            println!("DEBUG: AXUR_DEBUG env var NOT FOUND: {:?}", e);
-        } else {
-            println!("DEBUG: AXUR_DEBUG env var FOUND");
-        }
 
         let url = format!(
             "{}/tickets-api/tickets?type={}&status=incident&open.date=ge:{}&open.date=le:{}&sortBy=open.date&order=desc&pageSize={}&include=fields,attachments&ticket.customer={}",
@@ -2773,6 +2868,7 @@ async fn fetch_credential_leaks_summary(
             sources: vec![],
             plaintext_passwords: 0,
             stealer_logs_count: 0,
+            top_affected_domains: vec![],
         });
     }
 
@@ -2807,6 +2903,7 @@ async fn fetch_credential_leaks_summary(
     let mut plain_count = 0;
     let mut unique_emails = HashSet::new();
     let mut sources_map = HashMap::new();
+    let mut domain_counts = HashMap::new();
 
     for d in &data.detections {
         // Count stealer logs
@@ -2827,6 +2924,9 @@ async fn fetch_credential_leaks_summary(
         // Unique emails
         if let Some(u) = &d.user {
             unique_emails.insert(u.to_string());
+            if let Some(domain) = u.split('@').last() {
+                *domain_counts.entry(domain.to_string()).or_insert(0) += 1;
+            }
         }
     }
 
@@ -2856,12 +2956,28 @@ async fn fetch_credential_leaks_summary(
         .collect();
     sources_vec.sort_by(|a, b| b.value.cmp(&a.value));
 
+    let mut top_affected_domains: Vec<NameValuePair> = domain_counts
+        .into_iter()
+        .map(|(k, v)| NameValuePair {
+            name: k,
+            value: (v as f64
+                * (if total > 0 {
+                    total as f64 / sample_size
+                } else {
+                    1.0
+                })) as u64,
+        })
+        .collect();
+    top_affected_domains.sort_by(|a, b| b.value.cmp(&a.value));
+    top_affected_domains.truncate(5);
+
     Ok(CredentialLeaksSummary {
         total_credentials: total,
         unique_emails: final_unique,
         sources: sources_vec,
         plaintext_passwords: final_plain,
         stealer_logs_count: final_stealer,
+        top_affected_domains,
     })
 }
 
@@ -2935,27 +3051,12 @@ async fn fetch_tagged_tickets(
     tenant_id: &str,
     tag: Option<&str>,
 ) -> Result<Vec<StoryTicket>> {
-    use std::io::Write;
-    let mut log_file = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("story_debug.log")
-        .ok();
-
-    macro_rules! log_debug {
-        ($($arg:tt)*) => {
-            if let Some(ref mut f) = log_file {
-                let _ = writeln!(f, "[{}] {}", chrono::Local::now().format("%H:%M:%S"), format!($($arg)*));
-            }
-        };
-    }
-
-    log_debug!("fetch_tagged_tickets called with tag: {:?}", tag);
+    tracing::debug!("fetch_tagged_tickets called with tag: {:?}", tag);
 
     let tag = match tag {
         Some(t) if !t.is_empty() => t,
         _ => {
-            log_debug!("No tag provided, skipping story tickets fetch");
+            tracing::debug!("No tag provided, skipping story tickets fetch");
             return Ok(vec![]);
         }
     };
@@ -2965,7 +3066,7 @@ async fn fetch_tagged_tickets(
         API_URL, tenant_id, tag
     );
 
-    log_debug!("Fetching from URL: {}", url);
+    tracing::debug!("Fetching from URL: {}", url);
 
     let resp = client
         .get(&url)
@@ -2973,25 +3074,25 @@ async fn fetch_tagged_tickets(
         .send()
         .await?;
 
-    log_debug!("Response status: {}", resp.status());
+    tracing::debug!("Response status: {}", resp.status());
 
     if !resp.status().is_success() {
-        log_debug!("API returned error status: {}", resp.status());
+        tracing::debug!("API returned error status: {}", resp.status());
         return Ok(vec![]);
     }
 
     let body = resp.text().await?;
-    log_debug!("Response body length: {} chars", body.len());
-    log_debug!("First 500 chars: {}", &body[..body.len().min(500)]);
+    tracing::debug!("Response body length: {} chars", body.len());
+    tracing::debug!("First 500 chars: {}", &body[..body.len().min(500)]);
 
     let response: TicketsResponse = match serde_json::from_str(&body) {
         Ok(r) => r,
         Err(e) => {
-            log_debug!("JSON parsing error: {}", e);
+            tracing::debug!("JSON parsing error: {}", e);
             return Ok(vec![]);
         }
     };
-    log_debug!("Parsed {} tickets from response", response.tickets.len());
+    tracing::debug!("Parsed {} tickets from response", response.tickets.len());
 
     let mut story_tickets = Vec::new();
 
@@ -3133,7 +3234,7 @@ async fn fetch_tagged_tickets(
         }
     }
 
-    log_debug!("Returning {} story_tickets", story_tickets.len());
+    tracing::debug!("Returning {} story_tickets", story_tickets.len());
     Ok(story_tickets)
 }
 
@@ -3688,7 +3789,7 @@ async fn investigate_ticket(
     let search_id = match start_signal_lake_search(client, auth, tenant_id, domain).await {
         Ok(id) => id,
         Err(e) => {
-            eprintln!("Failed to start signal-lake search for {}: {}", domain, e);
+            tracing::error!("Failed to start signal-lake search for {}: {}", domain, e);
             return None;
         }
     };
@@ -3730,7 +3831,7 @@ async fn investigate_ticket(
                 // Still processing, continue polling
             }
             Err(e) => {
-                eprintln!("Error polling signal-lake for {}: {}", domain, e);
+                tracing::warn!("Error polling signal-lake for {}: {}", domain, e);
                 if attempts >= SIGNAL_LAKE_MAX_POLLS {
                     return None;
                 }
@@ -3738,7 +3839,7 @@ async fn investigate_ticket(
         }
 
         if attempts >= SIGNAL_LAKE_MAX_POLLS {
-            eprintln!("Signal-lake polling timeout for {}", domain);
+            tracing::warn!("Signal-lake polling timeout for {}", domain);
             return None;
         }
     }
@@ -4601,4 +4702,207 @@ pub async fn start_and_poll_th_search(
     let (count, _samples) = poll_threat_hunting_count(client, auth, &search_id).await?;
 
     Ok(count)
+}
+
+// ========================
+// RISK SCORE V3 LOGIC
+// ========================
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct TakedownStatsRaw {
+    pub total: TakedownTotal,
+}
+
+#[derive(Default)]
+struct RiskMetricsRaw {
+    threat_counts: Option<IncidentStats>,
+    market_benchmark: Option<MarketSegmentStats>,
+    critical_leaks: Option<CredentialCount>,
+    takedown_stats: Option<TakedownStatsRaw>,
+    web_complaints: Option<WebComplaintsResponse>,
+}
+
+async fn fetch_risk_score_metrics(
+    client: &reqwest::Client,
+    auth_header: &str,
+    customer_key: &str,
+    start_date: &str,
+    end_date: &str,
+) -> RiskMetricsRaw {
+    // 1. Threat Volume (Incident Counts by Type)
+    let threats_url = format!(
+        "{}/tickets-api/stats/incident/count/ticket-types?from={}&to={}&customer={}",
+        API_URL, start_date, end_date, customer_key
+    );
+
+    // 2. Market Benchmark (Median Incidents)
+    // Use "to" date only as per API, it looks back 13 months
+    let benchmark_url = format!(
+        "{}/tickets-api/stats/incident/customer/market-segment/median?to={}&customer={}",
+        API_URL, end_date, customer_key
+    );
+
+    // 3. Critical Hygiene (Credential Leaks Count)
+    // Filter for specific types if desired, but "total" endpoint is efficient
+    let leaks_url =
+        format!(
+        "{}/exposure-api/credentials/total?created=ge:{}&created=le:{}&customer={}&timezone=-03:00",
+        API_URL, format!("{}T00:00:00", start_date), format!("{}T23:59:59", end_date), customer_key
+    );
+
+    // 4. Efficiency (Takedown Stats)
+    let takedown_url = format!(
+        "{}/tickets-api/stats/takedown?from={}&to={}&customer={}",
+        API_URL, start_date, end_date, customer_key
+    );
+
+    // 5. Reputation (Web Complaints)
+    // Using initialDate and finalDate
+    let complaints_url = format!(
+        "{}/web-complaints/results?initialDate={}&finalDate={}&page=1&pageSize=1",
+        API_URL, start_date, end_date
+    );
+
+    let (threats, benchmark, leaks, takedown, complaints) = tokio::join!(
+        fetch_json_metric::<IncidentStats>(client, auth_header, &threats_url),
+        fetch_json_metric::<MarketSegmentStats>(client, auth_header, &benchmark_url),
+        fetch_json_metric::<CredentialCount>(client, auth_header, &leaks_url),
+        fetch_json_metric::<TakedownStatsRaw>(client, auth_header, &takedown_url),
+        fetch_json_metric::<WebComplaintsResponse>(client, auth_header, &complaints_url)
+    );
+
+    RiskMetricsRaw {
+        threat_counts: threats,
+        market_benchmark: benchmark,
+        critical_leaks: leaks,
+        takedown_stats: takedown,
+        web_complaints: complaints,
+    }
+}
+
+async fn fetch_json_metric<T: for<'de> Deserialize<'de>>(
+    client: &reqwest::Client,
+    auth: &str,
+    url: &str,
+) -> Option<T> {
+    match client.get(url).header("Authorization", auth).send().await {
+        Ok(resp) => {
+            if resp.status().is_success() {
+                resp.json::<T>().await.ok()
+            } else {
+                tracing::warn!("Failed to fetch metric from {}: {}", url, resp.status());
+                None
+            }
+        }
+        Err(e) => {
+            tracing::error!("Network error fetch metric {}: {}", url, e);
+            None
+        }
+    }
+}
+
+fn calculate_risk_score_v3(data: &RiskMetricsRaw) -> RiskScore {
+    // === 1. Weighted Threat Volume (30%) ===
+    // Sum of incidents weighted by severity
+    // Weights: Phishing/Malware=3, Social Media/Brand=2, Others=1
+    let mut threat_score_raw = 0.0;
+    if let Some(stats) = &data.threat_counts {
+        if let Some(types) = &stats.total_by_ticket_type {
+            for t in types {
+                let weight = match t.ticket_type.as_str() {
+                    "phishing" | "malware" | "ransomware-attack" => 3.0,
+                    "fake-social-media-profile" | "fraudulent-brand-use" | "fake-mobile-app" => 2.0,
+                    _ => 1.0,
+                };
+                threat_score_raw += (t.count as f64) * weight;
+            }
+        }
+    }
+    // Normalize: Assume > 100 weighted points is "High" (10.0 score)
+    let s1_volume = (threat_score_raw / 100.0).min(1.0) * 10.0;
+
+    // === 2. Market Benchmarking (20%) ===
+    // Compare volume to market median. If > median, score increases.
+    // If no data, assume neutral (5.0)
+    let s2_benchmark = if let Some(bench) = &data.market_benchmark {
+        let median_last_month = bench.medians.last().map(|m| m.value).unwrap_or(0.0);
+        // Simple comparison: Ratio of current raw count to median
+        // We need raw count (unweighted)
+        let total_count: u64 = data
+            .threat_counts
+            .as_ref()
+            .and_then(|s| s.total_by_ticket_type.as_ref())
+            .map(|v| v.iter().map(|t| t.count).sum())
+            .unwrap_or(0);
+
+        if median_last_month > 0.0 {
+            let ratio = (total_count as f64) / median_last_month;
+            // logic: ratio 1.0 -> 5.0 score. ratio 2.0 -> 10.0 score. ratio 0.5 -> 2.5 score.
+            (ratio * 5.0).min(10.0)
+        } else {
+            0.0 // No market activity? Good.
+        }
+    } else {
+        5.0 // Default if no benchmark data
+    };
+
+    // === 3. Critical Hygiene (20%) ===
+    // Count of critical credential leaks
+    let s3_hygiene = if let Some(leaks) = &data.critical_leaks {
+        // Assume > 50 leaks is critical (10.0)
+        (leaks.total as f64 / 50.0).min(1.0) * 10.0
+    } else {
+        0.0 // Optimistic default
+    };
+
+    // === 4. Operational Efficiency (15%) ===
+    // Inverse of Success Rate and Uptime. Higher efficiency -> Lower Risk Score.
+    // We calculate "Inefficiency Score" to add to Risk.
+    let s4_efficiency = if let Some(td) = &data.takedown_stats {
+        // Success Rate: 100% -> 0 risk. 80% -> 2 risk.
+        let success_risk = ((100.0 - td.total.success_rate) / 10.0).max(0.0).min(10.0);
+
+        // Uptime: > 5 days (432000000 ms) -> high risk
+        let uptime_days = td.total.raw_median_uptime / (1000.0 * 3600.0 * 24.0);
+        let uptime_risk = (uptime_days / 5.0).min(1.0) * 10.0;
+
+        (success_risk + uptime_risk) / 2.0
+    } else {
+        5.0 // Neutral
+    };
+
+    // === 5. Reputational Factor (15%) ===
+    // Based on Web Complaints volume
+    let s5_reputation = if let Some(complaints) = &data.web_complaints {
+        // Assume > 20 complaints is critical
+        (complaints.total_elements as f64 / 20.0).min(1.0) * 10.0
+    } else {
+        0.0
+    };
+
+    // === TOTAL WEIGHTED SCORE ===
+    // S1(30%) + S2(20%) + S3(20%) + S4(15%) + S5(15%)
+    let total_score = (s1_volume * 0.30)
+        + (s2_benchmark * 0.20)
+        + (s3_hygiene * 0.20)
+        + (s4_efficiency * 0.15)
+        + (s5_reputation * 0.15);
+
+    // Scale 0-10 -> 0-100 for display
+    let final_score = (total_score * 10.0).round();
+
+    let (label, color) = if final_score < 40.0 {
+        ("Low Risk".to_string(), "#28a745".to_string()) // Green
+    } else if final_score < 70.0 {
+        ("Moderate Risk".to_string(), "#ffc107".to_string()) // Yellow/Orange
+    } else {
+        ("Critical Risk".to_string(), "#dc3545".to_string()) // Red
+    };
+
+    RiskScore {
+        current: final_score,
+        history: vec![],
+        label,
+        color,
+    }
 }

@@ -37,8 +37,8 @@ pub fn LoginPage() -> impl IntoView {
     let correlation = create_rw_signal(Option::<String>::None);
     let device_id = create_rw_signal(String::new());
 
-    // Get dictionary based on current language
-    let dict = Signal::derive(move || get_ui_dict(ui_language.get()));
+    // Get dictionary based on current language (Memoized to prevent re-cloning)
+    let dict = create_memo(move |_| get_ui_dict(ui_language.get()));
 
     // Step 1: Submit credentials action
     let credentials_action = create_action(move |_: &()| async move {

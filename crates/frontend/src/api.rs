@@ -70,7 +70,7 @@ pub struct ValidateResponse {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Tenant {
     pub key: String,
     pub name: String,
@@ -84,6 +84,7 @@ pub struct GenerateReportRequest {
     pub language: String,
     pub story_tag: Option<String>,
     pub include_threat_intel: bool,
+    pub template_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -227,6 +228,7 @@ pub async fn generate_report(
     language: &str,
     story_tag: Option<String>,
     include_threat_intel: bool,
+    template_id: Option<String>,
 ) -> Result<GenerateReportResponse, String> {
     let resp = Request::post(&format!("{}/api/report/generate", API_BASE))
         .header("Content-Type", "application/json")
@@ -238,6 +240,7 @@ pub async fn generate_report(
             language: language.to_string(),
             story_tag,
             include_threat_intel,
+            template_id,
         })
         .map_err(|e| e.to_string())?
         .send()
@@ -618,4 +621,146 @@ pub async fn get_log_stats(days: Option<i64>) -> Result<StatsResponse, String> {
     } else {
         Err(format!("Failed to get stats: {}", resp.status()))
     }
+}
+
+// ========================
+// TEMPLATE API
+// ========================
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaveTemplateRequest {
+    pub name: String,
+    pub description: Option<String>,
+    pub slides: Vec<serde_json::Value>,
+    pub thumbnail: Option<String>, // Base64 encoded image
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SaveTemplateResponse {
+    pub success: bool,
+    pub template_id: Option<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct TemplateListItem {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub thumbnail_url: Option<String>,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct ListTemplatesResponse {
+    pub success: bool,
+    pub templates: Vec<TemplateListItem>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct TemplateDetail {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub slides: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct GetTemplateResponse {
+    pub success: bool,
+    pub template: Option<TemplateDetail>,
+    pub message: String,
+}
+
+/// Save a template (create or update)
+pub async fn save_template(
+    template_id: Option<&str>,
+    name: &str,
+    description: Option<&str>,
+    slides: Vec<serde_json::Value>,
+    thumbnail: Option<String>,
+) -> Result<SaveTemplateResponse, String> {
+    let url = match template_id {
+        Some(id) => format!("{}/api/templates/{}", API_BASE, id),
+        None => format!("{}/api/templates", API_BASE),
+    };
+
+    let method = if template_id.is_some() { "PUT" } else { "POST" };
+
+    let body = SaveTemplateRequest {
+        name: name.to_string(),
+        description: description.map(|s| s.to_string()),
+        slides,
+        thumbnail,
+    };
+
+    let builder = if method == "PUT" {
+        Request::put(&url)
+    } else {
+        Request::post(&url)
+    };
+
+    let resp = builder
+        .header("Content-Type", "application/json")
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&body)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to save template: {}", resp.status()))
+    }
+}
+
+/// List user's templates
+#[allow(dead_code)]
+pub async fn list_templates() -> Result<ListTemplatesResponse, String> {
+    let resp = Request::get(&format!("{}/api/templates", API_BASE))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to list templates: {}", resp.status()))
+    }
+}
+
+/// Get a template by ID
+#[allow(dead_code)]
+pub async fn get_template(template_id: &str) -> Result<GetTemplateResponse, String> {
+    let resp = Request::get(&format!("{}/api/templates/{}", API_BASE, template_id))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to get template: {}", resp.status()))
+    }
+}
+
+/// Delete a template
+#[allow(dead_code)]
+pub async fn delete_template(template_id: &str) -> Result<bool, String> {
+    let resp = Request::delete(&format!("{}/api/templates/{}", API_BASE, template_id))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(resp.ok())
 }

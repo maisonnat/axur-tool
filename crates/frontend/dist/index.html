@@ -8,8 +8,8 @@
     <meta name="description" content="Axur Web - Generador de reportes de inteligencia de amenazas externas">
     
 <script type="module">
-import init, * as bindings from '/axur-frontend-cdcb76b974e9c83.js';
-const wasm = await init({ module_or_path: '/axur-frontend-cdcb76b974e9c83_bg.wasm' });
+import init, * as bindings from '/axur-frontend-f4a8aaeb26ba9968.js';
+const wasm = await init({ module_or_path: '/axur-frontend-f4a8aaeb26ba9968_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -39,6 +39,26 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
             },
         };
     </script>
+    <style>
+        /* Drag & Drop styling for canvas */
+        .canvas-drop-zone.drag-over {
+            background: rgba(99, 102, 241, 0.1);
+            border: 2px dashed #6366f1;
+            border-radius: 8px;
+        }
+
+        .canvas-drop-zone.drag-over::after {
+            content: "Drop image or PPTX here";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #6366f1;
+            font-size: 1.25rem;
+            font-weight: 600;
+            pointer-events: none;
+        }
+    </style>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,7 +110,557 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
             }
         };
     </script>
-<link rel="modulepreload" href="/axur-frontend-cdcb76b974e9c83.js" crossorigin="anonymous" integrity="sha384-PSgmTb4PxRhc2CxmZ7O0aQcvvcpi9KKjkeF2lmJpYHOXxC4K0LfzQeS+DHa1WK5I"><link rel="preload" href="/axur-frontend-cdcb76b974e9c83_bg.wasm" crossorigin="anonymous" integrity="sha384-by65CvAR4VouOTupVNKbVDNpZ1m/nshdUuasvjfu2I68/k0ltKFVy24ExZBUH8jg" as="fetch" type="application/wasm"></head>
+
+    <!-- Fabric.js for canvas editing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script>
+        // FIX: Patch Fabric.js 5.3.1 for Chrome 130+ textBaseline issue (Global Scope)
+        if (typeof fabric !== 'undefined') {
+            if (fabric.Text) fabric.Text.prototype.textBaseline = 'alphabetic';
+            if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
+        }
+    </script>
+    <script>
+        // Global canvas instance
+        let fabricCanvas = null;
+
+        // Undo/Redo history
+        let canvasHistory = [];
+        let historyIndex = -1;
+        const MAX_HISTORY = 50;
+
+        // Save canvas state to history
+        window.saveCanvasState = function () {
+            if (!fabricCanvas) return;
+            // Remove any future states if we're not at the end
+            if (historyIndex < canvasHistory.length - 1) {
+                canvasHistory = canvasHistory.slice(0, historyIndex + 1);
+            }
+            // Add current state
+            const json = JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
+            canvasHistory.push(json);
+            historyIndex = canvasHistory.length - 1;
+            // Limit history size
+            if (canvasHistory.length > MAX_HISTORY) {
+                canvasHistory.shift();
+                historyIndex--;
+            }
+        };
+
+        // Undo last action
+        window.undoCanvas = function () {
+            if (!fabricCanvas || historyIndex <= 0) return false;
+            historyIndex--;
+            fabricCanvas.loadFromJSON(JSON.parse(canvasHistory[historyIndex]), function () {
+                fabricCanvas.renderAll();
+            });
+            return true;
+        };
+
+        // Redo last undone action
+        window.redoCanvas = function () {
+            if (!fabricCanvas || historyIndex >= canvasHistory.length - 1) return false;
+            historyIndex++;
+            fabricCanvas.loadFromJSON(JSON.parse(canvasHistory[historyIndex]), function () {
+                fabricCanvas.renderAll();
+            });
+            return true;
+        };
+
+        // Check if undo/redo is available
+        window.canUndo = function () { return historyIndex > 0; };
+        window.canRedo = function () { return historyIndex < canvasHistory.length - 1; };
+
+        // Initialize Fabric.js canvas
+        window.initFabricCanvas = function (canvasId) {
+            console.log('[Fabric] Initializing canvas:', canvasId);
+
+
+
+            const el = document.getElementById(canvasId);
+            if (!el) {
+                console.error('[Fabric] Canvas element not found:', canvasId);
+                return null;
+            }
+            fabricCanvas = new fabric.Canvas(canvasId, {
+                backgroundColor: '#1e293b',
+                selection: true,
+            });
+
+            // Clear history for new canvas
+            canvasHistory = [];
+            historyIndex = -1;
+
+            // Save initial state
+            window.saveCanvasState();
+
+            // Auto-save state after object modifications
+            fabricCanvas.on('object:modified', window.saveCanvasState);
+            fabricCanvas.on('object:added', window.saveCanvasState);
+            fabricCanvas.on('object:removed', window.saveCanvasState);
+
+            console.log('[Fabric] Canvas initialized with history');
+            return fabricCanvas;
+        };
+
+        // ==================== KEYBOARD SHORTCUTS ====================
+        document.addEventListener('keydown', function (e) {
+            if (!fabricCanvas) return;
+
+            // Ignore if typing in input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            // Ctrl+Z = Undo
+            if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                window.undoCanvas();
+            }
+            // Ctrl+Y or Ctrl+Shift+Z = Redo
+            if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+                e.preventDefault();
+                window.redoCanvas();
+            }
+            // Delete = Remove selected
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                const active = fabricCanvas.getActiveObjects();
+                if (active.length > 0) {
+                    e.preventDefault();
+                    active.forEach(obj => fabricCanvas.remove(obj));
+                    fabricCanvas.discardActiveObject();
+                    fabricCanvas.renderAll();
+                }
+            }
+            // Ctrl+D = Duplicate selected
+            if (e.ctrlKey && e.key === 'd') {
+                e.preventDefault();
+                window.duplicateSelected();
+            }
+            // Ctrl+A = Select all
+            if (e.ctrlKey && e.key === 'a') {
+                e.preventDefault();
+                fabricCanvas.discardActiveObject();
+                const sel = new fabric.ActiveSelection(fabricCanvas.getObjects(), { canvas: fabricCanvas });
+                fabricCanvas.setActiveObject(sel);
+                fabricCanvas.renderAll();
+            }
+        });
+
+        // ==================== ZOOM CONTROLS ====================
+        let currentZoom = 1;
+
+        window.setCanvasZoom = function (zoom) {
+            if (!fabricCanvas) return;
+            currentZoom = Math.max(0.25, Math.min(2, zoom));
+            fabricCanvas.setZoom(currentZoom);
+            fabricCanvas.renderAll();
+            return currentZoom;
+        };
+
+        window.zoomIn = function () { return window.setCanvasZoom(currentZoom + 0.1); };
+        window.zoomOut = function () { return window.setCanvasZoom(currentZoom - 0.1); };
+        window.zoomReset = function () { return window.setCanvasZoom(1); };
+        window.getZoom = function () { return currentZoom; };
+
+        // ==================== ALIGNMENT TOOLS ====================
+        window.alignSelected = function (direction) {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObjects();
+            if (active.length < 2) return;
+
+            const bounds = fabricCanvas.getActiveObject().getBoundingRect();
+
+            active.forEach(obj => {
+                switch (direction) {
+                    case 'left': obj.set('left', bounds.left); break;
+                    case 'center': obj.set('left', bounds.left + (bounds.width - obj.width * obj.scaleX) / 2); break;
+                    case 'right': obj.set('left', bounds.left + bounds.width - obj.width * obj.scaleX); break;
+                    case 'top': obj.set('top', bounds.top); break;
+                    case 'middle': obj.set('top', bounds.top + (bounds.height - obj.height * obj.scaleY) / 2); break;
+                    case 'bottom': obj.set('top', bounds.top + bounds.height - obj.height * obj.scaleY); break;
+                }
+                obj.setCoords();
+            });
+            fabricCanvas.renderAll();
+        };
+
+        // ==================== LAYER CONTROLS ====================
+        window.bringToFront = function () {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObject();
+            if (active) {
+                fabricCanvas.bringToFront(active);
+                fabricCanvas.renderAll();
+            }
+        };
+
+        window.sendToBack = function () {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObject();
+            if (active) {
+                fabricCanvas.sendToBack(active);
+                fabricCanvas.renderAll();
+            }
+        };
+
+        window.bringForward = function () {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObject();
+            if (active) {
+                fabricCanvas.bringForward(active);
+                fabricCanvas.renderAll();
+            }
+        };
+
+        window.sendBackward = function () {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObject();
+            if (active) {
+                fabricCanvas.sendBackwards(active);
+                fabricCanvas.renderAll();
+            }
+        };
+
+        // ==================== DELETE & DUPLICATE ====================
+        window.deleteSelected = function () {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObjects();
+            active.forEach(obj => fabricCanvas.remove(obj));
+            fabricCanvas.discardActiveObject();
+            fabricCanvas.renderAll();
+        };
+
+        window.duplicateSelected = function () {
+            if (!fabricCanvas) return;
+            const active = fabricCanvas.getActiveObject();
+            if (!active) return;
+
+            active.clone(function (cloned) {
+                cloned.set({
+                    left: cloned.left + 20,
+                    top: cloned.top + 20,
+                });
+                fabricCanvas.add(cloned);
+                fabricCanvas.setActiveObject(cloned);
+                fabricCanvas.renderAll();
+            });
+        };
+
+        // ==================== GET OBJECTS LIST (for layers panel) ====================
+        window.getCanvasObjects = function () {
+            if (!fabricCanvas) return '[]';
+            const objects = fabricCanvas.getObjects().map((obj, idx) => ({
+                index: idx,
+                type: obj.type,
+                name: obj.placeholderKey || obj.text || obj.type,
+                visible: obj.visible !== false,
+                locked: obj.lockMovementX && obj.lockMovementY
+            }));
+            return JSON.stringify(objects);
+        };
+
+        window.selectObjectByIndex = function (idx) {
+            if (!fabricCanvas) return;
+            const objects = fabricCanvas.getObjects();
+            if (idx >= 0 && idx < objects.length) {
+                fabricCanvas.setActiveObject(objects[idx]);
+                fabricCanvas.renderAll();
+            }
+        };
+
+        // Add text element
+        window.addTextToCanvas = function (text) {
+            if (!fabricCanvas) return;
+            const textObj = new fabric.IText(text, {
+                left: 100,
+                top: 100,
+                fill: '#f8fafc',
+                fontSize: 24,
+                fontFamily: 'Inter, sans-serif',
+            });
+            fabricCanvas.add(textObj);
+            fabricCanvas.setActiveObject(textObj);
+            fabricCanvas.renderAll();
+        };
+
+        // Add placeholder (as group with border)
+        window.addPlaceholderToCanvas = function (key, html) {
+            if (!fabricCanvas) return;
+            // Create placeholder as a styled rect with label
+            const rect = new fabric.Rect({
+                width: 200,
+                height: 80,
+                fill: 'rgba(99, 102, 241, 0.2)',
+                stroke: '#6366f1',
+                strokeWidth: 2,
+                strokeDashArray: [5, 5],
+                rx: 8,
+                ry: 8,
+            });
+            const label = new fabric.Text('{{' + key + '}}', {
+                fontSize: 14,
+                fill: '#6366f1',
+                fontFamily: 'DM Mono, monospace',
+            });
+            // Center label in rect
+            label.set({
+                left: (rect.width - label.width) / 2,
+                top: (rect.height - label.height) / 2,
+            });
+            const group = new fabric.Group([rect, label], {
+                left: 150,
+                top: 150,
+            });
+            group.set('placeholderKey', key);
+            fabricCanvas.add(group);
+            fabricCanvas.setActiveObject(group);
+            fabricCanvas.renderAll();
+        };
+
+        // Add shape
+        window.addShapeToCanvas = function (shapeType) {
+            if (!fabricCanvas) return;
+            let shape;
+            if (shapeType === 'rectangle') {
+                shape = new fabric.Rect({
+                    left: 100,
+                    top: 100,
+                    width: 150,
+                    height: 100,
+                    fill: '#3f3f46',
+                    stroke: '#52525b',
+                    strokeWidth: 1,
+                    rx: 4,
+                    ry: 4,
+                });
+            } else if (shapeType === 'circle') {
+                shape = new fabric.Circle({
+                    left: 100,
+                    top: 100,
+                    radius: 50,
+                    fill: '#3f3f46',
+                    stroke: '#52525b',
+                    strokeWidth: 1,
+                });
+            }
+            if (shape) {
+                fabricCanvas.add(shape);
+                fabricCanvas.setActiveObject(shape);
+                fabricCanvas.renderAll();
+            }
+        };
+
+        // Get canvas JSON
+        window.getCanvasJSON = function () {
+            if (!fabricCanvas) return '{}';
+            return JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
+        };
+
+        // Load canvas JSON
+        window.loadCanvasJSON = function (json) {
+            if (!fabricCanvas) return;
+            try {
+                const data = JSON.parse(json);
+                fabricCanvas.loadFromJSON(data, function () {
+                    fabricCanvas.renderAll();
+                });
+            } catch (e) {
+                console.error('[Fabric] Failed to load JSON:', e);
+            }
+        };
+
+        // Clear canvas
+        window.clearCanvas = function () {
+            if (!fabricCanvas) return;
+            fabricCanvas.clear();
+            fabricCanvas.backgroundColor = '#1e293b';
+            fabricCanvas.renderAll();
+        };
+
+        // Add image to canvas
+        window.addImageToCanvas = function (dataUrl) {
+            if (!fabricCanvas) return;
+            fabric.Image.fromURL(dataUrl, function (img) {
+                // Scale image to fit canvas if too large
+                const maxWidth = fabricCanvas.width * 0.8;
+                const maxHeight = fabricCanvas.height * 0.8;
+                if (img.width > maxWidth || img.height > maxHeight) {
+                    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+                    img.scale(scale);
+                }
+                img.set({
+                    left: 50,
+                    top: 50,
+                });
+                fabricCanvas.add(img);
+                fabricCanvas.setActiveObject(img);
+                fabricCanvas.renderAll();
+            });
+        };
+
+        // Get canvas thumbnail as base64
+        window.getCanvasThumbnail = function () {
+            if (!fabricCanvas) return '';
+            try {
+                return fabricCanvas.toDataURL({
+                    format: 'png',
+                    quality: 0.5,
+                    multiplier: 0.25  // 1/4 size thumbnail
+                });
+            } catch (e) {
+                console.error('[Fabric] Failed to get thumbnail:', e);
+                return '';
+            }
+        };
+
+        // Trigger image file picker
+        window.triggerImageUpload = function () {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        window.addImageToCanvas(event.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            input.click();
+        };
+
+        // Setup drag and drop for canvas
+        window.setupCanvasDragDrop = function () {
+            const canvasContainer = document.querySelector('.canvas-drop-zone');
+            if (!canvasContainer) {
+                console.log('[DragDrop] Canvas container not found, using body');
+                return;
+            }
+
+            canvasContainer.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                canvasContainer.classList.add('drag-over');
+            });
+
+            canvasContainer.addEventListener('dragleave', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                canvasContainer.classList.remove('drag-over');
+            });
+
+            canvasContainer.addEventListener('drop', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                canvasContainer.classList.remove('drag-over');
+
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            window.addImageToCanvas(event.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    } else if (file.name.endsWith('.pptx')) {
+                        window.handlePptxImport(file);
+                    }
+                }
+            });
+
+            console.log('[DragDrop] Canvas drag & drop enabled');
+        };
+
+        // Export canvas as PNG
+        window.exportCanvasAsPng = function () {
+            if (!fabricCanvas) return null;
+            return fabricCanvas.toDataURL({
+                format: 'png',
+                quality: 1.0,
+                multiplier: 2 // 2x resolution
+            });
+        };
+
+        // Export all slides as images (returns array of base64)
+        window.exportAllSlidesAsImages = function (slidesJson) {
+            // This is called from Rust with JSON of all slides
+            // We'll render each off-screen and return images
+            console.log('[Export] Exporting slides as images');
+            return window.exportCanvasAsPng(); // For now just current
+        };
+
+        // Handle PPTX import (sends to backend)
+        window.handlePptxImport = async function (file) {
+            console.log('[Import] PPTX file:', file.name);
+
+            // Show loading state
+            const loadingMsg = document.createElement('div');
+            loadingMsg.id = 'pptx-loading';
+            loadingMsg.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
+            loadingMsg.innerHTML = '<div class="bg-zinc-900 p-6 rounded-lg text-white"><p class="text-lg">Importing PowerPoint...</p></div>';
+            document.body.appendChild(loadingMsg);
+
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/import/pptx', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+                console.log('[Import] Result:', result);
+
+                if (result.success && result.slides.length > 0) {
+                    // Load first slide into canvas
+                    const firstSlide = result.slides[0];
+                    if (firstSlide.canvas_json) {
+                        window.loadCanvasJSON(firstSlide.canvas_json);
+                    }
+
+                    // Add images from first slide
+                    for (const imgData of firstSlide.images || []) {
+                        window.addImageToCanvas(imgData);
+                    }
+
+                    // Dispatch event with imported slides for Rust to handle
+                    const event = new CustomEvent('pptx-imported', {
+                        detail: { slides: result.slides, message: result.message }
+                    });
+                    document.dispatchEvent(event);
+
+                    console.log('[Import] Loaded', result.slides.length, 'slides');
+                } else {
+                    console.error('[Import] Failed:', result.message);
+                    alert('Import failed: ' + result.message);
+                }
+            } catch (error) {
+                console.error('[Import] Error:', error);
+                alert('Import failed: ' + error.message);
+            } finally {
+                document.getElementById('pptx-loading')?.remove();
+            }
+        };
+
+        // Trigger PPTX file picker
+        window.triggerPptxUpload = function () {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pptx,.ppt';
+            input.onchange = function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    window.handlePptxImport(file);
+                }
+            };
+            input.click();
+        };
+    </script>
+<link rel="modulepreload" href="/axur-frontend-f4a8aaeb26ba9968.js" crossorigin="anonymous" integrity="sha384-kvjK4JCV7+uqm50KDT8Dc+IPOOYMW5HZ0oi55ZDdEU4EbtmpiGU1Nr9k5leodY21"><link rel="preload" href="/axur-frontend-f4a8aaeb26ba9968_bg.wasm" crossorigin="anonymous" integrity="sha384-gTjNyySwhdgAxQGyzH5cfyuMVNqvjCC7n7eSZlH6HEfBW6VMK4f2a2e2Gpc1sPAx" as="fetch" type="application/wasm"></head>
 
 <body class="bg-zinc-950 text-zinc-100">
     <!-- Loading indicator while WASM loads -->

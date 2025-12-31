@@ -1,6 +1,7 @@
 //! Report generation module
 
 pub mod html;
+pub mod template_renderer;
 
 /// Assets for offline report generation (embedded resources)
 #[derive(Debug, Clone, Default)]

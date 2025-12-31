@@ -66,7 +66,7 @@ story_debug.log
 *.debug.json
 
 # Private API documentation (not for public repo)
-axur-api-doc/
+#axur-api-doc/
 
 # Debug logs
 debug_logs/

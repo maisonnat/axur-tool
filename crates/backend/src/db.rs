@@ -114,5 +114,81 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // =====================
+    // SLIDE EDITOR TABLES
+    // =====================
+
+    // 4. Users Table (extended info linked to Axur tenant)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            axur_tenant_id TEXT NOT NULL UNIQUE,
+            email TEXT,
+            display_name TEXT,
+            is_admin BOOLEAN DEFAULT false,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // 5. User Templates Table (metadata only, content in GitHub)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS user_templates (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+            name TEXT NOT NULL,
+            description TEXT,
+            github_path TEXT NOT NULL,
+            is_public BOOLEAN DEFAULT false,
+            preview_image_url TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index on user_id for fast lookup
+    sqlx::query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_user_templates_user_id ON user_templates(user_id);
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // 6. Marketplace Templates Table (published templates)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS marketplace_templates (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            template_id UUID REFERENCES user_templates(id) ON DELETE CASCADE,
+            author_id UUID REFERENCES users(id) ON DELETE CASCADE,
+            downloads INTEGER DEFAULT 0,
+            rating NUMERIC(2,1) DEFAULT 0,
+            rating_count INTEGER DEFAULT 0,
+            featured BOOLEAN DEFAULT false,
+            approved BOOLEAN DEFAULT false,
+            published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index on approved for marketplace browsing
+    sqlx::query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_marketplace_approved ON marketplace_templates(approved);
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
     Ok(())
 }

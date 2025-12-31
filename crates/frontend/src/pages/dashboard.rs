@@ -36,6 +36,7 @@ impl AppError {
 
 /// Dashboard page component
 #[component]
+#[allow(non_snake_case)]
 pub fn DashboardPage() -> impl IntoView {
     let state = use_context::<AppState>().expect("AppState not found");
 
@@ -46,7 +47,7 @@ pub fn DashboardPage() -> impl IntoView {
     let has_log_access = state.has_log_access;
 
     // Get dictionary based on current language
-    let dict = Signal::derive(move || get_ui_dict(ui_language.get()));
+    let dict = create_memo(move |_| get_ui_dict(ui_language.get()));
 
     // Data
     let tenants = create_rw_signal(Vec::<Tenant>::new());
@@ -58,6 +59,7 @@ pub fn DashboardPage() -> impl IntoView {
     let story_tag = create_rw_signal(String::new());
     let include_threat_intel = create_rw_signal(false);
     let use_user_credits = create_rw_signal(false);
+    let selected_template = create_rw_signal::<Option<String>>(None); // Template ID for custom template
 
     // UI state
     let loading_tenants = create_rw_signal(true);
@@ -84,7 +86,7 @@ pub fn DashboardPage() -> impl IntoView {
     });
 
     // Tenant options for select
-    let tenant_options = Signal::derive(move || {
+    let tenant_options = create_memo(move |_| {
         tenants
             .get()
             .iter()
@@ -273,7 +275,19 @@ pub fn DashboardPage() -> impl IntoView {
             Some(tag)
         };
 
-        match api::generate_report(&tenant, &from, &to, &lang, tag_opt, threat_intel).await {
+        let template_id = selected_template.get();
+
+        match api::generate_report(
+            &tenant,
+            &from,
+            &to,
+            &lang,
+            tag_opt,
+            threat_intel,
+            template_id,
+        )
+        .await
+        {
             Ok(resp) => {
                 if resp.success {
                     report_html.set(resp.html);
@@ -331,6 +345,19 @@ pub fn DashboardPage() -> impl IntoView {
                         <span class="text-zinc-500 ml-2">"Web"</span>
                     </div>
                     <div class="flex items-center gap-4">
+                        // Editor & Marketplace - visible to all
+                        <button
+                            class="text-zinc-400 hover:text-indigo-400 transition-colors flex items-center gap-2"
+                            on:click=move |_| current_page.set(Page::Editor)
+                        >
+                            "✏️ Editor"
+                        </button>
+                        <button
+                            class="text-zinc-400 hover:text-purple-400 transition-colors flex items-center gap-2"
+                            on:click=move |_| current_page.set(Page::Marketplace)
+                        >
+                            "📦 Templates"
+                        </button>
                         <Show when=move || has_log_access.get()>
                             <button
                                 class="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-2"
@@ -392,7 +419,7 @@ pub fn DashboardPage() -> impl IntoView {
                             >
                                 <Combobox
                                     label=Signal::derive(move || dict.get().tenant_label.to_string())
-                                    options=tenant_options
+                                    options=tenant_options.into()
                                     selected=selected_tenant
                                     placeholder=Signal::derive(move || dict.get().tenant_placeholder.to_string())
                                 />
@@ -439,6 +466,42 @@ pub fn DashboardPage() -> impl IntoView {
                                     <option value="en">"English"</option>
                                     <option value="pt">"Português"</option>
                                 </select>
+                            </div>
+
+                            // Template selection
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-zinc-400 mb-2">"📄 Report Template"</label>
+                                <div class="flex gap-2">
+                                    <select
+                                        class="flex-1 bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none appearance-none"
+                                        on:change=move |ev| {
+                                            let val = event_target_value(&ev);
+                                            if val == "default" {
+                                                selected_template.set(None);
+                                            } else {
+                                                selected_template.set(Some(val));
+                                            }
+                                        }
+                                    >
+                                        <option value="default" selected>"⭐ Axur Default"</option>
+                                        <option value="executive">"📊 Executive Summary"</option>
+                                        <option value="technical">"🔧 Technical Deep Dive"</option>
+                                        <option value="compliance">"📋 Compliance Report"</option>
+                                        <option value="custom">"✏️ Browse Custom..."</option>
+                                    </select>
+                                    <button
+                                        on:click=move |_| state.current_page.set(crate::Page::Marketplace)
+                                        class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm"
+                                        title="Open Template Marketplace"
+                                    >
+                                        "🛒"
+                                    </button>
+                                </div>
+                                <Show when=move || selected_template.get().is_some()>
+                                    <p class="text-xs text-indigo-400 mt-1">
+                                        "Using custom template: " {move || selected_template.get().unwrap_or_default()}
+                                    </p>
+                                </Show>
                             </div>
 
                             // Threat Hunting Toggle
@@ -552,7 +615,23 @@ pub fn DashboardPage() -> impl IntoView {
                                 <div class="bg-white rounded-lg overflow-hidden aspect-video">
                                     <iframe
                                         class="w-full h-full"
-                                        srcdoc=move || report_html.get().unwrap_or_default()
+                                        on:load=move |_| {
+                                            // Optional: cleanup or additional logic
+                                        }
+                                        prop:src=move || {
+                                            if let Some(html) = report_html.get() {
+                                                // Create Blob URL for reliable rendering (fixes srcdoc issues)
+                                                let options = web_sys::BlobPropertyBag::new();
+                                                options.set_type("text/html");
+                                                let blob = web_sys::Blob::new_with_str_sequence_and_options(
+                                                    &js_sys::Array::of1(&html.into()),
+                                                    &options,
+                                                ).unwrap();
+                                                web_sys::Url::create_object_url_with_blob(&blob).unwrap_or_default()
+                                            } else {
+                                                String::new()
+                                            }
+                                        }
                                     ></iframe>
                                 </div>
                             </Show>

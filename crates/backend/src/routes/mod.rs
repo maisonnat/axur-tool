@@ -3,14 +3,17 @@
 pub mod admin_config; // Admin access control
 pub mod auth;
 pub mod feedback;
+pub mod import_export;
 pub mod logs_api; // Log viewing API
+pub mod marketplace; // Template marketplace
 pub mod remote_log; // Private GitHub log uploads
 pub mod report;
 pub mod status; // Production health checks
+pub mod templates; // Template CRUD // Import/Export (PPTX, etc.)
 
 use axum::{
     http::{header, HeaderValue, Method},
-    routing::{get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use tower_http::cors::CorsLayer;
@@ -36,7 +39,13 @@ pub fn create_router() -> Router {
                 .parse::<HeaderValue>()
                 .unwrap(),
         ])
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
         .allow_headers([
             header::CONTENT_TYPE,
             header::AUTHORIZATION,
@@ -55,7 +64,9 @@ pub fn create_router() -> Router {
         .route("/api/auth/2fa", post(auth::verify_2fa))
         .route("/api/auth/finalize", post(auth::finalize))
         .route("/api/auth/validate", get(auth::validate))
-        .route("/api/auth/logout", post(auth::logout));
+        .route("/api/auth/logout", post(auth::logout))
+        // Marketplace (browse is public)
+        .route("/api/marketplace", get(marketplace::list_marketplace));
 
     // Protected routes (Require Authentication)
     let protected_routes = Router::new()
@@ -78,6 +89,40 @@ pub fn create_router() -> Router {
         .route("/api/logs/content/*path", get(logs_api::get_log_content))
         .route("/api/logs/access", get(logs_api::check_log_access))
         .route("/api/logs/stats", get(logs_api::get_log_stats))
+        // Template CRUD API
+        .route("/api/templates", get(templates::list_templates))
+        .route("/api/templates", post(templates::create_template))
+        .route("/api/templates/:id", get(templates::get_template))
+        .route("/api/templates/:id", put(templates::update_template))
+        .route("/api/templates/:id", delete(templates::delete_template))
+        .route(
+            "/api/templates/:id/publish",
+            post(marketplace::publish_template),
+        )
+        // Marketplace user actions
+        .route(
+            "/api/marketplace/:id/download",
+            post(marketplace::download_template),
+        )
+        .route(
+            "/api/marketplace/:id/rate",
+            post(marketplace::rate_template),
+        )
+        // Admin moderation
+        .route(
+            "/api/admin/marketplace/pending",
+            get(marketplace::list_pending_templates),
+        )
+        .route(
+            "/api/admin/marketplace/:id/approve",
+            post(marketplace::approve_template),
+        )
+        .route(
+            "/api/admin/marketplace/:id/reject",
+            post(marketplace::reject_template),
+        )
+        // Import/Export
+        .route("/api/import/pptx", post(import_export::import_pptx))
         .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
 
     Router::new()

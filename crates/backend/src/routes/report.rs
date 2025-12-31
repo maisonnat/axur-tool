@@ -40,6 +40,7 @@ pub struct GenerateReportRequest {
     pub story_tag: Option<String>,
     #[serde(default)]
     pub include_threat_intel: bool,
+    pub template_id: Option<String>,
 }
 
 fn default_language() -> String {
@@ -202,8 +203,31 @@ pub async fn generate_report(
     };
     let dict = get_dictionary(language);
 
+    // Determine custom template JSONs (Mock support)
+    // Now returns a Vector of JSON strings (one per slide)
+    let mut custom_template_slides: Option<Vec<String>> = None;
+    if let Some(tid) = &payload.template_id {
+        // Try mock templates first (for demo/dev)
+        if let Some(tmpl) = crate::routes::templates::get_mock_template(tid) {
+            let slides: Vec<String> = tmpl
+                .slides
+                .iter()
+                .filter_map(|s| s.canvas_json.clone())
+                .collect();
+            if !slides.is_empty() {
+                custom_template_slides = Some(slides);
+                tracing::info!(
+                    "Using mock template '{}' with {} slides",
+                    tmpl.name,
+                    custom_template_slides.as_ref().unwrap().len()
+                );
+            }
+        }
+        // Future: Fetch from DB if not a mock
+    }
+
     // Generate HTML report
-    let html = generate_full_report_html(&report_data, None, &dict);
+    let html = generate_full_report_html(&report_data, custom_template_slides, None, &dict);
 
     // ⏱️ Calculate duration
     let duration_ms = start_time.elapsed().as_millis();

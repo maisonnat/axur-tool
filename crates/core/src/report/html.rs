@@ -18,9 +18,14 @@ fn has_takedown_data(data: &PocReportData) -> bool {
 /// Generate full HTML report with exact design (slides vary based on data)
 pub fn generate_full_report_html(
     data: &PocReportData,
+    custom_template_slides: Option<Vec<String>>,
     offline_assets: Option<&OfflineAssets>,
     dict: &Box<dyn Dictionary>,
 ) -> String {
+    // If custom template is provided, use it instead of standard design
+    if let Some(slides) = custom_template_slides {
+        return render_custom_template_report(data, slides, offline_assets, dict);
+    }
     // Start with core slides that are always shown
     let mut slides = vec![
         render_cover_full(data, dict),
@@ -155,6 +160,192 @@ pub fn generate_full_report_html(
         font_links = font_links,
         tailwind = tailwind_script,
         font_family = font_family,
+    )
+}
+
+// =====================
+// CUSTOM TEMPLATE RENDERER
+// =====================
+
+fn render_custom_template_report(
+    data: &PocReportData,
+    slides: Vec<String>,
+    offline_assets: Option<&OfflineAssets>,
+    _dict: &Box<dyn Dictionary>,
+) -> String {
+    let mut slides_html = String::new();
+    let mut init_scripts = String::new();
+    
+    // Date formatting (simple)
+    let date_str = data.end_date.clone();
+
+    for (i, json) in slides.iter().enumerate() {
+        // Basic placeholder replacement
+        // Advanced placeholder replacement
+        let processed_json = inject_report_data(json, data);
+                                 
+        let canvas_id = format!("slide-canvas-{}", i);
+        
+        slides_html.push_str(&format!(
+            r#"<div class="printable-slide aspect-[16/9] w-full shadow-lg mb-8 bg-white relative overflow-hidden" style="page-break-after: always; display: flex; align-items: center; justify-content: center;">
+                 <canvas id="{}" width="1280" height="720" style="width: 100%; height: auto; max-height: 100%;"></canvas>
+               </div>"#, 
+            canvas_id
+        ));
+        
+        // JS to render this slide
+        init_scripts.push_str(&format!(
+            r#"
+            (function() {{
+                var slideIndex = {i};
+                console.log("Initializing Slide " + slideIndex);
+                // Local Patch - AGGRESSIVE
+                // Local Patch
+                if (typeof fabric !== 'undefined') {{
+                    // console.log("Applying Fabric Patch...");
+                    if (fabric.Object) fabric.Object.prototype.textBaseline = 'alphabetic';
+                    if (fabric.Text) fabric.Text.prototype.textBaseline = 'alphabetic';
+                    if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
+                    if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
+                }}
+
+                try {{
+                    const canvas = new fabric.Canvas('{canvas_id}', {{ renderOnAddRemove: false }});
+                    canvas.setWidth(1280);
+                    canvas.setHeight(720);
+                    
+                    const json = {json_data};
+                    
+                    // Recursive Sanitization Function
+                    function sanitizeFabricObjects(objects) {{
+                        if (!objects) return;
+                        objects.forEach(function(obj) {{
+                            // Fix text baseline
+                            if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {{
+                                // Force delete and re-assign
+                                delete obj.textBaseline;
+                                obj.textBaseline = 'alphabetic';
+                            }}
+                            
+                            // Fix null/undefined values that might break
+                            if (obj.stroke === null) obj.stroke = 'transparent';
+                            
+                            // Recursively clean groups
+                            if (obj.objects) {{
+                                sanitizeFabricObjects(obj.objects);
+                            }}
+                        }});
+                    }}
+
+                    console.log("Sanitizing JSON for Slide " + slideIndex);
+                    if (json.objects) {{
+                        sanitizeFabricObjects(json.objects);
+                    }}
+
+                    canvas.loadFromJSON(json, function() {{
+                        console.log("Slide " + slideIndex + " Rendered");
+                        canvas.renderAll();
+                        // Lock all objects
+                        canvas.forEachObject(function(o) {{ 
+                            o.selectable = false; 
+                            o.evented = false; 
+                        }});
+                        canvas.selection = false;
+                    }});
+                }} catch (e) {{
+                    console.error("Error rendering slide " + slideIndex + ": ", e);
+                }}
+            }})();
+            "#,
+            i = i,
+            canvas_id = canvas_id,
+            json_data = processed_json
+        ));
+    }
+    
+    let fabric_script = if let Some(_) = offline_assets {
+        // TODO: Bundle fabric.js in offline assets if needed. For now use CDN or fallback
+        r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>"#
+    } else {
+        r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>"#
+    };
+
+    let global_patch = r#"
+    <script>
+        // Browser API Interceptor: Forces 'alphabetic' baseline
+        (function() {
+            try {
+                const originalDescriptor = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'textBaseline');
+                if (originalDescriptor && originalDescriptor.set) {
+                    Object.defineProperty(CanvasRenderingContext2D.prototype, 'textBaseline', {
+                        get: function() { return originalDescriptor.get.call(this); },
+                        set: function(value) {
+                            if (value === 'alphabetical') {
+                                // console.warn("Intercepted 'alphabetical' textBaseline, forcing 'alphabetic'");
+                                value = 'alphabetic';
+                            }
+                            originalDescriptor.set.call(this, value);
+                        },
+                        configurable: true
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to intercept Canvas prototype:", e);
+            }
+        
+            // Standard Fabric Patch just in case
+            if (typeof fabric !== 'undefined') {
+                if (fabric.Object) fabric.Object.prototype.textBaseline = 'alphabetic';
+                if (fabric.Text) fabric.Text.prototype.textBaseline = 'alphabetic';
+                if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
+                if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
+            }
+        })();
+    </script>
+    "#;
+
+
+    format!(
+        r##"<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reporte {company}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <script>tailwind.config={{theme:{{extend:{{fontFamily:{{sans:['Inter', 'sans-serif']}}}}}}}};</script>
+    <style>
+        @media print {{
+            @page {{ size: landscape; margin: 0; }}
+            body {{ -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
+            .no-print {{ display: none !important; }}
+            .printable-slide {{ break-after: page; page-break-after: always; margin: 0 !important; box-shadow: none !important; }}
+        }}
+        .printable-slide {{ aspect-ratio: 16/9; }}
+    </style>
+
+    {fabric_script}
+    {global_patch}
+</head>
+<body class="bg-zinc-100 text-zinc-900">
+    <div id="report-content" class="p-4 md:p-8 flex flex-col items-center">
+        {slides}
+    </div>
+    <script>
+        window.onload = function() {{
+            {init_scripts}
+        }};
+    </script>
+</body>
+</html>"##,
+        company = data.company_name,
+        fabric_script = fabric_script,
+        global_patch = global_patch,
+        slides = slides_html,
+        init_scripts = init_scripts
     )
 }
 
@@ -3166,6 +3357,9 @@ mod tests {
             partner_name: None,
             tlp_level: "AMBER".to_string(),
             
+            // Fix: Add missing risk_score field
+            risk_score: crate::api::report::RiskScore::default(),
+            
             brands_count: 5,
             brands: vec!["TestBrand".to_string()],
             executives_count: 2,
@@ -3198,6 +3392,7 @@ mod tests {
                 sources: vec![],
                 plaintext_passwords: 20,
                 stealer_logs_count: 5,
+                top_affected_domains: vec![],
             },
 
             incidents_by_type: vec![
@@ -3350,7 +3545,7 @@ mod tests {
             ],
         };
         
-        let html = generate_full_report_html(&data, None, &dict);
+        let html = generate_full_report_html(&data, None, None, &dict);
         
         // Write to a file in a location we can access
         // Use an absolute path to avoid confusion about CWD
@@ -3358,4 +3553,35 @@ mod tests {
         let mut file = File::create(path).expect("Could not create debug file");
         file.write_all(html.as_bytes()).expect("Could not write to file");
     }
+}
+
+/// Recursively injects report data into Fabric.js JSON string
+fn inject_report_data(json: &str, data: &PocReportData) -> String {
+    let mut processed = json.to_string();
+
+    // 1. Dynamic Text Replacements
+    processed = processed
+        .replace("{{company_name}}", &data.company_name)
+        .replace("{{date}}", &data.end_date)
+        .replace("{{total_incidents}}", &data.total_threats.to_string())
+        .replace("{{total_takedowns}}", &data.takedown_resolved.to_string())
+        .replace("{{avg_takedown_time}}", &format!("{}h", data.deep_analytics.avg_takedown_time_hours.unwrap_or(0.0)))
+        .replace("{{risk_score}}", &format!("{:.1}", data.risk_score.current));
+
+    // 2. Risk Score Color/Label Logic (Simplistic check)
+    let (risk_label, risk_color) = if data.risk_score.current >= 7.0 {
+        ("⚠️ Alto Riesgo", "#F59E0B") // Amber
+    } else if data.risk_score.current >= 4.0 {
+        ("⚠️ Riesgo Medio", "#F59E0B") // Amber
+    } else {
+        ("✅ Bajo Riesgo", "#10B981") // Emerald
+    };
+    processed = processed
+        .replace("{{risk_label}}", risk_label)
+        .replace("{{risk_color}}", risk_color);
+
+    // 3. Campaign Detection (Simple Summary)
+    processed = processed.replace("{{campaign_summary}}", "No active campaigns detected");
+
+    processed
 }

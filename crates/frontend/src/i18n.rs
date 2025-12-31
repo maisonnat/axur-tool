@@ -42,7 +42,7 @@ impl UiLanguage {
 }
 
 /// UI Dictionary - contains all translatable strings
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct UiDict {
     // Login page
     pub login_title: &'static str,

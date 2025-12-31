@@ -8,7 +8,7 @@ mod i18n;
 mod pages;
 
 use leptos::*;
-use pages::{AnalyticsPage, DashboardPage, LoginPage, LogsPage};
+use pages::{AnalyticsPage, DashboardPage, EditorPage, LoginPage, LogsPage, MarketplacePage};
 
 pub use i18n::{get_ui_dict, UiDict, UiLanguage};
 
@@ -23,6 +23,10 @@ pub struct AppState {
     pub user_email: RwSignal<Option<String>>,
     /// Whether user has access to logs
     pub has_log_access: RwSignal<bool>,
+    /// Template ID to load when opening Editor (set by Marketplace "Use Template")
+    pub editor_template_id: RwSignal<Option<String>>,
+    /// Template ID to fetch content from but treat as new (fork)
+    pub editor_clone_from_id: RwSignal<Option<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -31,6 +35,8 @@ pub enum Page {
     Dashboard,
     Logs,
     Analytics,
+    Editor,
+    Marketplace,
 }
 
 impl Default for AppState {
@@ -42,6 +48,8 @@ impl Default for AppState {
             ui_language: create_rw_signal(UiLanguage::Es),
             user_email: create_rw_signal(None),
             has_log_access: create_rw_signal(false),
+            editor_template_id: create_rw_signal(None),
+            editor_clone_from_id: create_rw_signal(None),
         }
     }
 }
@@ -73,6 +81,8 @@ pub fn App() -> impl IntoView {
                 Page::Dashboard => view! { <DashboardPage/> }.into_view(),
                 Page::Logs => view! { <LogsPage/> }.into_view(),
                 Page::Analytics => view! { <AnalyticsPage/> }.into_view(),
+                Page::Editor => view! { <EditorPage/> }.into_view(),
+                Page::Marketplace => view! { <MarketplacePage/> }.into_view(),
             }}
         </div>
     }

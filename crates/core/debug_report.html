@@ -103,12 +103,40 @@
     </div>
     
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO & ESTRATEGIA</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">DEEP WEB & VIRALITY</h2><div class="space-y-6"><div class="bg-red-900/20 border-l-4 border-red-500 p-6"><h3 class="text-red-400 font-bold mb-2 text-lg">EL DESAFÍO</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">Attacks often incubate silently in closed groups on Telegram and the Dark Web, completely invisible to standard perimeter defenses.</p></div><div class="bg-green-900/20 border-l-4 border-green-500 p-6"><h3 class="text-green-400 font-bold mb-2 text-lg">SOLUCIÓN AXUR</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">Our Deep Web surveillance is active 24/7. In this period, **no critical viral campaigns** were detected, validating that your brand is currently not a 'trending topic' for fraudsters.</p></div></div></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"></path></svg></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-blue-600 px-4 py-1 text-sm font-semibold">AI ANALYSIS</span><div class="flex items-start justify-between mt-4"><h2 class="text-4xl font-bold max-w-2xl">AI Intent Analysis</h2></div><p class="text-xl text-zinc-300 mt-4 max-w-3xl leading-relaxed">Our AI Classifiers reveal that **66%** of attacks aim for **Brand Trust & Phishing**, indicating a specific campaign against your customer base.</p></div><div class="flex-grow bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 relative"><canvas id="intentChart"></canvas></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer><script>(function(){const ctx=document.getElementById('intentChart').getContext('2d');new Chart(ctx,{type:'bar',data:{labels:["Brand Trust & Phishing","Compromised Devices"],datasets:[{label:'Attacks',data:[200,100],backgroundColor:["#f97316","#ef4444"],borderRadius:4,barPercentage: 0.6}]},options:{indexAxis: 'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:true,color:'rgba(255,255,255,0.1)'},ticks:{color:'#a1a1aa'}},y:{grid:{display:false},ticks:{color:'#fff',font:{size:14,weight:'500'}}}}});})();</script></div></div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-blue-600 px-4 py-1 text-sm font-semibold">AI ANALYSIS</span><div class="flex items-start justify-between mt-4"><h2 class="text-4xl font-bold max-w-2xl">AI Intent Analysis</h2></div><p class="text-xl text-zinc-300 mt-4 max-w-3xl leading-relaxed">Our AI Classifiers reveal that **66%** of attacks aim for **Brand Trust & Phishing**, indicating a specific campaign against your customer base.</p></div><div class="flex-grow bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 relative"><canvas id="intentChart"></canvas></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer><script>(function(){
+    function initIntentChart() {
+        if (typeof Chart === 'undefined') { setTimeout(initIntentChart, 100); return; }
+        const ctx=document.getElementById('intentChart').getContext('2d');
+        new Chart(ctx, {
+            type:'bar',
+            data:{
+                labels:["Brand Trust & Phishing","Compromised Devices"],
+                datasets:[{
+                    label:'Attacks',
+                    data:[200,100],
+                    backgroundColor:["#f97316","#ef4444"],
+                    borderRadius:4,
+                    barPercentage: 0.6
+                }]
+            },
+            options:{
+                indexAxis: 'y',
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{legend:{display:false}},
+                scales:{
+                    x:{grid:{display:true,color:'rgba(255,255,255,0.1)'},ticks:{color:'#a1a1aa'}},
+                    y:{grid:{display:false},ticks:{color:'#fff',font:{size:14,weight:'500'}}}
+                }
+            }
+        });
+    }
+    if (document.readyState === 'complete') { initIntentChart(); } else { window.addEventListener('load', initIntentChart); }
+})();</script></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
             <!-- Background Map Effect -->
             <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: url('data:image/svg+xml,%3Csvg width=%22100%25%22 height=%22100%25%22 viewBox=%220 0 100 100%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath d=%22M0,0 L100,0 L100,100 L0,100 Z%22 fill=%22none%22 stroke=%22%23ffffff%22 stroke-width=%220.5%22 stroke-dasharray=%222,4%22/%3E%3C/svg%3E'); background-size: 40px 40px;"></div>
             <div class="absolute right-0 top-20 w-1/2 h-full opacity-5 pointer-events-none">
-                <!-- Abstract World Map Placeholder -->
                 <svg viewBox="0 0 200 100" class="w-full h-full text-white" fill="currentColor"><path d="M20,50 Q50,20 80,50 T140,50 T200,50" stroke="currentColor" stroke-width="0.5" fill="none"/></svg>
             </div>
 
@@ -119,7 +147,7 @@
                         <div class="flex items-start justify-between mt-4">
                             <h2 class="text-4xl font-bold max-w-2xl">Global Attack Origins</h2>
                         </div>
-                        <p class="text-xl text-zinc-300 mt-2 max-w-3xl leading-relaxed">We detected attacks originating from **8 countries**. The primary source of hostile infrastructure is **Brazil**.</p>
+                        <p class="text-xl text-zinc-300 mt-2 max-w-3xl leading-relaxed">We detected attacks originating from **6 countries**. The primary source of hostile infrastructure is **USA**.</p>
                     </div>
                     
                     <div class="grid grid-cols-2 gap-8 flex-grow">
@@ -142,7 +170,37 @@
                                 <div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">Locaweb</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">AWS</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">Google</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">UOL</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
                     <span class="text-zinc-300 truncate text-sm">Cloudflare</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">Hetzner</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
             </div>
@@ -154,156 +212,215 @@
             <footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer>
             <script>
             (function(){
-                const ctx = document.getElementById('geoChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: ["🇧🇷 Brazil","🇺🇸 US","🇺🇸 United States","🇷🇺 Russia","🇩🇪 Germany"],
-                        datasets: [{
-                            label: 'Origem',
-                            data: [1,1,1,1,1],
-                            backgroundColor: 'rgba(99, 102, 241, 0.8)',
-                            borderColor: '#6366f1',
-                            borderWidth: 1,
-                            borderRadius: 6,
-                            barPercentage: 0.6,
-                            categoryPercentage: 0.8
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: 'rgba(24, 24, 27, 0.9)',
-                                titleColor: '#fff',
-                                bodyColor: '#ccc',
-                                borderColor: '#3f3f46',
+                function initGeoChart() {
+                    if (typeof Chart === 'undefined') {
+                        setTimeout(initGeoChart, 100);
+                        return;
+                    }
+                    const ctx = document.getElementById('geoChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: ["🇺🇸 USA","🇨🇳 China","🇧🇷 Brazil","🇩🇪 Germany","🇷🇺 Russia","🇧🇷 Brasil"],
+                            datasets: [{
+                                label: 'Origem',
+                                data: [3,1,1,1,1,1],
+                                backgroundColor: 'rgba(99, 102, 241, 0.8)',
+                                borderColor: '#6366f1',
                                 borderWidth: 1,
-                                padding: 12,
-                                displayColors: false
-                            }
+                                borderRadius: 6,
+                                barPercentage: 0.6,
+                                categoryPercentage: 0.8
+                            }]
                         },
-                        scales: {
-                            x: {
-                                grid: { display: true, color: 'rgba(255,255,255,0.05)' },
-                                ticks: { color: '#71717a', font: { family: 'monospace' } }
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#ccc',
+                                    borderColor: '#3f3f46',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    displayColors: false
+                                }
                             },
-                            y: {
-                                grid: { display: false },
-                                ticks: { 
-                                    color: '#fff', 
-                                    font: { size: 14, weight: 'bold' },
-                                    crossAlign: 'far'
+                            scales: {
+                                x: {
+                                    grid: { display: true, color: 'rgba(255,255,255,0.05)' },
+                                    ticks: { color: '#71717a', font: { family: 'monospace' } }
+                                },
+                                y: {
+                                    grid: { display: false },
+                                    ticks: { 
+                                        color: '#fff', 
+                                        font: { size: 14, weight: 'bold' },
+                                        crossAlign: 'far'
+                                    }
                                 }
                             }
                         }
-                    }
-                });
+                    });
+                }
+                if (document.readyState === 'complete') { initGeoChart(); } else { window.addEventListener('load', initGeoChart); }
             })();
             </script>
         </div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO & ESTRATEGIA</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">Understanding Infostealers</h2><div class="space-y-6"><div class="bg-red-900/20 border-l-4 border-red-500 p-6"><h3 class="text-red-400 font-bold mb-2 text-lg">EL DESAFÍO</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">Stolen credentials from infected devices (Infostealers) allow attackers to bypass MFA by mimicking the user's digital fingerprint.</p></div><div class="bg-green-900/20 border-l-4 border-green-500 p-6"><h3 class="text-green-400 font-bold mb-2 text-lg">SOLUCIÓN AXUR</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">Manually searching the Deep Web is inefficient. Axur scans 42 billion credentials to find only those that pose a real risk to your active sessions.</p></div></div></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="absolute inset-0 opacity-20" style="background-image: linear-gradient(30deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(150deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(30deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), linear-gradient(150deg, #27272a 12%, transparent 12.5%, transparent 87%, #27272a 87.5%, #27272a), radial-gradient(circle at 50% 50%, #f97316 0%, transparent 15%); background-size: 80px 140px; background-position: 0 0, 0 0, 40px 70px, 40px 70px, 0 0;"></div><div class="relative h-full flex flex-col z-10"><h2 class="text-4xl font-bold text-orange-500 mb-2">Risk Landscape: Infostealer Credentials</h2><p class="text-xl text-zinc-300 mb-8">Analysis of 30 detected credentials</p><div class="mb-8 p-6 bg-red-900/10 border border-red-500/30 rounded-xl animate-pulse-slow">
-                <div class="flex items-start gap-4">
-                    <div class="p-3 bg-red-500/10 rounded-lg flex-shrink-0 text-red-500">
-                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    </div>
-                    <div class="flex-grow">
-                        <h3 class="text-xl font-bold text-red-500 mb-2">CRITICAL: Corporate Pattern Detected</h3>
-                        <p class="text-zinc-400 mb-4 text-sm">Found <span class="text-white font-bold">2</span> identities using variations of the company name in their passwords.</p>
-                        <div class="space-y-2">
-                            <div class="font-mono text-xs md:text-sm text-red-200 bg-red-950/40 px-3 py-2 rounded border border-red-500/20 flex justify-between items-center">
-                    <span class="truncate pr-4">admin@corporate.com</span>
-                    <div class="flex items-center gap-2">
-                        <span class="text-zinc-500 text-[10px]">PASS:</span>
-                        <span class="text-red-400 font-bold">Co...4!</span>
-                    </div>
-                </div><div class="font-mono text-xs md:text-sm text-red-200 bg-red-950/40 px-3 py-2 rounded border border-red-500/20 flex justify-between items-center">
-                    <span class="truncate pr-4">finance@corporate.com</span>
-                    <div class="flex items-center gap-2">
-                        <span class="text-zinc-500 text-[10px]">PASS:</span>
-                        <span class="text-red-400 font-bold">Co...23</span>
-                    </div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-8 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
+            <!-- Background Decoration -->
+            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 70% 30%, #4f46e5 0%, transparent 20%), radial-gradient(circle at 30% 70%, #ea580c 0%, transparent 20%);"></div>
+
+            <div class="relative h-full flex flex-col z-10">
+                <div class="mb-6 border-b border-zinc-800 pb-4">
+                    <h2 class="text-3xl font-bold text-white mb-2">Sensitive Data Exposure</h2>
+                    <p class="text-lg text-zinc-400">Total external attack surface analysis</p>
                 </div>
+
+                <div class="grid grid-cols-2 gap-8 flex-grow">
+                    <!-- Left: Code Leaks (Purple/Zinc) -->
+                     <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 backdrop-blur-sm flex flex-col">
+                        <h3 class="text-xl font-semibold text-indigo-400 mb-6 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                            Source Code Leaks
+                        </h3>
+                        <div class="space-y-4 flex-grow">
+                            <div class="flex justify-between items-end p-4 bg-zinc-800/50 rounded-lg">
+                                <div><p class="text-3xl font-bold text-white">15</p><p class="text-xs text-zinc-500 uppercase tracking-wider">Total Secrets Exposed</p></div>
+                            </div>
+                            <div class="flex justify-between items-end p-4 bg-zinc-800/50 rounded-lg">
+                                <div><p class="text-3xl font-bold text-white">3</p><p class="text-xs text-zinc-500 uppercase tracking-wider">Unique Public Repos</p></div>
+                            </div>
+                            <div class="flex justify-between items-end p-4 bg-red-900/20 border border-red-500/20 rounded-lg">
+                                <div><p class="text-3xl font-bold text-red-400">1</p><p class="text-xs text-red-300 uppercase tracking-wider">Production Secrets</p></div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div><div class="grid grid-cols-3 gap-8 mb-8"><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">30</p><p class="text-zinc-400">Total Credentials</p></div><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">5</p><p class="text-zinc-400">Unique Hosts Compromised</p></div><div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm"><p class="text-5xl font-bold text-white mb-2">2</p><p class="text-zinc-400">High Risk Users</p></div></div><div class="bg-orange-600/20 border border-orange-600/50 p-6 rounded-lg flex items-start gap-4"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-orange-100 italic">Immediate Action: Force password reset for exposed users and prioritize isolating infected hosts.</p></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">8</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">The Danger of Exposed Secrets</h2><p class="text-xl text-zinc-300 leading-relaxed text-justify">Developers sometimes inadvertently commit sensitive keys, tokens, or credentials to public repositories. These 'secrets' can grant attackers access to cloud infrastructure, databases, or internal services. Continuous monitoring of public code repositories is crucial to detect and revoke these keys immediately.</p></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path></svg></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-50"><div class="flex-grow h-full overflow-hidden"><div class="absolute right-0 top-0 w-1/3 h-full bg-zinc-200/50 slanted-bg"></div><div class="relative h-full flex flex-col z-10"><h2 class="text-4xl font-bold text-zinc-900 mb-2">Risk Landscape: Code Credential Leaks</h2><p class="text-xl text-zinc-600 mb-12">Analysis of 15 public secrets exposed</p><div class="grid grid-cols-3 gap-8 mb-12"><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-orange-500"><p class="text-5xl font-bold text-zinc-900 mb-2">15</p><p class="text-zinc-500">Total Secrets Exposed</p></div><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-zinc-500"><p class="text-5xl font-bold text-zinc-900 mb-2">3</p><p class="text-zinc-500">Unique Public Repos</p></div><div class="bg-white p-8 rounded-xl shadow-md border-l-4 border-red-500"><p class="text-5xl font-bold text-zinc-900 mb-2">1</p><p class="text-zinc-500">Production Secrets</p></div></div><div class="bg-red-50 border border-red-200 p-6 rounded-lg flex items-start gap-4"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-8 h-8 text-red-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-red-800 italic">Immediate Action: Rotate Production keys and API Keys immediately. Implement secret scanning in CI/CD pipeline.</p></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">9</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">Incidents by Type</h2><p class="text-zinc-600 max-w-4xl text-lg">A total of <strong>500</strong> incidents were created. This chart details the relationship between raw detections and confirmed incidents.</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="incidentsChart"></canvas></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">10</span></div></footer><script>(function(){const ctx=document.getElementById('incidentsChart').getContext('2d');new Chart(ctx,{type:'doughnut',data:{labels:["Phishing"],datasets:[{data:[200],backgroundColor:['#fb923c','#f97316','#ea580c','#c2410c','#7c2d12'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});})();</script></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white">
-            <div class="flex-grow h-full overflow-hidden">
-                <div class="h-full flex flex-col">
-                    <!-- Header -->
-                    <div class="mb-4 flex justify-between items-start flex-shrink-0">
-                        <div>
-                            <span class="bg-orange-600 px-4 py-1 text-sm font-semibold">HISTORIAS DE INCIDENTES</span>
-                            <h2 class="text-3xl font-bold mt-2">Incident Story</h2>
-                            <p class="text-zinc-400 mt-1 text-sm">Timeline of 2 related incidents</p>
-                        </div>
-                         <div class="opacity-50 grayscale hover:grayscale-0 transition-all">
-                             <div class="flex items-center gap-1">
-                                <span class="text-orange-600 text-xl font-black italic">///</span>
-                                <span class="text-white text-lg font-bold">AXUR</span>
-                             </div>
-                         </div>
-                    </div>
-                    
-                    <!-- Chart Section -->
-                    <div class="h-56 bg-zinc-900/30 rounded-xl p-4 border border-zinc-800/50 mb-4 relative">
-                        <canvas id="storyTimelineChart"></canvas>
+                        <div class="mt-4 text-xs text-zinc-500 italic border-t border-zinc-800 pt-3">Immediate Action: Rotate Production keys and API Keys immediately. Implement secret scanning in CI/CD pipeline.</div>
                     </div>
 
-                    <!-- Examples Section -->
-                    <div class="grid grid-cols-4 gap-3 flex-grow min-h-0">
-                        <div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 flex flex-col h-full hover:bg-zinc-900 transition-colors">
+                    <!-- Right: Infostealer (Orange/Red) -->
+                    <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 backdrop-blur-sm flex flex-col">
+                        <h3 class="text-xl font-semibold text-orange-400 mb-6 flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                            Infostealer Credentials
+                        </h3>
+                        
+                        <div class="mb-6 p-4 bg-red-900/10 border border-red-500/30 rounded-xl animate-pulse-slow">
+                <div class="flex items-start gap-3">
+                    <div class="p-2 bg-red-500/10 rounded-lg flex-shrink-0 text-red-500">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <div class="flex-grow">
+                        <h3 class="text-sm font-bold text-red-500 mb-1">CRITICAL: Corporate Pattern Detected</h3>
+                        <p class="text-zinc-400 mb-2 text-xs">Found <span class="text-white font-bold">2</span> identities using variations of the company name in their passwords.</p>
+                        <div><div class="font-mono text-xs text-red-200 bg-red-950/40 px-2 py-1.5 rounded border border-red-500/20 flex justify-between items-center mb-1">
+                    <span class="truncate pr-2 max-w-[120px]">admin@corporate.com</span>
+                    <span class="text-red-400 font-bold">Co...4!</span>
+                </div><div class="font-mono text-xs text-red-200 bg-red-950/40 px-2 py-1.5 rounded border border-red-500/20 flex justify-between items-center mb-1">
+                    <span class="truncate pr-2 max-w-[120px]">finance@corporate.com</span>
+                    <span class="text-red-400 font-bold">Co...23</span>
+                </div></div>
+                    </div>
+                </div>
+            </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="p-3 bg-zinc-800/50 rounded-lg">
+                                <p class="text-2xl font-bold text-white">30</p>
+                                <p class="text-[10px] text-zinc-500 uppercase">Total Credentials</p>
+                            </div>
+                            <div class="p-3 bg-zinc-800/50 rounded-lg">
+                                <p class="text-2xl font-bold text-white">5</p>
+                                <p class="text-[10px] text-zinc-500 uppercase">Unique Hosts Compromised</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-auto text-xs text-zinc-500 italic border-t border-zinc-800 pt-3">Immediate Action: Force password reset for exposed users and prioritize isolating infected hosts.</div>
+                    </div>
+                </div>
+            </div>
+            <footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">8</span></div></footer>
+        </div></div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">Incidents by Type</h2><p class="text-zinc-600 max-w-4xl text-lg">A total of <strong>500</strong> incidents were created. This chart details the relationship between raw detections and confirmed incidents.</p></div><div class="flex-grow bg-white p-6 rounded-lg shadow-md border border-zinc-200 relative"><canvas id="incidentsChart"></canvas></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">10</span></div></footer><script>(function(){
+    function initIncidentsChart() {
+        if (typeof Chart === 'undefined') { setTimeout(initIncidentsChart, 100); return; }
+        const ctx=document.getElementById('incidentsChart').getContext('2d');
+        new Chart(ctx,{
+            type:'doughnut',
+            data:{
+                labels:["Phishing"],
+                datasets:[{
+                    data:[200],
+                    backgroundColor:['#fb923c','#f97316','#ea580c','#c2410c','#7c2d12'],
+                    borderWidth:0
+                }]
+            },
+            options:{
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{legend:{position:'right'}}
+            }
+        });
+    }
+    if (document.readyState === 'complete') { initIncidentsChart(); } else { window.addEventListener('load', initIncidentsChart); }
+})();</script></div></div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-8 md:p-12 shadow-lg mb-8 relative bg-zinc-950 text-white">
+            <div class="flex-grow h-full overflow-hidden flex flex-col">
+                <div class="flex items-center justify-between mb-2">
+                   <div>
+                        <span class="bg-orange-600 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white mb-2 inline-block">INCIDENT INTELLIGENCE</span>
+                        <h2 class="text-3xl font-bold">Incident Story</h2>
+                        <p class="text-zinc-400 text-sm">Timeline of 2 related incidents</p>
+                   </div>
+                </div>
+                
+                
+
+                <!-- Top: Timeline Chart -->
+                <div class="h-40 w-full bg-zinc-900/30 rounded-lg border border-zinc-800 p-4 relative mb-4">
+                    <canvas id="storyTimelineChart"></canvas>
+                </div>
+
+                <!-- Bottom: Evidence Gallery -->
+                <div class="flex-grow">
+                    <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-3 border-b border-zinc-800 pb-2">Verified Threats (Evidence)</h3>
+                    <div class="grid grid-cols-3 gap-4 h-full">
+                        <div class="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 flex flex-col h-full hover:bg-zinc-800/60 transition-colors backdrop-blur-sm">
+                <div class="relative h-40 w-full bg-zinc-900 rounded-lg overflow-hidden border border-zinc-700 mb-3">
+                    <img src="http://example.com/story.png" class="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                </div>
                 <div class="flex justify-between items-start mb-2">
-                    <span class="text-[0.6rem] px-2 py-0.5 rounded border bg-red-500/20 text-red-400 border-red-500/30 uppercase font-bold">🔴</span>
+                    <span class="text-[0.65rem] px-2 py-0.5 rounded border text-red-400 bg-red-900/30 border-red-500/30 uppercase font-bold tracking-wider">incident</span>
                     <span class="text-xs font-mono text-zinc-500">01/01/2023</span>
                 </div>
-                <div class="relative h-24 w-full rounded-lg overflow-hidden border border-zinc-700 mb-2">
-                    <img src="http://example.com/story.png" class="w-full h-full object-cover" />
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                </div>
+                <h4 class="text-white font-bold text-sm truncate mb-1">Brand</h4>
+                <p class="text-indigo-400 text-xs truncate mb-2">phishing</p>
                 
-                <div class="flex items-center gap-2 mb-1">
-                    <span class="text-base">🎣</span>
-                    <h4 class="text-white font-bold text-xs truncate flex-1">Brand</h4>
+                <div class="mt-auto pt-3 border-t border-zinc-700/50 flex justify-between items-center">
+                     <span class="text-[10px] text-zinc-500 uppercase tracking-widest">ID: STORY-123</span>
+                     <span class="text-xs text-zinc-400">View Evidence →</span>
                 </div>
-                <div class="mt-auto pt-2 border-t border-zinc-800 flex items-center justify-between text-[0.6rem] text-zinc-500">
-                    <span>Riesgo</span>
-                    <div class="flex items-center gap-2">
-                        <div class="w-12 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                            <div class="h-full bg-red-500" style="width: 80%"></div>
-                        </div>
-                        <span>80%</span>
-                    </div>
+            </div><div class="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 flex flex-col h-full hover:bg-zinc-800/60 transition-colors backdrop-blur-sm">
+                <div class="h-40 w-full rounded-lg bg-zinc-900 border border-zinc-700 mb-3 flex items-center justify-center">
+                <div class="text-center">
+                    <span class="text-zinc-600 text-3xl block mb-2">📷</span>
+                    <span class="text-zinc-500 text-xs">No preview</span>
                 </div>
-            </div><div class="bg-zinc-900/50 p-3 rounded-xl border border-zinc-800 flex flex-col h-full hover:bg-zinc-900 transition-colors">
+            </div>
                 <div class="flex justify-between items-start mb-2">
-                    <span class="text-[0.6rem] px-2 py-0.5 rounded border bg-green-500/20 text-green-400 border-green-500/30 uppercase font-bold">✅</span>
+                    <span class="text-[0.65rem] px-2 py-0.5 rounded border text-green-400 bg-green-900/30 border-green-500/30 uppercase font-bold tracking-wider">closed</span>
                     <span class="text-xs font-mono text-zinc-500">05/01/2023</span>
                 </div>
-                <div class="h-24 w-full rounded-lg bg-zinc-800 border border-zinc-700 mb-2 flex items-center justify-center">
-                <span class="text-zinc-500 text-xs">No preview</span>
-            </div>
+                <h4 class="text-white font-bold text-sm truncate mb-1">Executive</h4>
+                <p class="text-indigo-400 text-xs truncate mb-2">fake-social-media-profile</p>
                 
-                <div class="flex items-center gap-2 mb-1">
-                    <span class="text-base">👤</span>
-                    <h4 class="text-white font-bold text-xs truncate flex-1">Executive</h4>
-                </div>
-                <div class="mt-auto pt-2 border-t border-zinc-800 flex items-center justify-between text-[0.6rem] text-zinc-500">
-                    <span>Riesgo</span>
-                    <div class="flex items-center gap-2">
-                        <div class="w-12 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                            <div class="h-full bg-orange-500" style="width: 50%"></div>
-                        </div>
-                        <span>50%</span>
-                    </div>
+                <div class="mt-auto pt-3 border-t border-zinc-700/50 flex justify-between items-center">
+                     <span class="text-[10px] text-zinc-500 uppercase tracking-widest">ID: STORY-124</span>
+                     <span class="text-xs text-zinc-400">View Evidence →</span>
                 </div>
             </div>
                     </div>
@@ -312,57 +429,84 @@
             <footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">11</span></div></footer>
             <script>
             (function(){
-                const ctx = document.getElementById('storyTimelineChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: ["2023-01-01","2023-01-05"],
-                        datasets: [{
-                            label: 'Incidentes',
-                            data: [1,1],
-                            borderColor: '#f97316',
-                            backgroundColor: 'rgba(249, 115, 22, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            pointBackgroundColor: '#ea580c',
-                            pointRadius: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                backgroundColor: 'rgba(24, 24, 27, 0.9)',
-                                titleColor: '#fff',
-                                bodyColor: '#ccc',
-                                borderColor: '#3f3f46',
-                                borderWidth: 1
-                            }
+                function initStoryChart() {
+                    if (typeof Chart === 'undefined') { setTimeout(initStoryChart, 100); return; }
+                    const ctx = document.getElementById('storyTimelineChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ["2023-01-01","2023-01-05"],
+                            datasets: [{
+                                label: 'Incidentes',
+                                data: [1,1],
+                                borderColor: '#f97316',
+                                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4,
+                                pointBackgroundColor: '#ea580c',
+                                pointRadius: 4
+                            }]
                         },
-                        scales: {
-                            x: {
-                                grid: { display: false, color: '#3f3f46' },
-                                ticks: { color: '#71717a', maxRotation: 45, minRotation: 45 }
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(24, 24, 27, 0.9)',
+                                    titleColor: '#fff',
+                                    bodyColor: '#ccc',
+                                    borderColor: '#3f3f46',
+                                    borderWidth: 1
+                                }
                             },
-                            y: {
-                                grid: { color: '#27272a' },
-                                ticks: { color: '#71717a', stepSize: 1 },
-                                beginAtZero: true
+                            scales: {
+                                x: {
+                                    grid: { display: false, color: '#3f3f46' },
+                                    ticks: { color: '#71717a', maxRotation: 45, minRotation: 45 }
+                                },
+                                y: {
+                                    grid: { color: '#27272a' },
+                                    ticks: { color: '#71717a', stepSize: 1 },
+                                    beginAtZero: true
+                                }
                             }
                         }
-                    }
-                });
+                    });
+                }
+                if (document.readyState === 'complete') { initStoryChart(); } else { window.addEventListener('load', initStoryChart); }
             })();
             </script>
         </div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO & ESTRATEGIA</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">The Takedown Process</h2><div class="space-y-6"><div class="bg-red-900/20 border-l-4 border-red-500 p-6"><h3 class="text-red-400 font-bold mb-2 text-lg">EL DESAFÍO</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">Managing takedowns across different platforms requires handling endless bureaucracy and forms for each provider.</p></div><div class="bg-green-900/20 border-l-4 border-green-500 p-6"><h3 class="text-green-400 font-bold mb-2 text-lg">SOLUCIÓN AXUR</h3><p class="text-lg text-zinc-300 leading-relaxed text-justify">Axur has trusted integrations with these platforms. What takes a lawyer days, we request en masse with a 98.9% success rate.</p></div></div></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-4"><h2 class="text-4xl font-bold mb-4">Takedowns</h2></div><div class="grid grid-cols-12 gap-8 flex-grow"><div class="col-span-4 flex flex-col gap-4"><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">1000</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">takedowns requested</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">95.0%</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">success rate</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">10 min</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">median time for<br>1st notification</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">2 hrs</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">uptime median</p></div></div><div class="col-span-8 bg-white p-8 rounded-lg shadow-md border border-zinc-200 flex flex-col"><h3 class="text-xl font-bold text-zinc-700 mb-6">Takedown status</h3><div class="flex-grow relative"><canvas id="takedownChart"></canvas></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">11</span></div></footer><script>(function(){const ctx=document.getElementById('takedownChart').getContext('2d');new Chart(ctx,{type:'doughnut',data:{labels:["Solved","In progress","Interrupted","Not solved"],datasets:[{data:[40,5,2,3],backgroundColor:['#10b981','#f59e0b','#ef4444','#64748b'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:14}}}}}});})();</script></div></div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><div class="mb-4"><h2 class="text-4xl font-bold mb-4">Takedowns</h2></div><div class="grid grid-cols-12 gap-8 flex-grow"><div class="col-span-4 flex flex-col gap-4"><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">1000</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">takedowns requested</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">95.0%</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">success rate</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">10 min</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">median time for<br>1st notification</p></div><div class="bg-white p-6 rounded-lg shadow border border-zinc-200"><p class="text-4xl font-bold text-zinc-900">2 hrs</p><p class="text-xs text-zinc-500 uppercase tracking-wide mt-1">uptime median</p></div></div><div class="col-span-8 bg-white p-8 rounded-lg shadow-md border border-zinc-200 flex flex-col"><h3 class="text-xl font-bold text-zinc-700 mb-6">Takedown status</h3><div class="flex-grow relative"><canvas id="takedownChart"></canvas></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">11</span></div></footer><script>(function(){
+    function initTakedownChart() {
+        if (typeof Chart === 'undefined') { setTimeout(initTakedownChart, 100); return; }
+        const ctx=document.getElementById('takedownChart').getContext('2d');
+        new Chart(ctx,{
+            type:'doughnut',
+            data:{
+                labels:["Solved","In progress","Interrupted","Not solved"],
+                datasets:[{
+                    data:[40,5,2,3],
+                    backgroundColor:['#10b981','#f59e0b','#ef4444','#64748b'],
+                    borderWidth:0
+                }]
+            },
+            options:{
+                responsive:true,
+                maintainAspectRatio:false,
+                plugins:{
+                    legend:{position:'right',labels:{font:{size:14}}}
+                }
+            }
+        });
+    }
+    if (document.readyState === 'complete') { initTakedownChart(); } else { window.addEventListener('load', initTakedownChart); }
+})();</script></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">OPERATIONAL IMPACT</span><h2 class="text-4xl font-bold mt-4">Impact & ROI</h2></div><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3 class="text-2xl font-bold mb-2">Time Saved</h3><p class="text-4xl font-bold text-orange-500 mb-4">12 <span class="text-base font-normal text-zinc-400">person-days</span></p><p class="text-zinc-400 text-sm leading-relaxed">Hours your team would have spent manually processing these signals and threats.</p><div class="mt-4 text-xs text-zinc-500"><p>• Validation: 40h</p><p>• Monitoring: 20h</p><p>• Takedowns: 40h</p></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94-3.198a9.094 9.094 0 01-5.454-2.82m0 0a2.25 2.25 0 00-3.182 0m3.182 0a2.25 2.25 0 010 3.182m-3.182-3.182L12 12.75m0 0l3.182 3.182m-3.182-3.182L12 12.75"></path></svg></div><h3 class="text-2xl font-bold mb-2">Freed Capacity</h3><p class="text-4xl font-bold text-orange-500 mb-4">60%</p><p class="text-zinc-400 text-sm leading-relaxed">Equivalent capacity of security analysts that Axur frees for strategic tasks.</p><div class="mt-4"><div class="flex items-center gap-2 text-xs text-zinc-500"><span class="w-3 h-3 rounded-full bg-green-500"></span><span>1000 tickets processed</span></div><div class="flex items-center gap-2 text-xs text-zinc-500 mt-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span>30 credentials monitored</span></div></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path></svg></div><h3 class="text-2xl font-bold mb-2">Response Time</h3><p class="text-4xl font-bold text-orange-500 mb-4">180x</p><p class="text-zinc-400 text-sm leading-relaxed">Managing threats with Axur is **180x faster** than industry average. AI correlation happens in seconds, replacing 30-minute manual triage per alert.</p><div class="mt-4 space-y-2"><div class="flex justify-between text-xs"><span class="text-zinc-500">Success rate</span><span class="text-green-400 font-bold">95.0%</span></div><div class="flex justify-between text-xs"><span class="text-zinc-500">Takedowns completed</span><span class="text-white font-bold">40</span></div></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">EVIDENCIAS</span></div><div class="mb-8"><h2 class="text-4xl font-bold mb-4">Resolved Takedowns: Examples</h2></div><div class="grid grid-cols-3 gap-6 flex-grow"><div class="bg-white p-6 rounded-lg shadow-md border border-zinc-200"><div class="mb-4"><div class="w-full h-48 bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-md border border-zinc-200">No Image Available</div></div><div class="space-y-2"><p class="font-bold text-zinc-800 text-lg line-clamp-1">US Takedown</p><p class="text-xs text-zinc-500"><span class="font-bold">Date:</span> -</p><p class="text-xs text-zinc-500"><span class="font-bold">URL:</span> </p></div></div><div class="bg-white p-6 rounded-lg shadow-md border border-zinc-200"><div class="mb-4"><div class="w-full h-48 bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-md border border-zinc-200">No Image Available</div></div><div class="space-y-2"><p class="font-bold text-zinc-800 text-lg line-clamp-1">BR Takedown</p><p class="text-xs text-zinc-500"><span class="font-bold">Date:</span> -</p><p class="text-xs text-zinc-500"><span class="font-bold">URL:</span> </p></div></div><div class="bg-white p-6 rounded-lg shadow-md border border-zinc-200"><div class="mb-4"><div class="w-full h-48 bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-md border border-zinc-200">No Image Available</div></div><div class="space-y-2"><p class="font-bold text-zinc-800 text-lg line-clamp-1">CN Takedown</p><p class="text-xs text-zinc-500"><span class="font-bold">Date:</span> -</p><p class="text-xs text-zinc-500"><span class="font-bold">URL:</span> </p></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">13</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">EVIDENCIAS</span></div><h2 class="text-3xl font-bold mb-6">Examples of Detected Threats</h2><div class="grid grid-cols-3 gap-4 flex-grow"><div class="bg-white p-4 rounded-xl shadow-lg border border-zinc-200"><div class="w-full h-32 bg-zinc-100 rounded-lg overflow-hidden mb-3"><img src="http://example.com/poc.png" alt="Evidence screenshot" class="w-full h-full object-cover object-top" onerror="this.parentNode.innerHTML=&quot;<div class='flex items-center justify-center h-full text-zinc-400 text-xs'>No Image Available</div>&quot;"/></div><div class="flex justify-between items-start mb-2"><span class="font-bold text-zinc-800">POC-123</span><span class="text-xs px-2 py-1 rounded bg-red-100 text-red-700">incident</span></div><p class="text-sm text-zinc-600 mb-2">Phishing</p><p class="text-xs text-blue-500 truncate">malicious.com</p></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">12</span></div></footer></div></div>
 
     <div class="printable-slide aspect-[16/9] w-full p-0 relative bg-zinc-950 flex overflow-hidden">
         <!-- Left Side: Visuals -->

@@ -226,7 +226,7 @@ pub fn upload_log_async(category: &str, filename: &str, content: String) {
 
 /// Upload a generated report (Hybrid)
 pub fn upload_report_async(tenant: &str, filename: &str, content: String) {
-    let tenant = tenant.to_string();
+    let _tenant = tenant.to_string(); // Reserved for future tenant-based organization
     let filename = filename.to_string();
     let category = "reports".to_string();
 
