@@ -94,7 +94,7 @@ pub fn DashboardPage() -> impl IntoView {
                     user_templates.set(resp.templates);
                 }
             }
-            Err(e) => tracing::error!("Failed to fetch templates: {}", e),
+            Err(e) => leptos::logging::error!("Failed to fetch templates: {}", e),
         }
 
         loading_tenants.set(false);
