@@ -77,3 +77,5 @@ config/client_secret.json
 *.pptx
 restore_script.js
 docs/temp_docs.md
+config/token.json
+config/admins.json

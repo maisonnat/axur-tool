@@ -30,25 +30,41 @@ async fn main() {
     tracing::info!("Queue worker started");
 
     // Initialize Google Services
-    let client_secret_path = "config/client_secret.json";
-    let token_path = "config/token.json";
-
-    let google_services = if std::path::Path::new(token_path).exists() {
-        match axur_backend::google_services::GoogleServices::new(client_secret_path, token_path)
-            .await
-        {
+    // Priority: 1) Environment variables (production), 2) Local files (development)
+    let google_services = if std::env::var("GOOGLE_CLIENT_ID").is_ok() {
+        // Production: use environment variables
+        match axur_backend::google_services::GoogleServices::from_env().await {
             Ok(service) => {
-                tracing::info!("Google Services initialized (User Credentials)");
+                tracing::info!("Google Services initialized (Environment Variables)");
                 Some(std::sync::Arc::new(service))
             }
             Err(e) => {
-                tracing::error!("Failed to initialize Google Services: {}", e);
+                tracing::error!("Failed to initialize Google Services from env: {}", e);
                 None
             }
         }
     } else {
-        tracing::warn!("User Credentials (token.json) not found. Google integration disabled.");
-        None
+        // Development: use local token.json file
+        let client_secret_path = "config/client_secret.json";
+        let token_path = "config/token.json";
+
+        if std::path::Path::new(token_path).exists() {
+            match axur_backend::google_services::GoogleServices::new(client_secret_path, token_path)
+                .await
+            {
+                Ok(service) => {
+                    tracing::info!("Google Services initialized (Local Files)");
+                    Some(std::sync::Arc::new(service))
+                }
+                Err(e) => {
+                    tracing::error!("Failed to initialize Google Services: {}", e);
+                    None
+                }
+            }
+        } else {
+            tracing::warn!("Google credentials not found. Google integration disabled.");
+            None
+        }
     };
 
     let pool = axur_backend::db::get_db().cloned();
