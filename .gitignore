@@ -71,3 +71,9 @@ story_debug.log
 # Debug logs
 debug_logs/
 
+
+config/credentials.json
+config/client_secret.json
+*.pptx
+restore_script.js
+docs/temp_docs.md

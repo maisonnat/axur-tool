@@ -3,15 +3,20 @@
 //! Endpoints for listing tenants and generating HTML reports.
 //! Includes structured error codes for better debugging.
 
+use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::Json;
 use axum_extra::extract::CookieJar;
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
 use std::convert::Infallible;
+use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::middleware::AUTH_COOKIE_NAME;
+use crate::routes::templates::{self, GitHubConfig};
+use crate::routes::AppState;
 use axur_core::api::report::{
     fetch_available_tenants, fetch_full_report, fetch_tagged_tickets_for_preview,
     preview_threat_hunting,
@@ -104,6 +109,7 @@ pub async fn list_tenants(jar: CookieJar) -> Result<Json<Vec<TenantResponse>>, A
 
 /// Generate HTML report for a tenant with structured error handling
 pub async fn generate_report(
+    State(state): State<AppState>,
     jar: CookieJar,
     Json(payload): Json<GenerateReportRequest>,
 ) -> Result<Json<GenerateReportResponse>, ApiError> {
@@ -223,7 +229,57 @@ pub async fn generate_report(
                 );
             }
         }
-        // Future: Fetch from DB if not a mock
+        // Fetch from DB if not a mock template
+        if custom_template_slides.is_none() {
+            if let Ok(uuid) = Uuid::parse_str(tid) {
+                // Fetch template by UUID (no tenant check - user templates are personal)
+                let row = if let Some(pool) = &state.pool {
+                    sqlx::query("SELECT github_path FROM user_templates WHERE id = $1")
+                        .bind(uuid)
+                        .fetch_optional(pool)
+                        .await
+                } else {
+                    tracing::warn!("Database pool missing, skipping custom template fetch");
+                    Ok(None)
+                };
+
+                match row {
+                    Ok(Some(row)) => {
+                        let path: String = row.get("github_path");
+                        if let Some(config) = GitHubConfig::from_env() {
+                            match templates::fetch_template_from_github(&config, &path).await {
+                                Ok(tmpl) => {
+                                    let slides: Vec<String> = tmpl
+                                        .slides
+                                        .iter()
+                                        .filter_map(|s| s.canvas_json.clone())
+                                        .collect();
+                                    if !slides.is_empty() {
+                                        custom_template_slides = Some(slides);
+                                        tracing::info!(
+                                            "Using custom private template: {}",
+                                            tmpl.name
+                                        );
+                                    } else {
+                                        tracing::warn!("Custom template {} has no slides", tid);
+                                    }
+                                }
+                                Err(e) => tracing::error!(
+                                    "Failed to fetch custom template from GitHub: {}",
+                                    e
+                                ),
+                            }
+                        } else {
+                            tracing::error!("GitHub config missing for custom template fetch");
+                        }
+                    }
+                    Ok(None) => {
+                        tracing::warn!("Custom template {} not found", tid)
+                    }
+                    Err(e) => tracing::error!("Database error fetching template: {}", e),
+                }
+            }
+        }
     }
 
     // Generate HTML report

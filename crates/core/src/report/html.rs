@@ -3566,7 +3566,14 @@ fn inject_report_data(json: &str, data: &PocReportData) -> String {
         .replace("{{total_incidents}}", &data.total_threats.to_string())
         .replace("{{total_takedowns}}", &data.takedown_resolved.to_string())
         .replace("{{avg_takedown_time}}", &format!("{}h", data.deep_analytics.avg_takedown_time_hours.unwrap_or(0.0)))
-        .replace("{{risk_score}}", &format!("{:.1}", data.risk_score.current));
+        .replace("{{risk_score}}", &format!("{:.1}", data.risk_score.current))
+        // Executive Summary Metrics
+        .replace("{{signals}}", &data.total_tickets.to_string())
+        .replace("{{incidents}}", &data.total_threats.to_string())
+        .replace("{{threats}}", &data.total_threats.saturating_sub(data.takedown_resolved).to_string())
+        .replace("{{credentials}}", &data.credentials_total.to_string())
+        .replace("{{takedowns}}", &data.takedown_resolved.to_string())
+        .replace("{{code_leaks}}", &data.secrets_total.to_string());
 
     // 2. Risk Score Color/Label Logic (Simplistic check)
     let (risk_label, risk_color) = if data.risk_score.current >= 7.0 {
