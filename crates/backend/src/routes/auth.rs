@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::error::ApiError;
-use crate::middleware::AUTH_COOKIE_NAME;
+use crate::middleware::{AUTH_COOKIE_NAME, AUTH_USER_COOKIE_NAME};
 
 // Axur API URL
 const AXUR_API_URL: &str = "https://api.axur.com/gateway/1.0/api";
@@ -238,7 +238,15 @@ pub async fn finalize(
         .max_age(cookie::time::Duration::days(7))
         .build();
 
-    let updated_jar = jar.add(cookie);
+    let user_cookie = Cookie::build((AUTH_USER_COOKIE_NAME, payload.email))
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::None)
+        .path("/")
+        .max_age(cookie::time::Duration::days(7))
+        .build();
+
+    let updated_jar = jar.add(cookie).add(user_cookie);
 
     Ok((
         updated_jar,
@@ -298,7 +306,15 @@ pub async fn logout(jar: CookieJar) -> impl IntoResponse {
         .max_age(cookie::time::Duration::seconds(0))
         .build();
 
-    let updated_jar = jar.add(cookie);
+    let user_cookie = Cookie::build((AUTH_USER_COOKIE_NAME, ""))
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::None)
+        .path("/")
+        .max_age(cookie::time::Duration::seconds(0))
+        .build();
+
+    let updated_jar = jar.add(cookie).add(user_cookie);
 
     (
         updated_jar,

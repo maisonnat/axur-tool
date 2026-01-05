@@ -6,12 +6,15 @@ pub mod feedback;
 pub mod import_export;
 pub mod logs_api; // Log viewing API
 pub mod marketplace; // Template marketplace
+pub mod queue; // Request queue with rate limiting
 pub mod remote_log; // Private GitHub log uploads
 pub mod report;
 pub mod status; // Production health checks
-pub mod templates; // Template CRUD // Import/Export (PPTX, etc.)
+pub mod storage; // GitHub storage for user data
+pub mod templates; // Template CRUD
 
 use axum::{
+    extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
     routing::{delete, get, post, put},
     Router,
@@ -19,8 +22,14 @@ use axum::{
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
+#[derive(Clone)]
+pub struct AppState {
+    pub google_services: Option<std::sync::Arc<crate::google_services::GoogleServices>>,
+    pub pool: Option<sqlx::PgPool>,
+}
+
 /// Create the main router with all routes and middleware
-pub fn create_router() -> Router {
+pub fn create_router(_state: AppState) -> Router {
     // CORS configuration - allow frontend origins (dev + production)
     let cors = CorsLayer::new()
         .allow_origin([
@@ -66,12 +75,16 @@ pub fn create_router() -> Router {
         .route("/api/auth/validate", get(auth::validate))
         .route("/api/auth/logout", post(auth::logout))
         // Marketplace (browse is public)
-        .route("/api/marketplace", get(marketplace::list_marketplace));
+        .route("/api/marketplace", get(marketplace::list_marketplace))
+        // Template GET is public (mock templates don't need auth)
+        .route("/api/templates/:id", get(templates::get_template));
 
     // Protected routes (Require Authentication)
-    let protected_routes = Router::new()
+    let protected_routes: Router<AppState> = Router::new()
         .route("/api/tenants", get(report::list_tenants))
         .route("/api/report/generate", post(report::generate_report))
+        .route("/api/export/inject", post(import_export::inject_pptx))
+        .route("/api/import/pptx", post(import_export::import_pptx))
         .route(
             "/api/threat-hunting/preview",
             post(report::threat_hunting_preview),
@@ -92,7 +105,7 @@ pub fn create_router() -> Router {
         // Template CRUD API
         .route("/api/templates", get(templates::list_templates))
         .route("/api/templates", post(templates::create_template))
-        .route("/api/templates/:id", get(templates::get_template))
+        // GET /api/templates/:id is in public routes (mock templates)
         .route("/api/templates/:id", put(templates::update_template))
         .route("/api/templates/:id", delete(templates::delete_template))
         .route(
@@ -121,15 +134,29 @@ pub fn create_router() -> Router {
             "/api/admin/marketplace/:id/reject",
             post(marketplace::reject_template),
         )
-        // Import/Export
-        .route("/api/import/pptx", post(import_export::import_pptx))
         .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
 
-    Router::new()
+    // Queue routes (public - users need to check their queue status)
+    let queue_routes = queue::queue_routes();
+
+    // Storage routes (user templates via GitHub)
+    let storage_routes = storage::storage_routes();
+
+    let app = Router::new()
         .merge(public_routes)
-        .merge(protected_routes)
+        .merge(protected_routes.with_state(_state))
+        .nest("/api/queue", queue_routes)
+        .nest("/api/storage", storage_routes)
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit
         .layer(TraceLayer::new_for_http())
-        .layer(cors)
+        .layer(cors);
+
+    if let Some(pool) = crate::db::get_db() {
+        app.layer(axum::Extension(pool.clone()))
+    } else {
+        tracing::warn!("Database pool not initialized - some routes may fail");
+        app
+    }
 }
 
 /// Health check endpoint

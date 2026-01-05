@@ -4,8 +4,13 @@
 
 pub mod db;
 pub mod error;
+pub mod github_storage;
+pub mod google_services;
+pub mod injector;
 pub mod middleware;
+pub mod queue;
 pub mod routes;
+pub mod utils;
 
 // Re-export the router creator
 pub use crate::routes::create_router;

@@ -120,7 +120,9 @@ async fn upload_to_github(
     }
 
     // Handle conflict (update)
-    if res.status() == StatusCode::CONFLICT || res.status() == StatusCode::UNPROCESSABLE_ENTITY {
+    if res.status() == reqwest::StatusCode::CONFLICT
+        || res.status() == reqwest::StatusCode::UNPROCESSABLE_ENTITY
+    {
         if let Some(sha) = get_file_sha(config, path).await {
             let retry_res = perform_upload(Some(sha)).await.map_err(|e| e.to_string())?;
             if retry_res.status().is_success() {
