@@ -14,7 +14,7 @@ path = "src/lib.rs"
 axur-core = { path = "../core" }
 
 # Web framework
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.7", features = ["macros", "multipart"] }
 tokio.workspace = true
 
 # Serialization
@@ -22,19 +22,19 @@ serde.workspace = true
 serde_json.workspace = true
 
 # HTTP client (for proxying to Axur API)
-reqwest.workspace = true
+reqwest = { version = "0.11", default-features = false, features = ["json", "multipart", "rustls-tls"] }
 
 # Error handling
 anyhow.workspace = true
-thiserror.workspace = true
+thiserror = "1.0"
 
 # Middleware and security
-tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
-tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+tower = { version = "0.4", features = ["util"] }
 
 # Cookie handling for httpOnly sessions
 cookie = { version = "0.18", features = ["secure"] }
-axum-extra = { version = "0.9", features = ["cookie", "multipart"] }
+axum-extra = { version = "0.9", features = ["typed-header", "multipart", "cookie"] }
 
 # SSE streaming
 futures = "0.3"
@@ -44,13 +44,27 @@ async-stream = "0.3"
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-uuid = { version = "1.10.0", features = ["v4", "serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
 dotenv = "0.15"
 
 # Remote logging
-base64 = "0.22"
+base64 = "0.21"
 chrono = { version = "0.4", features = ["serde"] }
-sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "chrono", "uuid", "json", "macros"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono", "uuid"] }
 
 # PPTX parsing
-zip = "2.2"
+zip = "0.6"
+sha2 = { version = "0.10.9", default-features = false }
+
+# New dependencies
+rand = "0.8"
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+tempfile = "3.10"
+
+# Google APIs (google-drive3 bundles hyper, hyper-rustls)
+google-drive3 = "*"
+# Need service-account feature for ServiceAccountAuthenticator
+yup-oauth2 = { version = "12", features = ["service-account", "hyper-rustls"] }
+governor = "0.6"
+nonzero_ext = "0.3" # Helper for governor

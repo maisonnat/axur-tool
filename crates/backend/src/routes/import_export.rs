@@ -1,284 +1,141 @@
 //! Import/Export routes for templates
-//! Handles PPTX import and various export formats
+//! Handles PPTX import and export functionality
 
-use axum::{response::Json, routing::post, Router};
+use crate::injector::{inject_edits, SlideEdit};
+use crate::routes::AppState;
+use axum::extract::State;
+use axum::Json;
 use axum_extra::extract::Multipart;
 use serde::Serialize;
+use tracing;
+use uuid;
 
-/// Response for PPTX import
-#[derive(Debug, Serialize)]
-pub struct ImportPptxResponse {
+#[derive(Serialize)]
+pub struct ImportResponse {
     pub success: bool,
-    pub slides: Vec<ImportedSlide>,
+    pub slides: Vec<String>,
     pub message: String,
 }
 
-/// Imported slide structure
-#[derive(Debug, Serialize)]
-pub struct ImportedSlide {
-    pub id: String,
-    pub name: String,
-    /// Fabric.js compatible canvas JSON
-    pub canvas_json: String,
-    /// Any images extracted (base64)
-    pub images: Vec<String>,
-}
+/// Upload PPTX to Google Drive, generate thumbnails via Slides API, and return URLs.
+/// Uses strict Rate Limiting (4 req/sec) to stay within Free Tier.
+pub async fn import_pptx(
+    State(state): State<AppState>,
+    mut multipart: Multipart,
+) -> Result<Json<ImportResponse>, (axum::http::StatusCode, String)> {
+    let mut file_data = None;
+    let mut file_name = String::from("presentation.pptx");
 
-/// Parse PPTX and extract slides
-///
-/// For MVP, we'll convert PPTX to basic slide structures.
-/// Full PPTX parsing is complex - this is a simplified version.
-pub async fn import_pptx(mut multipart: Multipart) -> Json<ImportPptxResponse> {
-    let mut file_data: Option<Vec<u8>> = None;
-    let mut file_name = String::new();
-
-    // Extract file from multipart
     while let Ok(Some(field)) = multipart.next_field().await {
-        if field.name() == Some("file") {
-            file_name = field.file_name().unwrap_or("upload.pptx").to_string();
-            if let Ok(data) = field.bytes().await {
-                file_data = Some(data.to_vec());
+        let name = field.name().unwrap_or("").to_string();
+        if name == "file" {
+            file_name = field.file_name().unwrap_or("presentation.pptx").to_string();
+            if let Ok(bytes) = field.bytes().await {
+                file_data = Some(bytes.to_vec());
             }
         }
     }
 
     let Some(data) = file_data else {
-        return Json(ImportPptxResponse {
-            success: false,
-            slides: vec![],
-            message: "No file uploaded".to_string(),
-        });
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            "No file uploaded".to_string(),
+        ));
     };
 
-    tracing::info!("Importing PPTX: {} ({} bytes)", file_name, data.len());
+    let services = state.google_services.ok_or((
+        axum::http::StatusCode::SERVICE_UNAVAILABLE,
+        "Google Services not configured (missing credentials)".to_string(),
+    ))?;
 
-    // Try to parse PPTX (ZIP file with XML inside)
-    match parse_pptx(&data) {
-        Ok(slides) => Json(ImportPptxResponse {
-            success: true,
-            slides,
-            message: format!("Imported {} slides", file_name),
-        }),
-        Err(e) => {
-            tracing::error!("PPTX import failed: {}", e);
-            Json(ImportPptxResponse {
-                success: false,
-                slides: vec![],
-                message: format!("Import failed: {}", e),
-            })
-        }
-    }
+    let uuid = uuid::Uuid::new_v4();
+    let temp_name = format!("preview_{}_{}", uuid, file_name);
+
+    // 1. Upload to Drive
+    tracing::info!("Uploading to Google Drive: {}", temp_name);
+    let file_id = services
+        .upload_pptx(&temp_name, data)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    // 2. Generate Previews (Rate Limited)
+    tracing::info!("Generating previews for file ID: {}", file_id);
+    let urls = services.generate_previews(&file_id).await.map_err(|e| {
+        // Attempt cleanup even on error
+        // tokio::spawn(async move { let _ = services.delete_file(&file_id).await; }); // Move unavailable
+        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e)
+    })?;
+
+    // 3. Cleanup
+    tracing::info!("Cleaning up file from Drive: {}", file_id);
+    let _ = services.delete_file(&file_id).await;
+
+    Ok(Json(ImportResponse {
+        success: true,
+        slides: urls,
+        message: "Successfully generated previews via Google Slides API".to_string(),
+    }))
 }
 
-/// Parse PPTX file and extract slide data
-fn parse_pptx(data: &[u8]) -> Result<Vec<ImportedSlide>, String> {
-    use std::io::{Cursor, Read};
-    use zip::ZipArchive;
+/// Inject placeholders into PPTX and download
+pub async fn inject_pptx(
+    mut multipart: Multipart,
+) -> Result<impl axum::response::IntoResponse, (axum::http::StatusCode, String)> {
+    let mut file_data = None;
+    let mut file_name = String::from("presentation.pptx");
+    let mut edits = Vec::new();
 
-    let cursor = Cursor::new(data);
-    let mut archive = ZipArchive::new(cursor).map_err(|e| format!("Invalid PPTX file: {}", e))?;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.name().unwrap_or("").to_string();
 
-    let mut slides = Vec::new();
-    let mut slide_count = 0;
-
-    // Find all slide*.xml files
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-        let name = file.name().to_string();
-
-        if name.starts_with("ppt/slides/slide") && name.ends_with(".xml") {
-            slide_count += 1;
-
-            // Read slide XML
-            let mut xml_content = String::new();
-            file.read_to_string(&mut xml_content).ok();
-
-            // Extract basic text and shapes from XML
-            let elements = extract_elements_from_xml(&xml_content);
-
-            // Create Fabric.js compatible JSON
-            let canvas_json = create_fabric_json(&elements);
-
-            slides.push(ImportedSlide {
-                id: format!("slide-{}", slide_count),
-                name: format!("Slide {}", slide_count),
-                canvas_json,
-                images: vec![],
-            });
-        }
-    }
-
-    // Extract images from media folder
-    let images = extract_images_from_pptx(&mut archive);
-
-    // Associate images with slides (simplified - just add to first slide)
-    if !slides.is_empty() && !images.is_empty() {
-        slides[0].images = images;
-    }
-
-    if slides.is_empty() {
-        // If no slides found, create a placeholder
-        slides.push(ImportedSlide {
-            id: "slide-1".to_string(),
-            name: "Imported Slide".to_string(),
-            canvas_json: "{}".to_string(),
-            images: vec![],
-        });
-    }
-
-    Ok(slides)
-}
-
-/// Extract text and shape elements from PPTX slide XML
-fn extract_elements_from_xml(xml: &str) -> Vec<SlideElement> {
-    let mut elements = Vec::new();
-
-    // Very basic XML parsing - look for text runs
-    // In production, use quick-xml or similar
-    let mut y_pos = 100.0;
-
-    // Find text content (simplified regex-like approach)
-    for line in xml.lines() {
-        if line.contains("<a:t>") && line.contains("</a:t>") {
-            if let Some(start) = line.find("<a:t>") {
-                if let Some(end) = line.find("</a:t>") {
-                    let text = &line[start + 5..end];
-                    if !text.trim().is_empty() {
-                        elements.push(SlideElement::Text {
-                            content: text.to_string(),
-                            x: 100.0,
-                            y: y_pos,
-                            font_size: 24.0,
-                        });
-                        y_pos += 40.0;
-                    }
+        if name == "file" {
+            file_name = field.file_name().unwrap_or("presentation.pptx").to_string();
+            if let Ok(bytes) = field.bytes().await {
+                file_data = Some(bytes.to_vec());
+            }
+        } else if name == "edits" {
+            if let Ok(text) = field.text().await {
+                if let Ok(parsed_edits) = serde_json::from_str::<Vec<SlideEdit>>(&text) {
+                    edits = parsed_edits;
+                } else {
+                    return Err((
+                        axum::http::StatusCode::BAD_REQUEST,
+                        "Invalid JSON in 'edits' field".to_string(),
+                    ));
                 }
             }
         }
     }
 
-    elements
-}
+    let Some(data) = file_data else {
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            "No file uploaded".to_string(),
+        ));
+    };
 
-/// Create Fabric.js compatible JSON from elements
-fn create_fabric_json(elements: &[SlideElement]) -> String {
-    let mut objects = Vec::new();
+    match inject_edits(&data, edits) {
+        Ok(modified_bytes) => {
+            let filename_header = format!("attachment; filename=\"injected_{}\"", file_name);
 
-    for element in elements {
-        match element {
-            SlideElement::Text {
-                content,
-                x,
-                y,
-                font_size,
-            } => {
-                objects.push(serde_json::json!({
-                    "type": "i-text",
-                    "left": x,
-                    "top": y,
-                    "text": content,
-                    "fontSize": font_size,
-                    "fill": "#f8fafc",
-                    "fontFamily": "Inter, sans-serif"
-                }));
-            }
-            SlideElement::Rect {
-                x,
-                y,
-                width,
-                height,
-            } => {
-                objects.push(serde_json::json!({
-                    "type": "rect",
-                    "left": x,
-                    "top": y,
-                    "width": width,
-                    "height": height,
-                    "fill": "#3f3f46",
-                    "stroke": "#52525b",
-                    "strokeWidth": 1
-                }));
-            }
-            SlideElement::Image { data, x, y, .. } => {
-                objects.push(serde_json::json!({
-                    "type": "image",
-                    "left": x,
-                    "top": y,
-                    "src": data
-                }));
-            }
+            // We need to return the header string OWNED or use a builder
+            let mut res = axum::response::Response::new(axum::body::Body::from(modified_bytes));
+            res.headers_mut().insert(
+                axum::http::header::CONTENT_TYPE,
+                axum::http::HeaderValue::from_static(
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                ),
+            );
+            res.headers_mut().insert(
+                axum::http::header::CONTENT_DISPOSITION,
+                axum::http::HeaderValue::from_str(&filename_header).unwrap(),
+            );
+
+            Ok(res)
         }
+        Err(e) => Err((
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Injection failed: {}", e),
+        )),
     }
-
-    let canvas = serde_json::json!({
-        "version": "5.3.0",
-        "objects": objects,
-        "background": "#1e293b"
-    });
-
-    serde_json::to_string(&canvas).unwrap_or_else(|_| "{}".to_string())
-}
-
-/// Extract images from PPTX media folder
-fn extract_images_from_pptx<R: std::io::Read + std::io::Seek>(
-    archive: &mut zip::ZipArchive<R>,
-) -> Vec<String> {
-    use base64::{engine::general_purpose::STANDARD, Engine};
-    use std::io::Read;
-
-    let mut images = Vec::new();
-
-    for i in 0..archive.len() {
-        if let Ok(mut file) = archive.by_index(i) {
-            let name = file.name().to_string();
-
-            if name.starts_with("ppt/media/") {
-                let ext = name.rsplit('.').next().unwrap_or("");
-                let mime = match ext.to_lowercase().as_str() {
-                    "png" => "image/png",
-                    "jpg" | "jpeg" => "image/jpeg",
-                    "gif" => "image/gif",
-                    _ => continue,
-                };
-
-                let mut data = Vec::new();
-                if file.read_to_end(&mut data).is_ok() {
-                    let b64 = STANDARD.encode(&data);
-                    images.push(format!("data:{};base64,{}", mime, b64));
-                }
-            }
-        }
-    }
-
-    images
-}
-
-/// Slide element types
-#[derive(Debug)]
-#[allow(dead_code)]
-enum SlideElement {
-    Text {
-        content: String,
-        x: f64,
-        y: f64,
-        font_size: f64,
-    },
-    Rect {
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-    },
-    Image {
-        data: String,
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-    },
-}
-
-/// Create router for import/export endpoints
-pub fn router() -> Router {
-    Router::new().route("/pptx", post(import_pptx))
 }
