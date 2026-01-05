@@ -1,6 +1,6 @@
 //! Dashboard page with tenant selector and report generation
 
-use crate::api::{self, GenerateReportResponse, Tenant};
+use crate::api::{self, GenerateReportResponse, TemplateListItem, Tenant};
 use crate::components::*;
 use crate::{get_ui_dict, AppState, Page};
 use leptos::*;
@@ -52,6 +52,7 @@ pub fn DashboardPage() -> impl IntoView {
     // Data
     let tenants = create_rw_signal(Vec::<Tenant>::new());
     let selected_tenant = create_rw_signal(String::new());
+    let user_templates = create_rw_signal(Vec::<TemplateListItem>::new());
     let from_date = create_rw_signal(get_default_from_date());
     let to_date = create_rw_signal(get_today());
     // Default report language to the UI language
@@ -74,6 +75,9 @@ pub fn DashboardPage() -> impl IntoView {
     let preview_confirmed = create_rw_signal(false);
     let streaming_progress = create_rw_signal(StreamingProgress::default());
 
+    // Queue status
+    let current_queue_job = create_rw_signal::<Option<String>>(None);
+
     // Load tenants on mount
     spawn_local(async move {
         match api::list_tenants().await {
@@ -82,6 +86,17 @@ pub fn DashboardPage() -> impl IntoView {
             }
             Err(e) => error.set(Some(AppError::simple(e))),
         }
+
+        // Fetch user templates
+        match api::list_templates().await {
+            Ok(resp) => {
+                if resp.success {
+                    user_templates.set(resp.templates);
+                }
+            }
+            Err(e) => tracing::error!("Failed to fetch templates: {}", e),
+        }
+
         loading_tenants.set(false);
     });
 
@@ -285,6 +300,7 @@ pub fn DashboardPage() -> impl IntoView {
             tag_opt,
             threat_intel,
             template_id,
+            None,
         )
         .await
         {
@@ -483,11 +499,28 @@ pub fn DashboardPage() -> impl IntoView {
                                             }
                                         }
                                     >
-                                        <option value="default" selected>"⭐ Axur Default"</option>
-                                        <option value="executive">"📊 Executive Summary"</option>
-                                        <option value="technical">"🔧 Technical Deep Dive"</option>
-                                        <option value="compliance">"📋 Compliance Report"</option>
-                                        <option value="custom">"✏️ Browse Custom..."</option>
+                                        <optgroup label="System Templates">
+                                            <option value="default" selected>"⭐ Axur Default"</option>
+                                            <option value="executive">"📊 Executive Summary"</option>
+                                            <option value="technical">"🔧 Technical Deep Dive"</option>
+                                            <option value="compliance">"📋 Compliance Report"</option>
+                                        </optgroup>
+                                        <optgroup label="My Templates">
+                                            <Show when=move || !user_templates.get().is_empty()
+                                                fallback=|| view! { <option disabled>"No templates yet"</option> }
+                                            >
+                                                <For
+                                                    each=move || user_templates.get()
+                                                    key=|t| t.id.clone()
+                                                    children=move |t| view! {
+                                                        <option value={t.id.clone()}>{t.name}</option>
+                                                    }
+                                                />
+                                            </Show>
+                                        </optgroup>
+                                        <optgroup label="Options">
+                                            <option value="custom">"✏️ Browse Custom..."</option>
+                                        </optgroup>
                                     </select>
                                     <button
                                         on:click=move |_| state.current_page.set(crate::Page::Marketplace)
@@ -640,6 +673,7 @@ pub fn DashboardPage() -> impl IntoView {
                 </div>
             </main>
             <FeedbackWidget />
+            <QueueStatusPanel job_id=current_queue_job.into() />
         </div>
     }
 }

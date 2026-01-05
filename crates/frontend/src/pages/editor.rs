@@ -117,6 +117,7 @@ pub fn EditorPage() -> impl IntoView {
     let available_templates = create_rw_signal::<Vec<api::TemplateListItem>>(vec![]);
     let is_loading = create_rw_signal(false);
     let save_message = create_rw_signal::<Option<String>>(None);
+
     // Suppress unused warnings for future features
     let _ = (show_template_list, available_templates, save_message);
 
@@ -160,7 +161,6 @@ pub fn EditorPage() -> impl IntoView {
                                         // Clone mode: User starts with template content but no ID (new save)
                                         // Clear the clone signal to avoid re-triggering? (not needed if run once)
                                     }
-                                    template_name.set(tmpl.name.clone());
                                     template_name.set(tmpl.name.clone());
 
                                     // Load slides from template
@@ -360,6 +360,16 @@ pub fn EditorPage() -> impl IntoView {
             Some(thumbnail)
         };
 
+        // Get original file from global PPTXImporter state
+        let original_file = web_sys::window()
+            .and_then(|w| js_sys::Reflect::get(&w, &"PPTXImporter".into()).ok())
+            .and_then(|imp| js_sys::Reflect::get(&imp, &"state".into()).ok())
+            .and_then(|st| js_sys::Reflect::get(&st, &"originalFile".into()).ok())
+            .and_then(|f| {
+                use wasm_bindgen::JsCast;
+                f.dyn_into::<web_sys::File>().ok()
+            });
+
         // Get existing template ID for update (PUT) vs create (POST)
         let existing_id = template_id.get();
         let is_new = existing_id.is_none();
@@ -371,6 +381,7 @@ pub fn EditorPage() -> impl IntoView {
                 None, // No description for now
                 slides_data,
                 thumbnail_opt,
+                original_file,
             )
             .await
             {
@@ -414,6 +425,33 @@ pub fn EditorPage() -> impl IntoView {
                     on:input=move |ev| template_name.set(event_target_value(&ev))
                 />
                 <div class="flex-1"></div>
+                // Import PPTX button with hidden file input
+                <div class="flex items-center gap-2">
+                    // Use pure HTML onchange to avoid WASM closure issues
+                    <input
+                        type="file"
+                        id="pptx-input"
+                        accept=".pptx"
+                        class="hidden"
+                        onchange="window._pendingPptxFile = this.files[0]; setTimeout(function() { window.handlePptxImportFromGlobal(); }, 0);"
+                    />
+                    <button
+                        class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg font-medium flex items-center gap-2"
+                        onclick="document.getElementById('pptx-input').click();"
+                    >
+                        <span>"📤"</span>
+                        <span>"Import PPTX"</span>
+                    </button>
+                    // Export PPTX (Hybrid Native)
+                    <button
+                        class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
+                        onclick="if(window.PPTXImporter) window.PPTXImporter.exportPPTX(); else alert('PPTX Engine not ready');"
+                        title="Export native editable PPTX"
+                    >
+                        <span>"💾"</span>
+                        <span>"Export PPTX"</span>
+                    </button>
+                </div>
                 <button
                     on:click=save_template
                     disabled=move || is_saving.get()
@@ -461,6 +499,64 @@ pub fn EditorPage() -> impl IntoView {
                                 }
                             }
                         />
+                    </div>
+                    // Imported PPTX Slides Section
+                    <div
+                        id="pptx-slides-panel"
+                        class="border-t border-zinc-800 p-2"
+                        style="display: none;"
+                    >
+                        <div class="text-xs text-orange-400 font-medium mb-2 flex items-center justify-between">
+                            <span class="flex items-center gap-1">"📤 Imported PPTX"</span>
+                            <div class="flex gap-1">
+                                // Duplicate current PPTX slide
+                                <button
+                                    on:click=move |_| {
+                                        let _ = js_sys::eval("window.duplicateSlide();");
+                                    }
+                                    class="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"
+                                    title="Duplicate current slide"
+                                >"📋"</button>
+                                // Delete current PPTX slide
+                                <button
+                                    on:click=move |_| {
+                                        let _ = js_sys::eval("window.deleteSlide();");
+                                    }
+                                    class="p-1 hover:bg-red-900/30 rounded text-zinc-400 hover:text-red-400"
+                                    title="Delete current slide"
+                                >"🗑"</button>
+                            </div>
+                        </div>
+                        <div id="pptx-thumbnails" class="space-y-1">
+                            // Thumbnails will be inserted here by JavaScript
+                        </div>
+                        <div class="mt-2 text-xs text-zinc-600 text-center">
+                            "Drag to reorder"
+                        </div>
+                        // Detect Placeholders button
+                        <button
+                            on:click=move |_| {
+                                let _ = js_sys::eval(r#"
+                                    const placeholders = window.detectPlaceholders();
+                                    if (placeholders.length > 0) {
+                                        alert('Found ' + placeholders.length + ' placeholders:\\n' + 
+                                            placeholders.map(p => p.fullMatch + ' (slide ' + (p.slideIndex+1) + ')').join('\\n'));
+                                    } else {
+                                        const suggestions = window.suggestPlaceholders();
+                                        if (suggestions.length > 0) {
+                                            alert('No placeholders found. Suggestions:\\n' +
+                                                suggestions.map(s => s.suggestedPlaceholder).join('\\n'));
+                                        } else {
+                                            alert('No placeholders or suggestions found.');
+                                        }
+                                    }
+                                "#);
+                            }
+                            class="w-full mt-2 py-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded text-orange-400"
+                            title="Scan slides for {{placeholders}}"
+                        >
+                            "🔍 Detect Placeholders"
+                        </button>
                     </div>
                     <div class="p-2 border-t border-zinc-800">
                         <button
@@ -540,6 +636,37 @@ pub fn EditorPage() -> impl IntoView {
                         >
                             "📋 Duplicate"
                         </button>
+                        <div class="w-px h-6 bg-zinc-700 mx-2"></div>
+                        // PPTX Imported Slides Navigation
+                        <div class="flex items-center gap-2 bg-zinc-800/50 rounded px-2 py-1">
+                            <button
+                                on:click=move |_| {
+                                    let _ = js_sys::eval("if(window._importedSlides && window._currentImportedSlideIndex > 0) { window.navigateImportedSlide(window._currentImportedSlideIndex - 1); }");
+                                }
+                                class="px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-sm text-white disabled:opacity-40"
+                                title="Previous Imported Slide"
+                            >
+                                "◀"
+                            </button>
+                            <span
+                                class="text-xs text-zinc-400 min-w-[60px] text-center"
+                                id="pptx-slide-indicator"
+                            >
+                                {move || {
+                                    // This will be updated by JS, show default
+                                    "PPTX: --"
+                                }}
+                            </span>
+                            <button
+                                on:click=move |_| {
+                                    let _ = js_sys::eval("if(window._importedSlides && window._currentImportedSlideIndex < window._importedSlides.length - 1) { window.navigateImportedSlide(window._currentImportedSlideIndex + 1); }");
+                                }
+                                class="px-2 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-sm text-white disabled:opacity-40"
+                                title="Next Imported Slide"
+                            >
+                                "▶"
+                            </button>
+                        </div>
                     </div>
 
                     // Canvas Container
@@ -557,18 +684,26 @@ pub fn EditorPage() -> impl IntoView {
                         <h3 class="text-xs text-zinc-500 font-medium uppercase mb-2">"Zoom"</h3>
                         <div class="flex items-center gap-2">
                             <button
-                                on:click=move |_| { zoom_out(); }
+                                on:click=move |_| {
+                                    let _ = js_sys::eval("window.zoomOut(); document.getElementById('zoom-display').textContent = Math.round(window.getZoom() * 100) + '%';");
+                                }
                                 class="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white flex items-center justify-center"
                                 title="Zoom Out"
                             >"−"</button>
-                            <span class="flex-1 text-center text-sm text-zinc-300">"100%"</span>
+                            <span class="flex-1 text-center text-sm text-zinc-300" id="zoom-display">
+                                "100%"
+                            </span>
                             <button
-                                on:click=move |_| { zoom_in(); }
+                                on:click=move |_| {
+                                    let _ = js_sys::eval("window.zoomIn(); document.getElementById('zoom-display').textContent = Math.round(window.getZoom() * 100) + '%';");
+                                }
                                 class="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white flex items-center justify-center"
                                 title="Zoom In"
                             >"+"</button>
                             <button
-                                on:click=move |_| { zoom_reset(); }
+                                on:click=move |_| {
+                                    let _ = js_sys::eval("window.zoomReset(); document.getElementById('zoom-display').textContent = '100%';");
+                                }
                                 class="px-2 h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white text-xs"
                                 title="Reset Zoom"
                             >"⟲"</button>

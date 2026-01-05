@@ -8,6 +8,15 @@
     <meta name="description" content="Axur Web - Generador de reportes de inteligencia de amenazas externas">
     <link data-trunk rel="rust" href="Cargo.toml" />
 
+    <!-- JSZip -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -27,75 +36,972 @@
                 },
             },
         };
-    </script>
-    <style>
-        /* Drag & Drop styling for canvas */
-        .canvas-drop-zone.drag-over {
-            background: rgba(99, 102, 241, 0.1);
-            border: 2px dashed #6366f1;
-            border-radius: 8px;
-        }
 
-        .canvas-drop-zone.drag-over::after {
-            content: "Drop image or PPTX here";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #6366f1;
-            font-size: 1.25rem;
-            font-weight: 600;
-            pointer-events: none;
-        }
-    </style>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=DM+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
 
-    <style>
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-        }
+        // ==================== PPTX IMPORTER (HYBRID) ====================
 
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
+        // ==================== PPTX IMPORTER (HYBRID V2 - FIXED) ====================
+        const PPTXImporter = {
+            MAX_FILE_SIZE: 50 * 1024 * 1024,
+            MAX_SLIDES: 50,
+            PROCESSING_TIMEOUT: 30000,
 
-        ::-webkit-scrollbar-track {
-            background: #18181b;
-        }
+            state: { zip: null, fileName: '', slides: {} },
 
-        ::-webkit-scrollbar-thumb {
-            background: #3f3f46;
-            border-radius: 4px;
-        }
+            // --- 1. UNIT FIX: EXACT FLOAT PRECISION (Reason #2) ---
+            // 914400 EMUs = 1 inch = 96 px => 1px = 9525 EMUs
+            emuToPixels: function (emu) {
+                if (emu === undefined || emu === null) return 0;
+                return emu / 9525;
+            },
+            pixelsToEmu: function (pixels) {
+                return Math.round(pixels * 9525);
+            },
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #52525b;
-        }
-    </style>
-    <!-- html2canvas for screenshots -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-    <script>
-        window.captureScreenshot = async function () {
-            try {
-                // Ignore elements with class 'no-screenshot' (e.g., the modal itself if we wanted)
-                // Capture the entire body
-                const canvas = await html2canvas(document.body, {
-                    ignoreElements: (element) => element.classList.contains('no-screenshot'),
-                    logging: false,
-                    useCORS: true
-                });
-                return canvas.toDataURL("image/png");
-            } catch (e) {
-                console.error("Screenshot failed:", e);
+            // --- HELPER: FETCH XML ---
+            async fetchXml(zip, path) {
+                const f = zip.file(path);
+                if (!f) return null;
+                const str = await f.async('string');
+                return new DOMParser().parseFromString(str, 'application/xml');
+            },
+
+            // --- HELPER: RESOLVE RELATIONSHIP ---
+            async getRelTarget(zip, relsPath, typeSuffix) {
+                const doc = await this.fetchXml(zip, relsPath);
+                if (!doc) return null;
+                // Find relationship by type ending (ignore schema date versions)
+                const rel = Array.from(doc.getElementsByTagName('Relationship') || [])
+                    .find(r => r.getAttribute('Type') && r.getAttribute('Type').endsWith(typeSuffix));
+                if (!rel) return null;
+
+                let target = rel.getAttribute('Target');
+                // Normalize path
+                if (target.startsWith('../')) target = target.replace('../', 'ppt/');
+                else if (target.startsWith('/')) target = target.substring(1);
+                else if (!target.startsWith('ppt/')) {
+                    // Logic relative to rels folder location involves typically stepping back once
+                    // ppt/slides/_rels/slide1.rels -> ppt/slides/../slideLayouts/layout.xml
+                    if (relsPath.includes('slides/_rels') && !target.includes('/')) target = 'ppt/slides/' + target;
+                    else if (relsPath.includes('slideLayouts/_rels') && !target.includes('/')) target = 'ppt/slideLayouts/' + target;
+                }
+
+                // Resolve ".." parts
+                const parts = target.split('/');
+                const stack = [];
+                for (const p of parts) {
+                    if (p === '..') stack.pop();
+                    else stack.push(p);
+                }
+                return stack.join('/');
+            },
+
+            // --- PARSE COLOR ---
+            parseColor: function (node) {
+                if (!node) return null;
+                const srgb = node.querySelector('srgbClr, a\\:srgbClr');
+                if (srgb) return '#' + srgb.getAttribute('val');
+                const scheme = node.querySelector('schemeClr, a\\:schemeClr');
+                if (scheme) {
+                    const map = {
+                        'bg1': '#ffffff', 'tx1': '#000000', 'bg2': '#f3f4f6', 'tx2': '#1f2937',
+                        'accent1': '#f97316', 'accent2': '#22c55e', 'accent3': '#3b82f6',
+                        'accent4': '#ef4444', 'accent5': '#eab308', 'accent6': '#a855f7'
+                    };
+                    return map[scheme.getAttribute('val')] || '#888888';
+                }
                 return null;
+            },
+
+            // --- PARSE TRANSFORM ---
+            parseTransform: function (spPr, ox, oy) {
+                if (!spPr) return null;
+                const xfrm = spPr.querySelector('xfrm, a\\:xfrm');
+                if (!xfrm) return null;
+
+                const off = xfrm.querySelector('off, a\\:off');
+                const ext = xfrm.querySelector('ext, a\\:ext');
+
+                // If missing off/ext, it's likely a placeholder inheriting transform.
+                // We SKIP it for now (returning null), or we default to 0?
+                // Returning null filters it out in current logic, which is cleaner than 0,0 box.
+                if (!off || !ext) return null;
+
+                return {
+                    left: this.emuToPixels(parseInt(off.getAttribute('x') || 0)) + ox,
+                    top: this.emuToPixels(parseInt(off.getAttribute('y') || 0)) + oy,
+                    width: this.emuToPixels(parseInt(ext.getAttribute('cx') || 0)),
+                    height: this.emuToPixels(parseInt(ext.getAttribute('cy') || 0)),
+                    angle: parseInt(xfrm.getAttribute('rot') || 0) / 60000
+                };
+            },
+
+            // --- EXTRACT SHAPES (Reason #3 partial) ---
+            async extractShapes(node, zip, relsDoc, ox, oy) {
+                const shapes = [];
+                const children = node.childNodes;
+
+                for (let i = 0; i < children.length; i++) {
+                    const child = children[i];
+                    if (child.nodeType !== 1) continue;
+                    const tag = child.localName || child.nodeName.split(':').pop();
+
+                    if (tag === 'grpSp') {
+                        // Recursively handle group contents (flat for now)
+                        // Group xfrm should calculate new ox, oy.
+                        const grpSpPr = child.querySelector('grpSpPr, p\\:grpSpPr');
+                        let newOx = ox, newOy = oy;
+
+                        if (grpSpPr) {
+                            const xfrm = grpSpPr.querySelector('xfrm, a\\:xfrm');
+                            if (xfrm) {
+                                const off = xfrm.querySelector('off, a\\:off');
+                                const chOff = xfrm.querySelector('chOff, a\\:chOff');
+                                if (off && chOff) {
+                                    // Simple Group logic
+                                    const gx = this.emuToPixels(parseInt(off.getAttribute('x') || 0));
+                                    const gy = this.emuToPixels(parseInt(off.getAttribute('y') || 0));
+                                    const cx = this.emuToPixels(parseInt(chOff.getAttribute('x') || 0));
+                                    const cy = this.emuToPixels(parseInt(chOff.getAttribute('y') || 0));
+                                    newOx = ox + (gx - cx);
+                                    newOy = oy + (gy - cy);
+                                }
+                            }
+                        }
+                        shapes.push(...(await this.extractShapes(child, zip, relsDoc, newOx, newOy)));
+                    }
+                    else if (tag === 'sp') {
+                        const spPr = child.querySelector('spPr, p\\:spPr');
+                        const transform = this.parseTransform(spPr, ox, oy);
+
+                        if (transform) {
+                            const txBody = child.querySelector('txBody, p\\:txBody');
+                            const { id, name } = { id: Date.now(), name: 'Shape' }; // Simple ID if missing
+
+                            if (txBody) {
+                                let text = '';
+                                txBody.querySelectorAll('p, a\\:p').forEach(p => {
+                                    p.querySelectorAll('r, a\\:r').forEach(r => {
+                                        const t = r.querySelector('t, a\\:t');
+                                        if (t) text += t.textContent;
+                                    });
+                                    text += '\n';
+                                });
+                                shapes.push({
+                                    type: 'textbox',
+                                    ...transform,
+                                    text: text.trim(),
+                                    fill: '#000000',
+                                    fontSize: 14, fontFamily: 'Inter'
+                                });
+                            } else {
+                                const solidFill = spPr.querySelector('solidFill, a\\:solidFill');
+                                const fill = this.parseColor(solidFill) || '#3f3f46';
+                                shapes.push({
+                                    type: 'rect',
+                                    ...transform,
+                                    fill: fill
+                                });
+                            }
+                        }
+                    }
+                    else if (tag === 'pic') {
+                        const blipFill = child.querySelector('blipFill, p\\:blipFill');
+                        if (blipFill) {
+                            const blip = blipFill.querySelector('blip, a\\:blip');
+                            const embedId = blip?.getAttribute('r:embed');
+                            if (embedId && relsDoc) {
+                                const rel = Array.from(relsDoc.getElementsByTagName('Relationship') || [])
+                                    .find(r => r.getAttribute('Id') === embedId);
+
+                                if (rel) {
+                                    let target = rel.getAttribute('Target');
+                                    if (target.startsWith('../')) target = target.replace('../', 'ppt/');
+                                    else if (target.startsWith('media/')) target = 'ppt/media/' + target.split('/').pop();
+                                    else if (!target.startsWith('ppt/')) target = 'ppt/' + target;
+
+                                    // Fix relative path if needed
+                                    if (target.indexOf('..') !== -1) {
+                                        // Simplify
+                                        target = target.replace(/\w+\/\.\.\//g, '');
+                                    }
+
+                                    const imgFile = zip.file(target);
+                                    if (imgFile) {
+                                        const data = await imgFile.async('base64');
+                                        const spPr = child.querySelector('spPr, p\\:spPr');
+                                        const transform = this.parseTransform(spPr, ox, oy);
+
+                                        // Mime guess
+                                        const ext = target.split('.').pop().toLowerCase();
+                                        const mime = ext === 'svg' ? 'image/svg+xml' : (ext === 'png' ? 'image/png' : 'image/jpeg');
+
+                                        if (transform) {
+                                            shapes.push({
+                                                type: 'image',
+                                                ...transform,
+                                                src: `data:${mime};base64,${data}`,
+                                                selectable: true
+                                            });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return shapes;
+            },
+
+            // --- HIERARCHY PIPELINE (Reason #1) ---
+            async parseSlide(xml, zip, slideNum) {
+                const slidesRelPath = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
+                const slideDoc = new DOMParser().parseFromString(xml, 'application/xml');
+                const relsDoc = await this.fetchXml(zip, slidesRelPath);
+
+                let allShapes = [];
+
+                // 1. MASTER & LAYOUT (Reason #1: Ghost Problem)
+                // Try to find Layout
+                const layoutPath = await this.getRelTarget(zip, slidesRelPath, 'slideLayout');
+                if (layoutPath) {
+                    const layoutDoc = await this.fetchXml(zip, layoutPath);
+                    if (layoutDoc) {
+                        const layoutRelsPath = layoutPath.replace('slideLayouts/', 'slideLayouts/_rels/') + '.rels';
+                        const layoutRelsDoc = await this.fetchXml(zip, layoutRelsPath);
+
+                        // Try to find Master from Layout
+                        const masterPath = await this.getRelTarget(zip, layoutRelsPath, 'slideMaster');
+                        if (masterPath) {
+                            const masterDoc = await this.fetchXml(zip, masterPath);
+                            const masterRelsPath = masterPath.replace('slideMasters/', 'slideMasters/_rels/') + '.rels';
+                            const masterRelsDoc = await this.fetchXml(zip, masterRelsPath);
+
+                            // MASTER SHAPES (Backgrounds)
+                            if (masterDoc) {
+                                const spTree = masterDoc.getElementsByTagName('p:spTree')[0] || masterDoc.getElementsByTagName('spTree')[0];
+                                if (spTree) {
+                                    const mShapes = await this.extractShapes(spTree, zip, masterRelsDoc, 0, 0);
+                                    // Only keep visual elements (not text placeholders)
+                                    allShapes.push(...mShapes.filter(s => s.type !== 'textbox'));
+                                }
+                            }
+                        }
+
+                        // LAYOUT SHAPES
+                        const spTree = layoutDoc.getElementsByTagName('p:spTree')[0] || layoutDoc.getElementsByTagName('spTree')[0];
+                        if (spTree) {
+                            const lShapes = await this.extractShapes(spTree, zip, layoutRelsDoc, 0, 0);
+                            // Only keep visual elements
+                            allShapes.push(...lShapes.filter(s => s.type !== 'textbox'));
+                        }
+                    }
+                }
+
+                // 2. SLIDE SHAPES
+                const spTree = slideDoc.getElementsByTagName('p:spTree')[0] || slideDoc.getElementsByTagName('spTree')[0];
+                if (spTree) {
+                    const sShapes = await this.extractShapes(spTree, zip, relsDoc, 0, 0);
+                    allShapes.push(...sShapes);
+                }
+
+                // Add default black background if none
+                if (!allShapes.some(s => s.type === 'rect' && s.width > 1000 && s.height > 600)) {
+                    allShapes.unshift({
+                        type: 'rect', left: 0, top: 0, width: 1280, height: 720, fill: '#18181b'
+                    });
+                }
+
+                return { objects: allShapes };
+            },
+
+            importFile: async function (file) {
+                console.log("[PPTX] Importing via Google Hybrid Architecture...");
+                this.state.originalFile = file; // Store for export
+                this.state.fileName = file.name;
+
+                try {
+                    // 1. Upload to Backend (Google Drive/Slides)
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    console.log("[PPTX] Uploading for preview generation...");
+                    const resp = await fetch('/api/import/pptx', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!resp.ok) {
+                        const errText = await resp.text();
+                        throw new Error("Preview generation failed: " + errText);
+                    }
+
+                    const result = await resp.json();
+                    if (!result.success) throw new Error(result.message);
+
+                    const imageUrls = result.slides;
+                    console.log(`[PPTX] Received ${imageUrls.length} slide previews from Google.`);
+
+                    const slides = [];
+
+                    // 2. Convert URLs to Canvas Backgrounds
+                    for (let i = 0; i < imageUrls.length; i++) {
+                        const url = imageUrls[i];
+                        const slideNum = i + 1;
+
+                        // We use a Promise to load image dimensions if needed, 
+                        // but for now we assume 16:9 and fit to 1280x720.
+                        // Actually, let's just let Fabric load it.
+
+                        slides.push({
+                            slideNumber: slideNum,
+                            canvasJson: JSON.stringify({
+                                version: "5.3.0",
+                                objects: [], // Empty objects layer
+                                backgroundImage: {
+                                    type: 'image',
+                                    version: '5.3.0',
+                                    originX: 'left',
+                                    originY: 'top',
+                                    left: 0,
+                                    top: 0,
+                                    width: 1280, // Default assume
+                                    height: 720,
+                                    src: url,
+                                    // Make sure it covers the canvas
+                                    scaleX: 1,
+                                    scaleY: 1,
+                                    crossOrigin: 'anonymous', // Important for Google URLs
+                                    stroke: null,
+                                    strokeWidth: 0,
+                                    fill: 'rgb(0,0,0)',
+                                    opacity: 1,
+                                    visible: true,
+                                    backgroundColor: ''
+                                }
+                            })
+                        });
+                    }
+
+                    this.state.slides = slides;
+                    // Clean up URL object? No, these are remote URLs.
+
+                    return {
+                        success: true,
+                        fileName: this.state.fileName,
+                        slides: slides,
+                        slideCount: slides.length
+                    };
+
+                } catch (e) {
+                    console.error("Import failed:", e);
+                    alert("Import failed: " + e.message);
+                    return { success: false, slides: [] };
+                }
+            },
+
+            patchSlideXML: function () { },
+
+            exportPPTX: async function () {
+                if (!this.state.originalFile) {
+                    alert("No hay archivo original cargado.");
+                    return;
+                }
+
+                // Sync current canvas to state using the correct global variable 'fabricCanvas'
+                if (typeof fabricCanvas !== 'undefined' && fabricCanvas && window._importedSlides && window._importedSlides[window._currentImportedSlideIndex]) {
+                    window._importedSlides[window._currentImportedSlideIndex].canvasJson = JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
+                }
+
+                const edits = [];
+                const slides = window._importedSlides || [];
+
+                slides.forEach((slide, idx) => {
+                    const json = typeof slide.canvasJson === 'string' ? JSON.parse(slide.canvasJson) : slide.canvasJson;
+                    if (json.objects) {
+                        json.objects.forEach(obj => {
+                            // Check if it's a Placeholder Group
+                            if (obj.placeholderKey) {
+                                edits.push({
+                                    slide_index: idx + 1,
+                                    text: '{{' + obj.placeholderKey + '}}', // Visual text
+                                    placeholder_key: obj.placeholderKey,      // Internal naming
+                                    x: obj.left,
+                                    y: obj.top,
+                                    width: obj.width * (obj.scaleX || 1),
+                                    height: obj.height * (obj.scaleY || 1)
+                                });
+                            }
+                            // Or if it's a manual Textbox
+                            else if (obj.selectable !== false && (obj.type === 'textbox' || obj.type === 'i-text')) {
+                                edits.push({
+                                    slide_index: idx + 1,
+                                    text: obj.text || "Text",
+                                    x: obj.left,
+                                    y: obj.top,
+                                    width: obj.width * (obj.scaleX || 1),
+                                    height: obj.height * (obj.scaleY || 1)
+                                });
+                            }
+                        });
+                    }
+                });
+
+                console.log("[PPTX] Exporting edits:", edits);
+
+                const formData = new FormData();
+                formData.append('file', this.state.originalFile);
+                formData.append('edits', JSON.stringify(edits));
+
+                try {
+                    const resp = await fetch('/api/export/inject', { method: 'POST', body: formData });
+                    if (!resp.ok) throw new Error("Backend error: " + resp.statusText);
+
+                    const blob = await resp.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = "injected_" + this.state.originalFile.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                } catch (e) {
+                    alert("Export failed: " + e.message);
+                }
+            }
+        };
+        window.PPTXImporter = PPTXImporter;
+        window.importPPTX = (file) => PPTXImporter.importFile(file);
+
+        // Handle PPTX import from file input (called via setTimeout to avoid WASM closure issues)
+        window.handlePptxImport = async function () {
+            try {
+                const input = document.getElementById('pptx-input');
+                if (!input.files || input.files.length === 0) return;
+
+                const file = input.files[0];
+                console.log('[PPTX] Selected file:', file.name);
+
+                const result = await window.importPPTX(file);
+                input.value = '';
+
+                if (result.success && result.slides.length > 0) {
+                    console.log('[PPTX] Loading ' + result.slides.length + ' slides with editable elements...');
+
+                    // Use parsed slides directly (editable elements!)
+                    const editableSlides = result.slides.map((slide, i) => ({
+                        id: 'imported-' + (i + 1),
+                        name: 'Slide ' + (i + 1),
+                        canvasJson: slide.canvasJson // Keep original parsed JSON
+                    }));
+
+                    // Store for navigation
+                    window._importedSlides = editableSlides;
+                    window._importedFileName = result.fileName.replace('.pptx', '');
+                    window._currentImportedSlideIndex = 0;
+
+                    // Load first slide into canvas
+                    window.loadCanvasJSON(editableSlides[0].canvasJson);
+
+                    // Show guidance modal (Reusing Editable guide but tailored in function)
+                    window.showImportGuideEditable(result.slideCount, result.fileName, function () {
+                        console.log('[PPTX] User ready to edit ' + editableSlides.length + ' slides');
+                        window.updatePptxIndicator();
+                    });
+                } else {
+                    alert('❌ No se encontraron slides en el archivo');
+                }
+            } catch (e) {
+                console.error('[PPTX] Import error:', e);
+                alert('❌ Error al importar: ' + e.message);
+            }
+        };
+
+        // Handle PPTX import from stored global file (works with setTimeout)
+        window.handlePptxImportFromGlobal = async function () {
+            try {
+                const file = window._pendingPptxFile;
+                if (!file) {
+                    console.warn('[PPTX] No pending file to import');
+                    return;
+                }
+
+                // Clear the pending file
+                window._pendingPptxFile = null;
+
+                // Also clear the input
+                const input = document.getElementById('pptx-input');
+                if (input) input.value = '';
+
+                console.log('[PPTX] Selected file:', file.name);
+
+                const result = await window.importPPTX(file);
+
+                if (result.success && result.slides.length > 0) {
+                    console.log('[PPTX] Loading ' + result.slides.length + ' slides with editable elements...');
+
+                    // Use parsed slides directly (editable elements!)
+                    const editableSlides = result.slides.map((slide, i) => ({
+                        id: 'imported-' + (i + 1),
+                        name: 'Slide ' + (i + 1),
+                        canvasJson: slide.canvasJson
+                    }));
+
+                    // Store for navigation
+                    window._importedSlides = editableSlides;
+                    window._importedFileName = result.fileName.replace('.pptx', '');
+                    window._currentImportedSlideIndex = 0;
+
+                    // Load first slide into canvas
+                    window.loadCanvasJSON(editableSlides[0].canvasJson);
+
+                    // Show guidance modal
+                    window.showImportGuideEditable(result.slideCount, result.fileName, function () {
+                        console.log('[PPTX] User ready to edit ' + editableSlides.length + ' slides');
+                        window.updatePptxIndicator();
+                    });
+                } else {
+                    alert('❌ No se encontraron slides en el archivo');
+                }
+            } catch (e) {
+                console.error('[PPTX] Import error:', e);
+                alert('❌ Error al importar: ' + e.message);
+            }
+        };
+
+        // Convert parsed slide to background image for maximum fidelity
+        window.convertToBackgroundImage = async function (canvasJson) {
+            return new Promise((resolve, reject) => {
+                try {
+                    // Create temporary canvas
+                    const tempCanvasEl = document.createElement('canvas');
+                    tempCanvasEl.width = 1280;
+                    tempCanvasEl.height = 720;
+                    tempCanvasEl.style.display = 'none';
+                    document.body.appendChild(tempCanvasEl);
+
+                    // Create temporary Fabric canvas
+                    const tempCanvas = new fabric.Canvas(tempCanvasEl, {
+                        width: 1280,
+                        height: 720,
+                        backgroundColor: '#18181b'
+                    });
+
+                    // Load the parsed JSON
+                    const data = JSON.parse(canvasJson);
+                    tempCanvas.loadFromJSON(data, function () {
+                        tempCanvas.renderAll();
+
+                        // Export as PNG data URL
+                        const dataUrl = tempCanvas.toDataURL({
+                            format: 'png',
+                            quality: 1,
+                            multiplier: 1
+                        });
+
+                        // Create new JSON with image as background
+                        const backgroundJson = {
+                            version: '5.3.0',
+                            objects: [{
+                                type: 'image',
+                                left: 0,
+                                top: 0,
+                                width: 1280,
+                                height: 720,
+                                src: dataUrl,
+                                selectable: false,
+                                evented: false,
+                                lockMovementX: true,
+                                lockMovementY: true,
+                                lockRotation: true,
+                                lockScalingX: true,
+                                lockScalingY: true,
+                                hasControls: false,
+                                hasBorders: false,
+                                isBackground: true
+                            }]
+                        };
+
+                        // Cleanup
+                        tempCanvas.dispose();
+                        document.body.removeChild(tempCanvasEl);
+
+                        resolve(JSON.stringify(backgroundJson));
+                    });
+                } catch (e) {
+                    console.error('[PPTX] Failed to convert to background:', e);
+                    reject(e);
+                }
+            });
+        };
+
+        // Show import guidance modal
+        window.showImportGuide = function (slideCount, fileName, onContinue) {
+            // Retired legacy modal
+            if (onContinue) onContinue();
+        };
+
+        // Show import guidance modal for EDITABLE elements
+        window.showImportGuideEditable = function (slideCount, fileName, onContinue) {
+            const modal = document.createElement('div');
+            modal.id = 'import-guide-modal';
+            modal.innerHTML = `
+        <div
+            style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+            <div
+                style="background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 32px; max-width: 560px; color: white; font-family: Inter, sans-serif;">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+                    <span style="font-size: 32px;">✅</span>
+                    <div>
+                        <h2 style="margin: 0; font-size: 20px; font-weight: 600;">Importación Overlay Exitosa</h2>
+                        <p style="margin: 4px 0 0; color: #a1a1aa; font-size: 14px;">${slideCount} slide(s) de
+                            "${fileName}"</p>
+                    </div>
+                </div>
+
+                <div style="background: #27272a; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+                    <h3 style="margin: 0 0 12px; font-size: 16px; color: #22c55e;">✨ Modo de Edición Overlay:</h3>
+                    <ul style="margin: 0; padding-left: 20px; color: #d4d4d8; font-size: 14px; line-height: 1.8;">
+                        <li>El contenido original es un <strong>Fondo Estático</strong> (100% fidelidad).</li>
+                        <li>Agrega <strong>Placeholders</strong> encima usando el menú "📦 Placeholders".</li>
+                        <li>Al exportar, se inyectarán los placeholders en el archivo original.</li>
+                    </ul>
+                </div>
+
+                <div
+                    style="background: linear-gradient(135deg, #1e3a2f 0%, #1a2e25 100%); border: 1px solid #22c55e40; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                    <div style="display: flex; gap: 12px;">
+                        <span style="font-size: 20px;">🔒</span>
+                        <div>
+                            <p style="margin: 0; font-size: 14px; color: #86efac; font-weight: 500;">Procesamiento 100%
+                                local</p>
+                            <p style="margin: 4px 0 0; font-size: 13px; color: #a1a1aa;">Tu archivo nunca sale de tu
+                                computadora hasta el momento de Exportar.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button id="guide-continue-btn2"
+                        style="padding: 12px 24px; background: #22c55e; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; font-size: 14px;">
+                        Comenzar a editar →
+                    </button>
+                </div>
+            </div>
+        </div>
+        `;
+            document.body.appendChild(modal);
+
+            document.getElementById('guide-continue-btn2').onclick = function () {
+                document.body.removeChild(modal);
+                if (onContinue) onContinue();
+            };
+        };
+
+        // Get imported slides for editor panel
+        window.getImportedSlides = function () {
+            return window._importedSlides || [];
+        };
+
+        // Get imported file name
+        window.getImportedFileName = function () {
+            return window._importedFileName || '';
+        };
+
+        // Check if there are imported slides waiting
+        window.hasImportedSlides = function () {
+            return window._importedSlides && window._importedSlides.length > 0;
+        };
+
+        // Clear imported slides after they've been loaded into editor
+        window.clearImportedSlides = function () {
+            window._importedSlides = null;
+            window._importedFileName = '';
+        };
+
+        // Sync imported slides to editor panel (updates DOM directly)
+        window.syncImportedSlidesToPanel = function () {
+            const slides = window._importedSlides;
+            if (!slides || slides.length === 0) return;
+
+            // Find the slide panel container
+            const slidePanel = document.querySelector('.slide-panel, [data-slide-panel], .space-y-2');
+            if (!slidePanel) {
+                console.log('[PPTX] Slide panel not found, slides stored in window._importedSlides');
+                return;
+            }
+
+            // Clear existing slides (except any system slides)
+            // Note: Leptos will manage this, we just log for debugging
+            console.log('[PPTX] ' + slides.length + ' slides ready in window._importedSlides');
+            console.log('[PPTX] Use getImportedSlides() to retrieve them');
+        };
+
+        // Make slide navigation easier by exposing current slide index
+        window._currentImportedSlideIndex = 0;
+
+        window.navigateImportedSlide = function (index) {
+            const slides = window._importedSlides;
+            if (!slides || index < 0 || index >= slides.length) return;
+
+            window._currentImportedSlideIndex = index;
+            window.loadCanvasJSON(slides[index].canvasJson);
+
+            // Update slide indicator in toolbar
+            const indicator = document.getElementById('pptx-slide-indicator');
+            if (indicator) {
+                indicator.textContent = 'PPTX: ' + (index + 1) + '/' + slides.length;
+            }
+
+            console.log('[PPTX] Loaded slide ' + (index + 1) + ' of ' + slides.length);
+        };
+
+        // Update indicator when slides are first imported
+        window.updatePptxIndicator = function () {
+            const slides = window._importedSlides;
+            const indicator = document.getElementById('pptx-slide-indicator');
+            if (indicator && slides && slides.length > 0) {
+                indicator.textContent = 'PPTX: ' + (window._currentImportedSlideIndex + 1) + '/' + slides.length;
+            }
+            // Also render thumbnails in sidebar
+            window.renderPptxThumbnails();
+        };
+
+        // Render thumbnails for imported slides in the sidebar
+        window.renderPptxThumbnails = function () {
+            const slides = window._importedSlides;
+            const panel = document.getElementById('pptx-slides-panel');
+            const container = document.getElementById('pptx-thumbnails');
+
+            if (!slides || slides.length === 0 || !panel || !container) {
+                if (panel) panel.style.display = 'none';
+                return;
+            }
+
+            // Show panel
+            panel.style.display = 'block';
+
+            // Clear existing thumbnails
+            container.innerHTML = '';
+
+            // Drag state
+            let dragIndex = null;
+
+            // Create thumbnail buttons with real previews and drag-drop
+            slides.forEach((slide, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full aspect-video rounded cursor-grab border-2 transition overflow-hidden relative ' +
+                    (idx === window._currentImportedSlideIndex ? 'border-orange-500' : 'border-zinc-700 hover:border-zinc-500');
+                btn.title = 'Slide ' + (idx + 1) + ' - drag to reorder';
+                btn.draggable = true;
+                btn.dataset.index = idx;
+
+                // Create a mini canvas to render preview
+                const thumbCanvas = document.createElement('canvas');
+                thumbCanvas.width = 160;
+                thumbCanvas.height = 90;
+                thumbCanvas.className = 'w-full h-full object-cover';
+                btn.appendChild(thumbCanvas);
+
+                // Slide number badge
+                const badge = document.createElement('span');
+                badge.className = 'absolute bottom-1 right-1 bg-black/70 text-orange-400 text-xs px-1 rounded';
+                badge.textContent = (idx + 1);
+                btn.appendChild(badge);
+
+                // Render the slide JSON to mini canvas using Fabric.js
+                try {
+                    const tempFabric = new fabric.Canvas(thumbCanvas, {
+                        width: 160,
+                        height: 90,
+                        selection: false,
+                        renderOnAddRemove: false
+                    });
+
+                    // Parse and scale down the JSON
+                    if (slide.canvasJson) {
+                        const jsonData = typeof slide.canvasJson === 'string' ?
+                            JSON.parse(slide.canvasJson) : slide.canvasJson;
+
+                        // Scale factor (from 960x540 to 160x90)
+                        const scale = 160 / 960;
+
+                        // Load and scale objects
+                        tempFabric.loadFromJSON(jsonData, function () {
+                            tempFabric.getObjects().forEach(obj => {
+                                obj.scaleX = (obj.scaleX || 1) * scale;
+                                obj.scaleY = (obj.scaleY || 1) * scale;
+                                obj.left = (obj.left || 0) * scale;
+                                obj.top = (obj.top || 0) * scale;
+                                obj.setCoords();
+                            });
+                            tempFabric.renderAll();
+                            // Dispose after render to save memory
+                            setTimeout(() => tempFabric.dispose(), 100);
+                        });
+                    }
+                } catch (e) {
+                    // Fallback: show number if preview fails
+                    thumbCanvas.remove();
+                    btn.innerHTML = '<span class="text-orange-400 text-2xl">' + (idx + 1) + '</span>';
+                    btn.className += ' bg-zinc-800 flex items-center justify-center';
+                }
+
+                // Click to navigate
+                btn.onclick = function () {
+                    window.navigateImportedSlide(idx);
+                    window.renderPptxThumbnails();
+                };
+
+                // Drag start
+                btn.ondragstart = function (e) {
+                    dragIndex = idx;
+                    btn.style.opacity = '0.5';
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', idx);
+                };
+
+                // Drag end
+                btn.ondragend = function () {
+                    btn.style.opacity = '1';
+                    dragIndex = null;
+                    // Remove all drag-over styles
+                    container.querySelectorAll('.border-orange-400').forEach(el => {
+                        el.classList.remove('border-orange-400');
+                    });
+                };
+
+                // Drag over
+                btn.ondragover = function (e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragIndex !== null && dragIndex !== idx) {
+                        btn.classList.add('border-orange-400');
+                    }
+                };
+
+                // Drag leave
+                btn.ondragleave = function () {
+                    btn.classList.remove('border-orange-400');
+                };
+
+                // Drop
+                btn.ondrop = function (e) {
+                    e.preventDefault();
+                    btn.classList.remove('border-orange-400');
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    if (!isNaN(fromIdx) && fromIdx !== idx) {
+                        window.reorderSlide(fromIdx, idx);
+                    }
+                };
+
+                container.appendChild(btn);
+            });
+        };
+
+        // ============= PPTX Slide Management =============
+
+        // Reorder slides
+        window.reorderSlide = function (fromIndex, toIndex) {
+            const slides = window._importedSlides;
+            if (!slides || fromIndex < 0 || toIndex < 0 || fromIndex >= slides.length || toIndex >= slides.length) {
+                console.warn('[PPTX] Invalid reorder indices');
+                return false;
+            }
+            const [slide] = slides.splice(fromIndex, 1);
+            slides.splice(toIndex, 0, slide);
+            if (window._currentImportedSlideIndex === fromIndex) {
+                window._currentImportedSlideIndex = toIndex;
+            } else if (fromIndex < window._currentImportedSlideIndex && toIndex >= window._currentImportedSlideIndex) {
+                window._currentImportedSlideIndex--;
+            } else if (fromIndex > window._currentImportedSlideIndex && toIndex <= window._currentImportedSlideIndex) {
+                window._currentImportedSlideIndex++;
+            }
+            console.log('[PPTX] Reordered slide from ' + (fromIndex + 1) + ' to ' + (toIndex + 1));
+            window.updatePptxIndicator();
+            return true;
+        };
+
+        // Duplicate slide
+        window.duplicateSlide = function (index) {
+            const slides = window._importedSlides;
+            if (!slides) return null;
+            const idx = index !== undefined ? index : window._currentImportedSlideIndex;
+            if (idx < 0 || idx >= slides.length) return null;
+            const original = slides[idx];
+            const duplicate = JSON.parse(JSON.stringify(original));
+            duplicate.name = original.name + ' (Copy)';
+            slides.splice(idx + 1, 0, duplicate);
+            console.log('[PPTX] Duplicated slide ' + (idx + 1) + ', now ' + slides.length + ' slides');
+            window.updatePptxIndicator();
+            return idx + 1;
+        };
+
+        // Delete slide
+        window.deleteSlide = function (index) {
+            const slides = window._importedSlides;
+            if (!slides || slides.length <= 1) {
+                console.warn('[PPTX] Cannot delete: need at least 1 slide');
+                return false;
+            }
+            const idx = index !== undefined ? index : window._currentImportedSlideIndex;
+            if (idx < 0 || idx >= slides.length) return false;
+            slides.splice(idx, 1);
+            if (window._currentImportedSlideIndex >= slides.length) {
+                window._currentImportedSlideIndex = slides.length - 1;
+            }
+            console.log('[PPTX] Deleted slide ' + (idx + 1) + ', remaining: ' + slides.length);
+            window.updatePptxIndicator();
+            // Reload current slide if we deleted the active one
+            if (idx === window._currentImportedSlideIndex || window._currentImportedSlideIndex === -1) {
+                if (window._currentImportedSlideIndex < 0) window._currentImportedSlideIndex = 0;
+                window.loadCanvasJSON(slides[window._currentImportedSlideIndex].canvasJson);
+            }
+            return true;
+        };
+
+        // Export current canvas as single PNG
+        window.exportCurrentSlide = function () {
+            const dataUrl = (window.fabricCanvas) ?
+                window.fabricCanvas.toDataURL({ format: 'png', quality: 1.0 }) : null;
+            if (dataUrl) {
+                const link = document.createElement('a');
+                link.download = 'slide_' + (window._currentImportedSlideIndex + 1) + '.png';
+                link.href = dataUrl;
+                link.click();
+                console.log('[PPTX Export] Exported current slide as PNG');
+            } else {
+                alert('Canvas not available');
+            }
+        };
+
+        // Local template storage
+        window.localTemplates = {
+            STORAGE_KEY: 'axur_user_templates',
+            save: function (template) {
+                const templates = this.loadAll();
+                template.id = 'local_' + Date.now();
+                template.savedAt = new Date().toISOString();
+                templates.push(template);
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(templates));
+                console.log('[Templates] Saved locally:', template.id);
+                return template.id;
+            },
+            loadAll: function () {
+                try {
+                    return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+                } catch (e) {
+                    return [];
+                }
+            },
+            load: function (id) {
+                return this.loadAll().find(t => t.id === id);
+            },
+            delete: function (id) {
+                const templates = this.loadAll().filter(t => t.id !== id);
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(templates));
+                console.log('[Templates] Deleted:', id);
             }
         };
     </script>
@@ -103,7 +1009,7 @@
     <!-- Fabric.js for canvas editing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script>
-        // FIX: Patch Fabric.js 5.3.1 for Chrome 130+ textBaseline issue (Global Scope)
+        // FIX: Patch Fabric.js 5.3.1 for Chrome 130+ textBaseline issue
         if (typeof fabric !== 'undefined') {
             if (fabric.Text) fabric.Text.prototype.textBaseline = 'alphabetic';
             if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
@@ -121,15 +1027,14 @@
         // Save canvas state to history
         window.saveCanvasState = function () {
             if (!fabricCanvas) return;
-            // Remove any future states if we're not at the end
             if (historyIndex < canvasHistory.length - 1) {
                 canvasHistory = canvasHistory.slice(0, historyIndex + 1);
             }
-            // Add current state
-            const json = JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
+            const json = JSON.stringify(fabricCanvas.toJSON(['placeholderKey', 'id'])); // Include ID via option?
+            // Ideally fabricCanvas.toJSON() captures most props. We need ID for hybrid sync.
+            // Fabric by default includes 'id' if property exists.
             canvasHistory.push(json);
             historyIndex = canvasHistory.length - 1;
-            // Limit history size
             if (canvasHistory.length > MAX_HISTORY) {
                 canvasHistory.shift();
                 historyIndex--;
@@ -156,16 +1061,12 @@
             return true;
         };
 
-        // Check if undo/redo is available
         window.canUndo = function () { return historyIndex > 0; };
         window.canRedo = function () { return historyIndex < canvasHistory.length - 1; };
 
         // Initialize Fabric.js canvas
         window.initFabricCanvas = function (canvasId) {
             console.log('[Fabric] Initializing canvas:', canvasId);
-
-
-
             const el = document.getElementById(canvasId);
             if (!el) {
                 console.error('[Fabric] Canvas element not found:', canvasId);
@@ -176,22 +1077,30 @@
                 selection: true,
             });
 
-            // Clear history for new canvas
             canvasHistory = [];
             historyIndex = -1;
-
-            // Save initial state
             window.saveCanvasState();
 
-            // Auto-save state after object modifications
             fabricCanvas.on('object:modified', window.saveCanvasState);
             fabricCanvas.on('object:added', window.saveCanvasState);
             fabricCanvas.on('object:removed', window.saveCanvasState);
 
-            console.log('[Fabric] Canvas initialized with history');
+            // HYBRID SYNC: Update XML on change
+            fabricCanvas.on('object:modified', function (e) {
+                const obj = e.target;
+                if (obj.id && window.PPTXImporter && window.PPTXImporter.patchSlideXML) {
+                    const slideNum = (window._currentImportedSlideIndex || 0) + 1;
+                    window.PPTXImporter.patchSlideXML(slideNum, [{
+                        id: obj.id,
+                        left: obj.left,
+                        top: obj.top
+                    }]);
+                }
+            });
+
+            console.log('[Fabric] Canvas initialized with history and hybrid sync');
             return fabricCanvas;
         };
-
         // ==================== KEYBOARD SHORTCUTS ====================
         document.addEventListener('keydown', function (e) {
             if (!fabricCanvas) return;
@@ -438,10 +1347,21 @@
             }
         };
 
-        // Get canvas JSON
+        // Get canvas JSON (with error handling for styles)
         window.getCanvasJSON = function () {
             if (!fabricCanvas) return '{}';
-            return JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
+            try {
+                // Ensure all text objects have styles property to avoid stylesToArray error
+                fabricCanvas.getObjects().forEach(function (obj) {
+                    if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                        if (!obj.styles) obj.styles = {};
+                    }
+                });
+                return JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
+            } catch (e) {
+                console.error('[Fabric] Error serializing canvas:', e);
+                return '{}';
+            }
         };
 
         // Load canvas JSON
@@ -449,8 +1369,23 @@
             if (!fabricCanvas) return;
             try {
                 const data = JSON.parse(json);
+                // Initialize styles property for all text objects in the data
+                if (data.objects) {
+                    data.objects.forEach(function (obj) {
+                        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                            if (!obj.styles) obj.styles = {};
+                        }
+                    });
+                }
                 fabricCanvas.loadFromJSON(data, function () {
+                    // Ensure styles after loading too
+                    fabricCanvas.getObjects().forEach(function (obj) {
+                        if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                            if (!obj.styles) obj.styles = {};
+                        }
+                    });
                     fabricCanvas.renderAll();
+                    console.log('[Fabric] Canvas loaded successfully');
                 });
             } catch (e) {
                 console.error('[Fabric] Failed to load JSON:', e);
@@ -562,79 +1497,6 @@
             console.log('[DragDrop] Canvas drag & drop enabled');
         };
 
-        // Export canvas as PNG
-        window.exportCanvasAsPng = function () {
-            if (!fabricCanvas) return null;
-            return fabricCanvas.toDataURL({
-                format: 'png',
-                quality: 1.0,
-                multiplier: 2 // 2x resolution
-            });
-        };
-
-        // Export all slides as images (returns array of base64)
-        window.exportAllSlidesAsImages = function (slidesJson) {
-            // This is called from Rust with JSON of all slides
-            // We'll render each off-screen and return images
-            console.log('[Export] Exporting slides as images');
-            return window.exportCanvasAsPng(); // For now just current
-        };
-
-        // Handle PPTX import (sends to backend)
-        window.handlePptxImport = async function (file) {
-            console.log('[Import] PPTX file:', file.name);
-
-            // Show loading state
-            const loadingMsg = document.createElement('div');
-            loadingMsg.id = 'pptx-loading';
-            loadingMsg.className = 'fixed inset-0 bg-black/50 flex items-center justify-center z-50';
-            loadingMsg.innerHTML = '<div class="bg-zinc-900 p-6 rounded-lg text-white"><p class="text-lg">Importing PowerPoint...</p></div>';
-            document.body.appendChild(loadingMsg);
-
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-
-                const response = await fetch('/api/import/pptx', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                });
-
-                const result = await response.json();
-                console.log('[Import] Result:', result);
-
-                if (result.success && result.slides.length > 0) {
-                    // Load first slide into canvas
-                    const firstSlide = result.slides[0];
-                    if (firstSlide.canvas_json) {
-                        window.loadCanvasJSON(firstSlide.canvas_json);
-                    }
-
-                    // Add images from first slide
-                    for (const imgData of firstSlide.images || []) {
-                        window.addImageToCanvas(imgData);
-                    }
-
-                    // Dispatch event with imported slides for Rust to handle
-                    const event = new CustomEvent('pptx-imported', {
-                        detail: { slides: result.slides, message: result.message }
-                    });
-                    document.dispatchEvent(event);
-
-                    console.log('[Import] Loaded', result.slides.length, 'slides');
-                } else {
-                    console.error('[Import] Failed:', result.message);
-                    alert('Import failed: ' + result.message);
-                }
-            } catch (error) {
-                console.error('[Import] Error:', error);
-                alert('Import failed: ' + error.message);
-            } finally {
-                document.getElementById('pptx-loading')?.remove();
-            }
-        };
-
         // Trigger PPTX file picker
         window.triggerPptxUpload = function () {
             const input = document.createElement('input');
@@ -642,9 +1504,7 @@
             input.accept = '.pptx,.ppt';
             input.onchange = function (e) {
                 const file = e.target.files[0];
-                if (file) {
-                    window.handlePptxImport(file);
-                }
+                if (file) window.handlePptxImport(file);
             };
             input.click();
         };
@@ -674,4 +1534,4 @@
     <!-- WASM will be mounted here by Trunk -->
 </body>
 
-</html>
+</html><!-- Rebuild Trigger -->

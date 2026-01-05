@@ -85,6 +85,7 @@ pub struct GenerateReportRequest {
     pub story_tag: Option<String>,
     pub include_threat_intel: bool,
     pub template_id: Option<String>,
+    pub format: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -92,6 +93,7 @@ pub struct GenerateReportRequest {
 pub struct GenerateReportResponse {
     pub success: bool,
     pub html: Option<String>,
+    pub pptx_base64: Option<String>,
     pub company_name: Option<String>,
     pub message: String,
     /// Structured error code (e.g., "TI-001", "API-002")
@@ -229,6 +231,7 @@ pub async fn generate_report(
     story_tag: Option<String>,
     include_threat_intel: bool,
     template_id: Option<String>,
+    format: Option<String>,
 ) -> Result<GenerateReportResponse, String> {
     let resp = Request::post(&format!("{}/api/report/generate", API_BASE))
         .header("Content-Type", "application/json")
@@ -241,6 +244,7 @@ pub async fn generate_report(
             story_tag,
             include_threat_intel,
             template_id,
+            format,
         })
         .map_err(|e| e.to_string())?
         .send()
@@ -648,7 +652,8 @@ pub struct TemplateListItem {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
-    pub thumbnail_url: Option<String>,
+    pub preview_image_url: Option<String>,
+    pub created_at: Option<String>,
     pub updated_at: String,
 }
 
@@ -657,7 +662,7 @@ pub struct TemplateListItem {
 pub struct ListTemplatesResponse {
     pub success: bool,
     pub templates: Vec<TemplateListItem>,
-    pub message: String,
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -684,6 +689,7 @@ pub async fn save_template(
     description: Option<&str>,
     slides: Vec<serde_json::Value>,
     thumbnail: Option<String>,
+    file: Option<web_sys::File>,
 ) -> Result<SaveTemplateResponse, String> {
     let url = match template_id {
         Some(id) => format!("{}/api/templates/{}", API_BASE, id),
@@ -692,12 +698,23 @@ pub async fn save_template(
 
     let method = if template_id.is_some() { "PUT" } else { "POST" };
 
-    let body = SaveTemplateRequest {
+    let body_struct = SaveTemplateRequest {
         name: name.to_string(),
         description: description.map(|s| s.to_string()),
         slides,
         thumbnail,
     };
+
+    let form_data = web_sys::FormData::new().map_err(|_| "Failed to create FormData")?;
+
+    // Append JSON data as "data" field
+    let json_str = serde_json::to_string(&body_struct).map_err(|e| e.to_string())?;
+    let _ = form_data.append_with_str("data", &json_str);
+
+    // Append file if present
+    if let Some(f) = file {
+        let _ = form_data.append_with_blob("file", &f);
+    }
 
     let builder = if method == "PUT" {
         Request::put(&url)
@@ -705,10 +722,10 @@ pub async fn save_template(
         Request::post(&url)
     };
 
+    // Note: Do NOT set Content-Type header for FormData, browser does it with boundary
     let resp = builder
-        .header("Content-Type", "application/json")
         .credentials(web_sys::RequestCredentials::Include)
-        .json(&body)
+        .body(form_data)
         .map_err(|e| e.to_string())?
         .send()
         .await

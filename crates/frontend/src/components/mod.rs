@@ -7,6 +7,7 @@ mod error;
 mod input;
 mod loading;
 mod preview_modal;
+pub mod queue_status;
 
 pub use card::*;
 pub use combobox::*;
@@ -16,3 +17,4 @@ pub use loading::*;
 pub use preview_modal::*;
 pub mod feedback_widget;
 pub use feedback_widget::*;
+pub use queue_status::*;
