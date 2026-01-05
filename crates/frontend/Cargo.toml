@@ -27,7 +27,7 @@ web-sys = { version = "0.3", features = [
     "Window", "Document", "HtmlElement", "console",
     "Blob", "BlobPropertyBag", "Url", "RequestCredentials",
     "Navigator", "Clipboard", "EventSource", "MessageEvent",
-    "EventSourceInit", "Event"
+    "EventSourceInit", "Event", "File", "FormData"
 ] }
 console_error_panic_hook = "0.1"
 

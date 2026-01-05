@@ -16,6 +16,10 @@ A complete Rust-based web tool for authenticating with Axur API and generating t
 - **Multi-language UI**: Spanish, English, Portuguese
 - **Tenant Autocomplete**: Search and filter tenants
 - **Report Generation**: Beautiful HTML reports with Axur branding
+- **Template Editor**: Fabric.js canvas with drag-drop placeholders
+- **PPTX Import/Export**: Import PowerPoint, export as PNG zip
+- **Request Queue**: Token bucket rate limiting with real-time status
+- **GitHub Storage**: User templates stored in private repository
 - **Security First**: OWASP 2025, RustSec audits, proper error handling
 
 ## 📁 Project Structure

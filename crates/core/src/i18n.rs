@@ -38,7 +38,7 @@ impl FromStr for Language {
     }
 }
 
-pub trait Dictionary {
+pub trait Dictionary: Send + Sync {
     // General
     fn welcome_message(&self) -> String;
     fn login_prompt_email(&self) -> String;
