@@ -60,6 +60,7 @@ pub fn DashboardPage() -> impl IntoView {
     let story_tag = create_rw_signal(String::new());
     let include_threat_intel = create_rw_signal(false);
     let use_user_credits = create_rw_signal(false);
+    let use_plugins = create_rw_signal(false); // New plugin system toggle
     let selected_template = create_rw_signal::<Option<String>>(None); // Template ID for custom template
 
     // UI state
@@ -301,6 +302,7 @@ pub fn DashboardPage() -> impl IntoView {
             threat_intel,
             template_id,
             None,
+            use_plugins.get(),
         )
         .await
         {
@@ -427,9 +429,15 @@ pub fn DashboardPage() -> impl IntoView {
                             <Show
                                 when=move || !loading_tenants.get()
                                 fallback=|| view! {
-                                    <div class="text-center py-4">
-                                        <div class="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full mx-auto"></div>
-                                        <p class="text-zinc-400 text-sm mt-2">"Cargando tenants..."</p>
+                                    <div class="mb-4">
+                                        <div class="h-4 w-20 bg-zinc-700 rounded animate-pulse mb-2"></div>
+                                        <div class="relative">
+                                            <div class="w-full h-12 bg-zinc-800 border border-zinc-700 rounded-lg animate-pulse"></div>
+                                            <div class="absolute inset-0 flex items-center justify-center gap-2">
+                                                <div class="animate-spin h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full"></div>
+                                                <span class="text-zinc-500 text-sm">"Conectando..."</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 }
                             >
@@ -580,6 +588,22 @@ pub fn DashboardPage() -> impl IntoView {
                                         </p>
                                     </div>
                                 </Show>
+                            </div>
+
+                            // Plugin System Toggle (Experimental)
+                            <div class="mb-6 p-4 rounded-lg bg-green-900/20 border border-green-700/50">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        class="w-5 h-5 rounded border-green-600 bg-zinc-700 text-green-500 focus:ring-green-500 focus:ring-offset-zinc-900 cursor-pointer"
+                                        prop:checked=move || use_plugins.get()
+                                        on:change=move |ev| use_plugins.set(event_target_checked(&ev))
+                                    />
+                                    <span class="text-white font-medium">"🧩 Usar Sistema de Plugins (Beta)"
+                                    </span>
+                                </label>
+                                <p class="text-zinc-500 text-xs mt-1 ml-7">"Activa la nueva arquitectura modular con 20 plugins de slides"
+                                </p>
                             </div>
 
                             <button

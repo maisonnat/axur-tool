@@ -8,4 +8,5 @@ pub mod editor;
 pub mod error_codes;
 pub mod errors;
 pub mod i18n;
+pub mod plugins;
 pub mod report;

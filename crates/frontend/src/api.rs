@@ -86,6 +86,9 @@ pub struct GenerateReportRequest {
     pub include_threat_intel: bool,
     pub template_id: Option<String>,
     pub format: Option<String>,
+    /// Use the new plugin-based report generation
+    #[serde(default)]
+    pub use_plugins: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -232,6 +235,7 @@ pub async fn generate_report(
     include_threat_intel: bool,
     template_id: Option<String>,
     format: Option<String>,
+    use_plugins: bool,
 ) -> Result<GenerateReportResponse, String> {
     let resp = Request::post(&format!("{}/api/report/generate", API_BASE))
         .header("Content-Type", "application/json")
@@ -245,6 +249,7 @@ pub async fn generate_report(
             include_threat_intel,
             template_id,
             format,
+            use_plugins,
         })
         .map_err(|e| e.to_string())?
         .send()

@@ -22,8 +22,8 @@ use axur_core::api::report::{
     preview_threat_hunting,
 };
 use axur_core::error_codes::{self, ErrorCode};
-use axur_core::i18n::{get_dictionary, Language};
-use axur_core::report::html::generate_full_report_html;
+use axur_core::i18n::{get_dictionary, Language, Translations};
+use axur_core::report::html::{generate_full_report_html, generate_report_with_plugins};
 
 // ========================
 // REQUEST/RESPONSE TYPES
@@ -46,6 +46,9 @@ pub struct GenerateReportRequest {
     #[serde(default)]
     pub include_threat_intel: bool,
     pub template_id: Option<String>,
+    /// If true, use the new plugin-based report generation system
+    #[serde(default)]
+    pub use_plugins: bool,
 }
 
 fn default_language() -> String {
@@ -283,7 +286,20 @@ pub async fn generate_report(
     }
 
     // Generate HTML report
-    let html = generate_full_report_html(&report_data, custom_template_slides, None, &dict);
+    let html = if payload.use_plugins && custom_template_slides.is_none() {
+        // Use the new plugin-based system
+        let lang_code = match language {
+            Language::En => "en",
+            Language::PtBr => "pt-br",
+            Language::Es => "es",
+        };
+        let translations =
+            Translations::load(lang_code).unwrap_or_else(|_| Translations::load("en").unwrap());
+        generate_report_with_plugins(&report_data, &translations, None)
+    } else {
+        // Use legacy system for custom templates or when plugins not requested
+        generate_full_report_html(&report_data, custom_template_slides, None, &dict)
+    };
 
     // ⏱️ Calculate duration
     let duration_ms = start_time.elapsed().as_millis();
