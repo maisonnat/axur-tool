@@ -351,8 +351,25 @@ pub struct PocReportData {
     // NEW: Risk Score
     pub risk_score: RiskScore,
 
+    // NEW: Comparison data for period-over-period analysis
+    #[serde(default)]
+    pub comparison: Option<ComparisonData>,
+
     // UI FLAGS
     pub is_dynamic_window: bool,
+}
+
+/// Data for period-over-period comparison analysis
+#[derive(Debug, Serialize, Clone, Default)]
+pub struct ComparisonData {
+    /// Label for the comparison period (e.g., "vs. Enero 2024")
+    pub period_label: String,
+    /// Previous period ticket count
+    pub prev_tickets: u64,
+    /// Previous period takedown count
+    pub prev_takedowns: u64,
+    /// Previous period credentials count
+    pub prev_credentials: u64,
 }
 
 /// Aggregated threat intelligence data from Threat Hunting API
@@ -1522,6 +1539,9 @@ pub async fn fetch_full_report(
 
         // NEW: Risk Score V3
         risk_score: calculate_risk_score_v3(&risk_metrics),
+
+        // NEW: Comparison data (none by default, can be populated for comparative reports)
+        comparison: None,
 
         is_dynamic_window: false, // Default to fixed window
     };

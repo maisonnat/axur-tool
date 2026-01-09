@@ -343,17 +343,54 @@
                     const imageUrls = result.slides;
                     console.log(`[PPTX] Received ${imageUrls.length} slide previews from Google.`);
 
+                    // Update progress
+                    if (window.showPptxProgress) window.showPptxProgress('processing', imageUrls.length + ' slides');
+
                     const slides = [];
 
-                    // 2. Convert URLs to Canvas Backgrounds
+                    // Helper: Pre-fetch image with retry and delay to avoid 429
+                    const prefetchWithRetry = async (url, retries = 3, delayMs = 500) => {
+                        for (let attempt = 1; attempt <= retries; attempt++) {
+                            try {
+                                const img = new Image();
+                                img.crossOrigin = 'anonymous';
+                                await new Promise((resolve, reject) => {
+                                    img.onload = resolve;
+                                    img.onerror = () => reject(new Error('Image load failed'));
+                                    img.src = url;
+                                });
+                                return true; // Success
+                            } catch (e) {
+                                if (attempt < retries) {
+                                    const backoff = delayMs * Math.pow(2, attempt - 1);
+                                    console.log(`[PPTX] Retry ${attempt}/${retries} for image, waiting ${backoff}ms`);
+                                    await new Promise(r => setTimeout(r, backoff));
+                                }
+                            }
+                        }
+                        return false; // Failed after retries
+                    };
+
+                    // 2. Pre-fetch images SEQUENTIALLY with delays to avoid 429
+                    console.log('[PPTX] Pre-fetching slide images with rate limiting...');
                     for (let i = 0; i < imageUrls.length; i++) {
                         const url = imageUrls[i];
                         const slideNum = i + 1;
 
-                        // We use a Promise to load image dimensions if needed, 
-                        // but for now we assume 16:9 and fit to 1280x720.
-                        // Actually, let's just let Fabric load it.
+                        // Update progress per slide
+                        if (window.showPptxProgress) {
+                            window.showPptxProgress('processing', `Loading slide ${slideNum}/${imageUrls.length}`);
+                        }
 
+                        // Pre-fetch with retry
+                        await prefetchWithRetry(url, 3, 500);
+
+                        // Add delay between fetches to avoid rate limit (500ms)
+                        if (i < imageUrls.length - 1) {
+                            await new Promise(r => setTimeout(r, 500));
+                        }
+
+                        // Note: DO NOT hardcode width/height - let Fabric.js detect from actual image
                         slides.push({
                             slideNumber: slideNum,
                             canvasJson: JSON.stringify({
@@ -366,10 +403,8 @@
                                     originY: 'top',
                                     left: 0,
                                     top: 0,
-                                    width: 1280, // Default assume
-                                    height: 720,
+                                    // Removed hardcoded width/height - Fabric will use actual image dimensions
                                     src: url,
-                                    // Make sure it covers the canvas
                                     scaleX: 1,
                                     scaleY: 1,
                                     crossOrigin: 'anonymous', // Important for Google URLs
@@ -383,6 +418,7 @@
                             })
                         });
                     }
+                    console.log('[PPTX] All slides pre-fetched successfully');
 
                     this.state.slides = slides;
                     // Clean up URL object? No, these are remote URLs.
@@ -518,6 +554,55 @@
             }
         };
 
+        // ==================== PPTX IMPORT PROGRESS OVERLAY ====================
+        window._pptxOverlay = null;
+
+        window.showPptxProgress = function (stage, detail) {
+            if (!window._pptxOverlay) {
+                window._pptxOverlay = document.createElement('div');
+                window._pptxOverlay.id = 'pptx-progress-overlay';
+                window._pptxOverlay.innerHTML = `
+                    <div style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+                        <div style="background: #18181b; border: 1px solid #27272a; border-radius: 16px; padding: 32px; max-width: 400px; width: 90%; color: white; font-family: Inter, sans-serif; text-align: center;">
+                            <div style="width: 48px; height: 48px; border: 3px solid #3f3f46; border-top-color: #f97316; border-radius: 50%; margin: 0 auto 20px; animation: pptx-spin 1s linear infinite;"></div>
+                            <h3 id="pptx-stage" style="margin: 0 0 8px; font-size: 18px; font-weight: 600;">Importando...</h3>
+                            <p id="pptx-detail" style="margin: 0; color: #a1a1aa; font-size: 14px;"></p>
+                            <div style="margin-top: 20px; height: 4px; background: #27272a; border-radius: 2px; overflow: hidden;">
+                                <div id="pptx-progress-bar" style="height: 100%; background: linear-gradient(90deg, #f97316, #fbbf24); width: 0%; transition: width 0.3s ease;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <style>
+                        @keyframes pptx-spin { to { transform: rotate(360deg); } }
+                    </style>
+                `;
+                document.body.appendChild(window._pptxOverlay);
+            }
+
+            const stageEl = document.getElementById('pptx-stage');
+            const detailEl = document.getElementById('pptx-detail');
+            const progressBar = document.getElementById('pptx-progress-bar');
+
+            const stages = {
+                'uploading': { text: '📤 Subiendo archivo...', progress: 20 },
+                'processing': { text: '⚙️ Procesando slides...', progress: 50 },
+                'loading': { text: '🎨 Cargando editor...', progress: 80 },
+                'complete': { text: '✅ Completado', progress: 100 }
+            };
+
+            const s = stages[stage] || { text: stage, progress: 50 };
+            if (stageEl) stageEl.textContent = s.text;
+            if (detailEl) detailEl.textContent = detail || '';
+            if (progressBar) progressBar.style.width = s.progress + '%';
+        };
+
+        window.hidePptxProgress = function () {
+            if (window._pptxOverlay) {
+                document.body.removeChild(window._pptxOverlay);
+                window._pptxOverlay = null;
+            }
+        };
+
         // Handle PPTX import from stored global file (works with setTimeout)
         window.handlePptxImportFromGlobal = async function () {
             try {
@@ -536,7 +621,12 @@
 
                 console.log('[PPTX] Selected file:', file.name);
 
+                // Show progress overlay
+                window.showPptxProgress('uploading', file.name);
+
                 const result = await window.importPPTX(file);
+
+                window.showPptxProgress('loading', result.slides.length + ' slides');
 
                 if (result.success && result.slides.length > 0) {
                     console.log('[PPTX] Loading ' + result.slides.length + ' slides with editable elements...');
@@ -556,15 +646,18 @@
                     // Load first slide into canvas
                     window.loadCanvasJSON(editableSlides[0].canvasJson);
 
-                    // Show guidance modal
+                    // Hide progress and show guidance modal
+                    window.hidePptxProgress();
                     window.showImportGuideEditable(result.slideCount, result.fileName, function () {
                         console.log('[PPTX] User ready to edit ' + editableSlides.length + ' slides');
                         window.updatePptxIndicator();
                     });
                 } else {
+                    window.hidePptxProgress();
                     alert('❌ No se encontraron slides en el archivo');
                 }
             } catch (e) {
+                window.hidePptxProgress();
                 console.error('[PPTX] Import error:', e);
                 alert('❌ Error al importar: ' + e.message);
             }
@@ -667,19 +760,6 @@
                         <li>Agrega <strong>Placeholders</strong> encima usando el menú "📦 Placeholders".</li>
                         <li>Al exportar, se inyectarán los placeholders en el archivo original.</li>
                     </ul>
-                </div>
-
-                <div
-                    style="background: linear-gradient(135deg, #1e3a2f 0%, #1a2e25 100%); border: 1px solid #22c55e40; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
-                    <div style="display: flex; gap: 12px;">
-                        <span style="font-size: 20px;">🔒</span>
-                        <div>
-                            <p style="margin: 0; font-size: 14px; color: #86efac; font-weight: 500;">Procesamiento 100%
-                                local</p>
-                            <p style="margin: 4px 0 0; font-size: 13px; color: #a1a1aa;">Tu archivo nunca sale de tu
-                                computadora hasta el momento de Exportar.</p>
-                        </div>
-                    </div>
                 </div>
 
                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -797,53 +877,37 @@
                 btn.draggable = true;
                 btn.dataset.index = idx;
 
-                // Create a mini canvas to render preview
-                const thumbCanvas = document.createElement('canvas');
-                thumbCanvas.width = 160;
-                thumbCanvas.height = 90;
-                thumbCanvas.className = 'w-full h-full object-cover';
-                btn.appendChild(thumbCanvas);
-
                 // Slide number badge
                 const badge = document.createElement('span');
                 badge.className = 'absolute bottom-1 right-1 bg-black/70 text-orange-400 text-xs px-1 rounded';
                 badge.textContent = (idx + 1);
                 btn.appendChild(badge);
 
-                // Render the slide JSON to mini canvas using Fabric.js
+                // Extract background image URL from canvas JSON and show as thumbnail
                 try {
-                    const tempFabric = new fabric.Canvas(thumbCanvas, {
-                        width: 160,
-                        height: 90,
-                        selection: false,
-                        renderOnAddRemove: false
-                    });
+                    const jsonData = typeof slide.canvasJson === 'string' ?
+                        JSON.parse(slide.canvasJson) : slide.canvasJson;
 
-                    // Parse and scale down the JSON
-                    if (slide.canvasJson) {
-                        const jsonData = typeof slide.canvasJson === 'string' ?
-                            JSON.parse(slide.canvasJson) : slide.canvasJson;
-
-                        // Scale factor (from 960x540 to 160x90)
-                        const scale = 160 / 960;
-
-                        // Load and scale objects
-                        tempFabric.loadFromJSON(jsonData, function () {
-                            tempFabric.getObjects().forEach(obj => {
-                                obj.scaleX = (obj.scaleX || 1) * scale;
-                                obj.scaleY = (obj.scaleY || 1) * scale;
-                                obj.left = (obj.left || 0) * scale;
-                                obj.top = (obj.top || 0) * scale;
-                                obj.setCoords();
-                            });
-                            tempFabric.renderAll();
-                            // Dispose after render to save memory
-                            setTimeout(() => tempFabric.dispose(), 100);
-                        });
+                    const bgSrc = jsonData.backgroundImage?.src;
+                    if (bgSrc) {
+                        // Use simple img element instead of Fabric canvas for thumbnails
+                        const thumbImg = document.createElement('img');
+                        thumbImg.src = bgSrc;
+                        thumbImg.className = 'w-full h-full object-cover';
+                        thumbImg.crossOrigin = 'anonymous';
+                        thumbImg.style.pointerEvents = 'none';
+                        thumbImg.onerror = function () {
+                            // Fallback on error
+                            thumbImg.remove();
+                            btn.style.background = '#27272a';
+                        };
+                        btn.appendChild(thumbImg);
+                    } else {
+                        // No background image, show placeholder
+                        btn.style.background = '#27272a';
                     }
                 } catch (e) {
                     // Fallback: show number if preview fails
-                    thumbCanvas.remove();
                     btn.innerHTML = '<span class="text-orange-400 text-2xl">' + (idx + 1) + '</span>';
                     btn.className += ' bg-zinc-800 flex items-center justify-center';
                 }
@@ -1314,6 +1378,279 @@
             fabricCanvas.renderAll();
         };
 
+        // === Preview Mode (Real-time placeholder rendering) ===
+        window.previewModeEnabled = false;
+
+        // Mock data for placeholders (sample values for preview)
+        window.placeholderMockData = {
+            // General
+            'company_name': 'Acme Corporation',
+            'date_range': 'Ene 2026 - Dic 2026',
+            'tlp_level': 'TLP:AMBER',
+            // Metrics
+            'total_tickets': '1,247',
+            'total_threats': '892',
+            'hours_saved': '156h',
+            // Threats
+            'top_threat_1_name': 'Phishing',
+            'top_threat_1_count': '234',
+            'threats_by_type': '🎯 Phishing 45% | 🔐 Creds 30%',
+            // Credentials
+            'credentials_total': '3,456',
+            'credentials_critical': '127',
+            'stealer_log_count': '89',
+            // Takedowns
+            'takedown_total': '284',
+            'takedown_success_rate': '94.2%',
+            'takedown_resolved': '267',
+            // Risk
+            'risk_score_value': '72',
+            'risk_score_label': 'Moderado',
+        };
+
+        // Toggle preview mode on all placeholders
+        window.togglePreviewMode = function (enabled) {
+            if (!fabricCanvas) return false;
+            window.previewModeEnabled = enabled;
+
+            fabricCanvas.getObjects().forEach(function (obj) {
+                const key = obj.get('placeholderKey');
+                if (!key) return;
+
+                // Groups contain rect + text
+                if (obj._objects && obj._objects.length > 1) {
+                    const textObj = obj._objects.find(o => o.type === 'text');
+                    if (textObj) {
+                        if (enabled) {
+                            // Store original and show mock
+                            // Check if this is a conditional placeholder
+                            let mockValue;
+                            if (window.conditionalPlaceholders && window.conditionalPlaceholders[key]) {
+                                mockValue = window.evaluateConditional(key);
+                            } else {
+                                mockValue = window.placeholderMockData[key] || '(sin datos)';
+                            }
+                            textObj.set('originalText', textObj.text);
+                            textObj.set('text', mockValue);
+                            // Use cyan for conditional, green for regular
+                            const isConditional = window.conditionalPlaceholders && window.conditionalPlaceholders[key];
+                            textObj.set('fill', isConditional ? '#06b6d4' : '#22c55e');
+                        } else {
+                            // Restore original placeholder
+                            const original = textObj.get('originalText') || '{{' + key + '}}';
+                            textObj.set('text', original);
+                            textObj.set('fill', '#6366f1'); // Indigo for placeholder
+                        }
+                    }
+                }
+            });
+
+            fabricCanvas.renderAll();
+            console.log('[Preview] Mode:', enabled ? 'ON' : 'OFF');
+            return enabled;
+        };
+
+        // Get current preview mode state
+        window.getPreviewMode = function () {
+            return window.previewModeEnabled;
+        };
+
+        // === Smart Templates: Placeholder Categories ===
+
+        // Map placeholder keys to data categories
+        window.placeholderCategories = {
+            // General
+            'company_name': 'General',
+            'date_range': 'General',
+            'tlp_level': 'General',
+            // Metrics
+            'total_tickets': 'Metrics',
+            'total_threats': 'Metrics',
+            'hours_saved': 'Metrics',
+            // Threats
+            'top_threat_1_name': 'Threats',
+            'top_threat_1_count': 'Threats',
+            'top_threat_2_name': 'Threats',
+            'top_threat_3_name': 'Threats',
+            'threats_by_type': 'Threats',
+            // Credentials
+            'credentials_total': 'Credentials',
+            'credentials_critical': 'Credentials',
+            'stealer_log_count': 'Credentials',
+            // Takedowns
+            'takedown_total': 'Takedowns',
+            'takedown_success_rate': 'Takedowns',
+            'takedown_resolved': 'Takedowns',
+            // Risk
+            'risk_score_value': 'Risk',
+            'risk_score_label': 'Risk',
+        };
+
+        // All possible categories with descriptions
+        window.dataCategories = {
+            'General': { icon: '📋', name: 'Información General', color: '#6366f1' },
+            'Metrics': { icon: '📊', name: 'Métricas', color: '#f97316' },
+            'Threats': { icon: '🎯', name: 'Amenazas', color: '#ef4444' },
+            'Credentials': { icon: '🔐', name: 'Credenciales', color: '#a855f7' },
+            'Takedowns': { icon: '✅', name: 'Takedowns', color: '#22c55e' },
+            'Risk': { icon: '⚠️', name: 'Risk Score', color: '#f59e0b' },
+            'Condicional': { icon: '🔀', name: 'Condicionales', color: '#06b6d4' },
+        };
+
+        // === Smart Placeholders: Conditional Logic ===
+
+        // Pre-defined conditional placeholders
+        window.conditionalPlaceholders = {
+            'risk_status': {
+                label: 'Estado de Riesgo',
+                condition: 'risk_score_value',
+                rules: [
+                    { op: '>', value: 70, result: '🔴 CRÍTICO: Acción inmediata requerida' },
+                    { op: '>', value: 40, result: '🟡 ALERTA: Monitorear situación' },
+                    { op: '>=', value: 0, result: '🟢 Estado normal' }
+                ]
+            },
+            'threat_level': {
+                label: 'Nivel de Amenazas',
+                condition: 'total_threats',
+                rules: [
+                    { op: '>', value: 500, result: '⚠️ Nivel Alto - Requiere atención prioritaria' },
+                    { op: '>', value: 100, result: '⚡ Nivel Medio - Monitoreo continuo' },
+                    { op: '>=', value: 0, result: '✅ Nivel Bajo - Bajo control' }
+                ]
+            },
+            'credential_alert': {
+                label: 'Alerta Credenciales',
+                condition: 'credentials_critical',
+                rules: [
+                    { op: '>', value: 100, result: '🚨 ALERTA CRÍTICA: +100 credenciales expuestas' },
+                    { op: '>', value: 50, result: '⚠️ Alerta: Más de 50 credenciales críticas' },
+                    { op: '>=', value: 0, result: 'ℹ️ Credenciales bajo control' }
+                ]
+            },
+            'takedown_efficiency': {
+                label: 'Eficiencia Takedowns',
+                condition: 'takedown_success_rate',
+                rules: [
+                    { op: '>=', value: 90, result: '🏆 Excelente: Eficiencia superior al 90%' },
+                    { op: '>=', value: 70, result: '👍 Buena: Eficiencia sobre 70%' },
+                    { op: '>=', value: 0, result: '📈 Oportunidad de mejora' }
+                ]
+            }
+        };
+
+        // Evaluate a conditional placeholder
+        window.evaluateConditional = function (placeholderKey) {
+            const config = window.conditionalPlaceholders[placeholderKey];
+            if (!config) return `{{${placeholderKey}}}`;
+
+            // Get the value of the condition variable
+            const conditionVar = config.condition;
+            let rawValue = window.placeholderMockData[conditionVar] || '0';
+            // Parse numeric value (remove % and other non-numeric chars)
+            let numValue = parseFloat(rawValue.replace(/[^0-9.-]/g, ''));
+            if (isNaN(numValue)) numValue = 0;
+
+            // Evaluate rules in order
+            for (const rule of config.rules) {
+                let match = false;
+                switch (rule.op) {
+                    case '>': match = numValue > rule.value; break;
+                    case '<': match = numValue < rule.value; break;
+                    case '>=': match = numValue >= rule.value; break;
+                    case '<=': match = numValue <= rule.value; break;
+                    case '==': match = numValue === rule.value; break;
+                    case '!=': match = numValue !== rule.value; break;
+                }
+                if (match) return rule.result;
+            }
+            return config.rules[config.rules.length - 1]?.result || '';
+        };
+
+        // Add conditional placeholder category mappings
+        window.placeholderCategories['risk_status'] = 'Condicional';
+        window.placeholderCategories['threat_level'] = 'Condicional';
+        window.placeholderCategories['credential_alert'] = 'Condicional';
+        window.placeholderCategories['takedown_efficiency'] = 'Condicional';
+
+        // Analyze template to find which categories are used
+        // If slidesJsonArray is provided, also parse those (for full project analysis)
+        window.analyzeTemplateData = function (slidesJsonArray) {
+            const usedCategories = new Set();
+            const usedPlaceholders = [];
+
+            // 1. Analyze current canvas
+            if (fabricCanvas) {
+                fabricCanvas.getObjects().forEach(function (obj) {
+                    const key = obj.get('placeholderKey');
+                    if (key) {
+                        usedPlaceholders.push(key);
+                        const category = window.placeholderCategories[key];
+                        if (category) {
+                            usedCategories.add(category);
+                        }
+                    }
+                });
+            }
+
+            // 2. Analyze all slides from stored JSON (if provided)
+            if (slidesJsonArray && Array.isArray(slidesJsonArray)) {
+                slidesJsonArray.forEach(function (jsonStr) {
+                    try {
+                        const canvasData = JSON.parse(jsonStr);
+                        if (canvasData.objects && Array.isArray(canvasData.objects)) {
+                            canvasData.objects.forEach(function (obj) {
+                                // Check for placeholderKey in object properties
+                                const key = obj.placeholderKey;
+                                if (key && !usedPlaceholders.includes(key)) {
+                                    usedPlaceholders.push(key);
+                                    const category = window.placeholderCategories[key];
+                                    if (category) {
+                                        usedCategories.add(category);
+                                    }
+                                }
+                                // Also check in group objects
+                                if (obj.objects && Array.isArray(obj.objects)) {
+                                    obj.objects.forEach(function (child) {
+                                        const childKey = child.placeholderKey;
+                                        if (childKey && !usedPlaceholders.includes(childKey)) {
+                                            usedPlaceholders.push(childKey);
+                                            const cat = window.placeholderCategories[childKey];
+                                            if (cat) usedCategories.add(cat);
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('[SmartTemplates] Failed to parse slide JSON:', e);
+                    }
+                });
+            }
+
+            const allCategories = Object.keys(window.dataCategories);
+            const used = allCategories.filter(c => usedCategories.has(c));
+            const unused = allCategories.filter(c => !usedCategories.has(c));
+
+            console.log('[SmartTemplates] Full Project Analysis:', {
+                slides: slidesJsonArray ? slidesJsonArray.length : 0,
+                placeholders: usedPlaceholders.length,
+                usedCategories: used.length,
+                unusedCategories: unused.length
+            });
+
+            return {
+                used: used,
+                unused: unused,
+                placeholders: usedPlaceholders
+            };
+        };
+
+        // Get category details for UI
+        window.getCategoryDetails = function () {
+            return window.dataCategories;
+        };
+
         // Add shape
         window.addShapeToCanvas = function (shapeType) {
             if (!fabricCanvas) return;
@@ -1384,6 +1721,27 @@
                             if (!obj.styles) obj.styles = {};
                         }
                     });
+
+                    // Scale background image to fit canvas if needed
+                    const bgImg = fabricCanvas.backgroundImage;
+                    if (bgImg && bgImg.width && bgImg.height) {
+                        const canvasW = fabricCanvas.width;
+                        const canvasH = fabricCanvas.height;
+                        const imgW = bgImg.width;
+                        const imgH = bgImg.height;
+
+                        // Calculate scale to FIT canvas (show entire image, maintain aspect ratio)
+                        const scaleX = canvasW / imgW;
+                        const scaleY = canvasH / imgH;
+                        const scale = Math.min(scaleX, scaleY); // Use min to show entire image
+
+                        bgImg.scaleX = scale;
+                        bgImg.scaleY = scale;
+                        bgImg.set({ left: 0, top: 0, originX: 'left', originY: 'top' });
+
+                        console.log('[Fabric] Background scaled from ' + imgW + 'x' + imgH + ' to fit canvas');
+                    }
+
                     fabricCanvas.renderAll();
                     console.log('[Fabric] Canvas loaded successfully');
                 });
@@ -1479,6 +1837,23 @@
                 e.stopPropagation();
                 canvasContainer.classList.remove('drag-over');
 
+                // Check for text/plain data first (placeholder drops from modal)
+                const textData = e.dataTransfer.getData('text/plain');
+                if (textData && textData.startsWith('PLACEHOLDER:')) {
+                    // Format: PLACEHOLDER:key:html
+                    const parts = textData.split(':');
+                    if (parts.length >= 3) {
+                        const key = parts[1];
+                        const html = parts.slice(2).join(':'); // Rejoin in case HTML had colons
+                        console.log('[DragDrop] Placeholder dropped:', key);
+                        if (window.addPlaceholderToCanvas) {
+                            window.addPlaceholderToCanvas(key, html);
+                        }
+                    }
+                    return; // Handled placeholder drop
+                }
+
+                // Otherwise handle file drops (images, PPTX)
                 const files = e.dataTransfer.files;
                 if (files.length > 0) {
                     const file = files[0];
@@ -1494,7 +1869,7 @@
                 }
             });
 
-            console.log('[DragDrop] Canvas drag & drop enabled');
+            console.log('[DragDrop] Canvas drag & drop enabled (files + placeholders)');
         };
 
         // Trigger PPTX file picker

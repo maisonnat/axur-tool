@@ -49,6 +49,12 @@ pub struct GenerateReportRequest {
     /// If true, use the new plugin-based report generation system
     #[serde(default)]
     pub use_plugins: bool,
+    /// Theme mode: "dark", "light", or "auto"
+    #[serde(default)]
+    pub theme: Option<String>,
+    /// List of plugin IDs to disable
+    #[serde(default)]
+    pub disabled_plugins: Option<Vec<String>>,
 }
 
 fn default_language() -> String {
@@ -295,7 +301,19 @@ pub async fn generate_report(
         };
         let translations =
             Translations::load(lang_code).unwrap_or_else(|_| Translations::load("en").unwrap());
-        generate_report_with_plugins(&report_data, &translations, None)
+
+        // Build PluginConfig from request parameters
+        use axur_core::plugins::{PluginConfig, ThemeMode};
+        let theme_mode = match payload.theme.as_deref() {
+            Some("light") => ThemeMode::Light,
+            Some("auto") => ThemeMode::Auto,
+            _ => ThemeMode::Dark, // Default
+        };
+        let config = PluginConfig::default()
+            .with_theme(theme_mode)
+            .disable_plugins(payload.disabled_plugins.clone().unwrap_or_default());
+
+        generate_report_with_plugins(&report_data, &translations, None, Some(config))
     } else {
         // Use legacy system for custom templates or when plugins not requested
         generate_full_report_html(&report_data, custom_template_slides, None, &dict)

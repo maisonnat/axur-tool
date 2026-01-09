@@ -89,6 +89,12 @@ pub struct GenerateReportRequest {
     /// Use the new plugin-based report generation
     #[serde(default)]
     pub use_plugins: bool,
+    /// Theme mode: "dark", "light", or "auto"
+    #[serde(default)]
+    pub theme: Option<String>,
+    /// List of plugin IDs to disable
+    #[serde(default)]
+    pub disabled_plugins: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -236,6 +242,8 @@ pub async fn generate_report(
     template_id: Option<String>,
     format: Option<String>,
     use_plugins: bool,
+    theme: Option<String>,
+    disabled_plugins: Option<Vec<String>>,
 ) -> Result<GenerateReportResponse, String> {
     let resp = Request::post(&format!("{}/api/report/generate", API_BASE))
         .header("Content-Type", "application/json")
@@ -250,6 +258,8 @@ pub async fn generate_report(
             template_id,
             format,
             use_plugins,
+            theme,
+            disabled_plugins,
         })
         .map_err(|e| e.to_string())?
         .send()
@@ -785,4 +795,225 @@ pub async fn delete_template(template_id: &str) -> Result<bool, String> {
         .map_err(|e| e.to_string())?;
 
     Ok(resp.ok())
+}
+
+// ========================
+// GOOGLE SLIDES EXPORT
+// ========================
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExportSlideData {
+    pub title: String,
+    pub body: Vec<String>,
+    pub layout: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ExportToSlidesRequest {
+    pub title: String,
+    pub slides: Vec<ExportSlideData>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
+pub struct ExportToSlidesResponse {
+    pub success: bool,
+    pub presentation_id: String,
+    pub presentation_url: String,
+    pub slides_count: usize,
+    pub message: String,
+}
+
+/// Export slides to Google Slides
+pub async fn export_to_slides(
+    title: &str,
+    slides: Vec<ExportSlideData>,
+) -> Result<ExportToSlidesResponse, String> {
+    let resp = Request::post(&format!("{}/api/export/slides", API_BASE))
+        .header("Content-Type", "application/json")
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&ExportToSlidesRequest {
+            title: title.to_string(),
+            slides,
+        })
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        Err(format!(
+            "Google Slides export failed ({}): {}",
+            status, text
+        ))
+    }
+}
+
+// =================================================================
+// PPTX REPORT GENERATION
+// =================================================================
+
+use std::collections::HashMap;
+
+/// Response from PPTX generation
+#[derive(Debug, Clone, Deserialize)]
+pub struct GeneratePptxResponse {
+    pub success: bool,
+    pub message: String,
+    pub pptx_base64: Option<String>,
+}
+
+/// Slide edit structure for PPTX injection
+#[derive(Debug, Clone, Serialize)]
+pub struct PptxSlideEdit {
+    pub slide_index: usize,
+    pub text: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub placeholder_key: Option<String>,
+}
+
+/// Generate PPTX report with real data
+///
+/// Takes the template PPTX file, placeholder edits (positions), and actual values
+/// Returns the modified PPTX as base64
+pub async fn generate_pptx_report(
+    pptx_file: web_sys::File,
+    edits: Vec<PptxSlideEdit>,
+    placeholder_values: HashMap<String, String>,
+) -> Result<GeneratePptxResponse, String> {
+    let form_data = web_sys::FormData::new().map_err(|_| "Failed to create FormData")?;
+
+    // Add file
+    form_data
+        .append_with_blob("file", &pptx_file)
+        .map_err(|_| "Failed to append file")?;
+
+    // Add edits as JSON
+    let edits_json = serde_json::to_string(&edits).map_err(|e| e.to_string())?;
+    form_data
+        .append_with_str("edits", &edits_json)
+        .map_err(|_| "Failed to append edits")?;
+
+    // Add placeholder values as JSON
+    let values_json = serde_json::to_string(&placeholder_values).map_err(|e| e.to_string())?;
+    form_data
+        .append_with_str("placeholder_values", &values_json)
+        .map_err(|_| "Failed to append placeholder_values")?;
+
+    let resp = Request::post(&format!("{}/api/export/generate-pptx", API_BASE))
+        .credentials(web_sys::RequestCredentials::Include)
+        .body(form_data)
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        Err(format!("PPTX generation failed ({}): {}", status, text))
+    }
+}
+
+// =================================================================
+// TEMPLATE PPTX FILE ACCESS
+// =================================================================
+
+/// Response for get_template_pptx
+#[derive(Debug, Clone, Deserialize)]
+pub struct GetTemplatePptxResponse {
+    pub success: bool,
+    pub pptx_base64: Option<String>,
+    pub size_bytes: Option<usize>,
+    pub error: Option<String>,
+}
+
+/// Get the base PPTX file of a template
+pub async fn get_template_pptx(template_id: &str) -> Result<GetTemplatePptxResponse, String> {
+    let resp = Request::get(&format!("{}/api/templates/{}/pptx", API_BASE, template_id))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        Err(format!(
+            "Failed to get template PPTX ({}): {}",
+            status, text
+        ))
+    }
+}
+
+/// Download a base64-encoded file by triggering browser download
+/// Uses JavaScript atob for base64 decoding
+pub fn download_base64_file(base64_data: &str, filename: &str, mime_type: &str) {
+    use wasm_bindgen::JsCast;
+
+    // Use JavaScript's atob to decode base64
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+
+    let decoded_string = match window.atob(base64_data) {
+        Ok(s) => s,
+        Err(e) => {
+            leptos::logging::error!("Failed to decode base64: {:?}", e);
+            return;
+        }
+    };
+
+    // Convert string to bytes (binary string from atob)
+    let bytes: Vec<u8> = decoded_string.chars().map(|c| c as u8).collect();
+
+    // Create Blob
+    let array = js_sys::Uint8Array::new_with_length(bytes.len() as u32);
+    array.copy_from(&bytes);
+    let parts = js_sys::Array::new();
+    parts.push(&array.buffer());
+
+    let options = web_sys::BlobPropertyBag::new();
+    options.set_type(mime_type);
+
+    let blob = match web_sys::Blob::new_with_u8_array_sequence_and_options(&parts, &options) {
+        Ok(b) => b,
+        Err(e) => {
+            leptos::logging::error!("Failed to create Blob: {:?}", e);
+            return;
+        }
+    };
+
+    // Create download URL
+    let url = match web_sys::Url::create_object_url_with_blob(&blob) {
+        Ok(u) => u,
+        Err(e) => {
+            leptos::logging::error!("Failed to create URL: {:?}", e);
+            return;
+        }
+    };
+
+    // Trigger download
+    if let Some(document) = window.document() {
+        if let Ok(element) = document.create_element("a") {
+            let anchor = element.unchecked_into::<web_sys::HtmlAnchorElement>();
+            anchor.set_href(&url);
+            anchor.set_download(filename);
+            anchor.click();
+
+            // Cleanup
+            let _ = web_sys::Url::revoke_object_url(&url);
+        }
+    }
 }

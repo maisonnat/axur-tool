@@ -296,4 +296,257 @@ impl GoogleServices {
 
         Ok(urls)
     }
+
+    // =================================================================
+    // GOOGLE SLIDES EXPORT METHODS
+    // =================================================================
+
+    /// Create a new empty Google Slides presentation
+    /// Returns the presentation ID
+    pub async fn create_presentation(&self, title: &str) -> Result<String, String> {
+        // Rate limit
+        self.limiter.until_ready().await;
+
+        // Get access token for Slides write scope
+        let scopes = &["https://www.googleapis.com/auth/presentations"];
+        let token = self
+            .auth
+            .token(scopes)
+            .await
+            .map_err(|e| format!("Token Error: {}", e))?;
+        let access_token = token.token().ok_or("No token string")?;
+
+        // Create presentation request
+        let body = serde_json::json!({
+            "title": title
+        });
+
+        let url = "https://slides.googleapis.com/v1/presentations";
+        let resp = self
+            .http_client
+            .post(url)
+            .bearer_auth(access_token)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Create Presentation Request Error: {}", e))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("Slides API Error ({}): {}", status, body));
+        }
+
+        let result: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Parse Presentation Response Error: {}", e))?;
+
+        result
+            .get("presentationId")
+            .and_then(|id| id.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "No presentation ID in response".to_string())
+    }
+
+    /// Add slides with content to an existing presentation using batchUpdate
+    ///
+    /// # Arguments
+    /// * `presentation_id` - The Google Slides presentation ID
+    /// * `slides` - Vector of SlideData with title, body, and layout
+    pub async fn add_slides_batch(
+        &self,
+        presentation_id: &str,
+        slides: &[SlideData],
+    ) -> Result<(), String> {
+        // Rate limit (1 second delay per API rules)
+        self.limiter.until_ready().await;
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+        // Get access token
+        let scopes = &["https://www.googleapis.com/auth/presentations"];
+        let token = self
+            .auth
+            .token(scopes)
+            .await
+            .map_err(|e| format!("Token Error: {}", e))?;
+        let access_token = token.token().ok_or("No token string")?;
+
+        // Build batchUpdate requests
+        let mut requests = Vec::new();
+
+        for (index, slide) in slides.iter().enumerate() {
+            let slide_id = format!("slide_{}", index);
+
+            // 1. Create slide with layout
+            requests.push(serde_json::json!({
+                "createSlide": {
+                    "objectId": slide_id,
+                    "insertionIndex": index + 1,  // After title slide
+                    "slideLayoutReference": {
+                        "predefinedLayout": slide.layout.as_deref().unwrap_or("BLANK")
+                    }
+                }
+            }));
+
+            // 2. Add title text box
+            if !slide.title.is_empty() {
+                let title_id = format!("{}_title", slide_id);
+                requests.push(serde_json::json!({
+                    "createShape": {
+                        "objectId": title_id,
+                        "shapeType": "TEXT_BOX",
+                        "elementProperties": {
+                            "pageObjectId": slide_id,
+                            "size": {
+                                "width": { "magnitude": 600, "unit": "PT" },
+                                "height": { "magnitude": 50, "unit": "PT" }
+                            },
+                            "transform": {
+                                "scaleX": 1.0,
+                                "scaleY": 1.0,
+                                "translateX": 30.0,
+                                "translateY": 20.0,
+                                "unit": "PT"
+                            }
+                        }
+                    }
+                }));
+                requests.push(serde_json::json!({
+                    "insertText": {
+                        "objectId": title_id,
+                        "text": &slide.title
+                    }
+                }));
+                // Style title
+                requests.push(serde_json::json!({
+                    "updateTextStyle": {
+                        "objectId": title_id,
+                        "style": {
+                            "bold": true,
+                            "fontSize": { "magnitude": 28, "unit": "PT" },
+                            "foregroundColor": {
+                                "opaqueColor": {
+                                    "rgbColor": { "red": 1.0, "green": 0.294, "blue": 0.0 }  // #FF4B00
+                                }
+                            }
+                        },
+                        "fields": "bold,fontSize,foregroundColor"
+                    }
+                }));
+            }
+
+            // 3. Add body text box
+            if !slide.body.is_empty() {
+                let body_id = format!("{}_body", slide_id);
+                let body_text = slide.body.join("\n\n");
+                requests.push(serde_json::json!({
+                    "createShape": {
+                        "objectId": body_id,
+                        "shapeType": "TEXT_BOX",
+                        "elementProperties": {
+                            "pageObjectId": slide_id,
+                            "size": {
+                                "width": { "magnitude": 600, "unit": "PT" },
+                                "height": { "magnitude": 300, "unit": "PT" }
+                            },
+                            "transform": {
+                                "scaleX": 1.0,
+                                "scaleY": 1.0,
+                                "translateX": 30.0,
+                                "translateY": 80.0,
+                                "unit": "PT"
+                            }
+                        }
+                    }
+                }));
+                requests.push(serde_json::json!({
+                    "insertText": {
+                        "objectId": body_id,
+                        "text": body_text
+                    }
+                }));
+                // Style body
+                requests.push(serde_json::json!({
+                    "updateTextStyle": {
+                        "objectId": body_id,
+                        "style": {
+                            "fontSize": { "magnitude": 14, "unit": "PT" },
+                            "foregroundColor": {
+                                "opaqueColor": {
+                                    "rgbColor": { "red": 0.94, "green": 0.94, "blue": 0.96 }  // Light gray
+                                }
+                            }
+                        },
+                        "fields": "fontSize,foregroundColor"
+                    }
+                }));
+            }
+
+            // 4. Set dark background
+            requests.push(serde_json::json!({
+                "updatePageProperties": {
+                    "objectId": slide_id,
+                    "pageProperties": {
+                        "pageBackgroundFill": {
+                            "solidFill": {
+                                "color": {
+                                    "rgbColor": { "red": 0.039, "green": 0.039, "blue": 0.039 }  // #0A0A0A
+                                }
+                            }
+                        }
+                    },
+                    "fields": "pageBackgroundFill"
+                }
+            }));
+        }
+
+        if requests.is_empty() {
+            return Ok(());
+        }
+
+        // Send batchUpdate request
+        let url = format!(
+            "https://slides.googleapis.com/v1/presentations/{}:batchUpdate",
+            presentation_id
+        );
+        let body = serde_json::json!({ "requests": requests });
+
+        let resp = self
+            .http_client
+            .post(&url)
+            .bearer_auth(access_token)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("BatchUpdate Request Error: {}", e))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let error_body = resp.text().await.unwrap_or_default();
+            tracing::error!("BatchUpdate failed: {} - {}", status, error_body);
+            return Err(format!(
+                "Slides BatchUpdate Error ({}): {}",
+                status, error_body
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Get the shareable URL for a Google Slides presentation
+    pub fn get_presentation_url(&self, presentation_id: &str) -> String {
+        format!(
+            "https://docs.google.com/presentation/d/{}/edit",
+            presentation_id
+        )
+    }
+}
+
+/// Slide data for Google Slides export
+#[derive(Debug, Clone)]
+pub struct SlideData {
+    pub title: String,
+    pub body: Vec<String>,
+    pub layout: Option<String>,
 }

@@ -231,6 +231,7 @@ pub fn LoginPage() -> impl IntoView {
                                 label=Signal::derive(move || dict.get().tfa_label.to_string())
                                 placeholder=Signal::derive(move || dict.get().tfa_placeholder.to_string())
                                 value=tfa_code
+                                autofocus=true
                             />
 
                             <div class="mt-6">

@@ -1,6 +1,6 @@
 //! ROI (Return on Investment) Slide Plugin
 //!
-//! Displays operational impact and efficiency metrics.
+//! Displays operational impact and efficiency metrics with Axur.com aesthetics.
 
 use super::helpers::footer_dark;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
@@ -45,7 +45,97 @@ impl SlidePlugin for RoiSlidePlugin {
         };
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">{badge}</span><h2 class="text-4xl font-bold mt-4">{title}</h2></div><div class="grid grid-cols-3 gap-8 flex-grow"><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{eff_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{hours} <span class="text-base font-normal text-zinc-400">{hours_unit}</span></p><p class="text-zinc-400 text-sm leading-relaxed">{eff_desc}</p><div class="mt-4 text-xs text-zinc-500"><p>• {lbl_validation}: {val_hours:.0}h</p><p>• {lbl_monitoring}: {cred_hours:.0}h</p><p>• {lbl_takedowns}: {td_hours:.0}h</p></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{team_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">{analysts}</p><p class="text-zinc-400 text-sm leading-relaxed">{team_desc}</p><div class="mt-4"><div class="flex items-center gap-2 text-xs text-zinc-500"><span class="w-3 h-3 rounded-full bg-green-500"></span><span>{tickets} {lbl_tickets}</span></div><div class="flex items-center gap-2 text-xs text-zinc-500 mt-1"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span>{creds} {lbl_creds}</span></div></div></div><div class="bg-zinc-900 border border-zinc-800 p-8 rounded-xl flex flex-col hover:border-orange-500/50 transition-colors"><div class="bg-orange-600/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-6"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-orange-500"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path></svg></div><h3 class="text-2xl font-bold mb-2">{resp_title}</h3><p class="text-4xl font-bold text-orange-500 mb-4">180x</p><p class="text-zinc-400 text-sm leading-relaxed">{resp_desc}</p><div class="mt-4 space-y-2"><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_success}</span><span class="text-green-400 font-bold">{success_rate:.1}%</span></div><div class="flex justify-between text-xs"><span class="text-zinc-500">{lbl_td_done}</span><span class="text-white font-bold">{takedowns}</span></div></div></div></div></div></div>{footer}</div></div>"#,
+            r#"<div class="relative group">
+                <div class="printable-slide aspect-[16/9] w-full flex flex-col shadow-lg mb-8 relative bg-[#121212] text-white overflow-hidden">
+                    <!-- Wireframe background -->
+                    <div class="absolute inset-0 wireframe-orange opacity-30"></div>
+                    
+                    <!-- Content -->
+                    <div class="relative z-10 h-full flex flex-col p-14">
+                        <!-- Header -->
+                        <div class="mb-8">
+                            <span class="bg-[#FF5824] text-white px-5 py-2 text-xs font-bold tracking-wider uppercase">
+                                {badge}
+                            </span>
+                            <h2 class="text-4xl font-bold mt-4">{title}</h2>
+                        </div>
+                        
+                        <!-- Three Column Cards -->
+                        <div class="grid grid-cols-3 gap-6 flex-grow">
+                            <!-- Time Saved Card -->
+                            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col hover:border-[#FF5824]/50 transition-all hover:shadow-lg hover:shadow-[#FF5824]/10">
+                                <div class="bg-[#FF5824]/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-[#FF5824]">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-bold mb-3">{eff_title}</h3>
+                                <div class="mb-4">
+                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">{hours}</span>
+                                    <span class="text-lg font-normal text-zinc-400 ml-2">{hours_unit}</span>
+                                </div>
+                                <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{eff_desc}</p>
+                                <div class="mt-4 pt-4 border-t border-zinc-800 text-xs text-zinc-500 space-y-1">
+                                    <p>• {lbl_validation}: {val_hours:.0}h</p>
+                                    <p>• {lbl_monitoring}: {cred_hours:.0}h</p>
+                                    <p>• {lbl_takedowns}: {td_hours:.0}h</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Team Capacity Card -->
+                            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col hover:border-[#FF5824]/50 transition-all hover:shadow-lg hover:shadow-[#FF5824]/10">
+                                <div class="bg-[#FF5824]/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-[#FF5824]">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-bold mb-3">{team_title}</h3>
+                                <div class="mb-4">
+                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">{analysts}</span>
+                                </div>
+                                <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{team_desc}</p>
+                                <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+                                    <div class="flex items-center gap-2 text-xs text-zinc-500">
+                                        <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                                        <span>{tickets} {lbl_tickets}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xs text-zinc-500">
+                                        <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                                        <span>{creds} {lbl_creds}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Response Time Card -->
+                            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col hover:border-[#FF5824]/50 transition-all hover:shadow-lg hover:shadow-[#FF5824]/10">
+                                <div class="bg-[#FF5824]/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
+                                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-[#FF5824]">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path>
+                                    </svg>
+                                </div>
+                                <h3 class="text-xl font-bold mb-3">{resp_title}</h3>
+                                <div class="mb-4">
+                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">180x</span>
+                                </div>
+                                <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{resp_desc}</p>
+                                <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-zinc-500">{lbl_success}</span>
+                                        <span class="text-green-400 font-bold">{success_rate:.1}%</span>
+                                    </div>
+                                    <div class="flex justify-between text-xs">
+                                        <span class="text-zinc-500">{lbl_td_done}</span>
+                                        <span class="text-white font-bold">{takedowns}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    {footer}
+                </div>
+            </div>"#,
             badge = t.get("op_badge"),
             title = t.get("roi_title"),
             eff_title = t.get("op_time_saved_title"),

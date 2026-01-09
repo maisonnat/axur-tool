@@ -1,8 +1,8 @@
 //! Threats Chart Slide Plugin
 //!
-//! Displays threats distribution by type.
+//! Displays threats distribution by type with Axur.com dark theme aesthetics.
 
-use super::helpers::footer_light;
+use super::helpers::footer_dark;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 pub struct ThreatsSlidePlugin;
@@ -27,47 +27,84 @@ impl SlidePlugin for ThreatsSlidePlugin {
         let t = ctx.translations;
 
         let total_threats: u64 = data.threats_by_type.iter().map(|t| t.count).sum();
-
-        // Prepare chart data
-        let labels: Vec<String> = data
+        let max_count = data
             .threats_by_type
             .iter()
-            .map(|t| t.threat_type.clone())
-            .collect();
-        let counts: Vec<u64> = data.threats_by_type.iter().map(|t| t.count).collect();
+            .map(|t| t.count)
+            .max()
+            .unwrap_or(1);
 
-        let labels_json = serde_json::to_string(&labels).unwrap_or_default();
-        let counts_json = serde_json::to_string(&counts).unwrap_or_default();
+        // Generate horizontal bar chart items
+        let bars_html: String = data
+            .threats_by_type
+            .iter()
+            .take(8) // Limit to top 8 for visual clarity
+            .map(|threat| {
+                let percentage = (threat.count as f64 / max_count as f64) * 100.0;
+                format!(
+                    r#"<div class="flex items-center gap-4 mb-4">
+                        <div class="w-40 text-sm text-zinc-300 truncate">{name}</div>
+                        <div class="flex-grow h-8 bg-zinc-800 rounded overflow-hidden relative">
+                            <div class="h-full bg-gradient-to-r from-[#FF5824] to-[#FF7A4D] rounded transition-all duration-500" 
+                                 style="width: {pct}%; box-shadow: 0 0 15px rgba(255, 88, 36, 0.3);"></div>
+                        </div>
+                        <div class="w-16 text-right font-bold text-[#FF5824] glow-orange-text">{count}</div>
+                    </div>"#,
+                    name = threat.threat_type,
+                    pct = percentage,
+                    count = threat.count
+                )
+            })
+            .collect();
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-lg text-zinc-600 mb-8">{desc}</p><div class="flex-grow relative"><canvas id="threatsChart"></canvas></div></div></div>{footer}<script>(function(){{
-    function initThreatsChart() {{
-        if (typeof Chart === 'undefined') {{ setTimeout(initThreatsChart, 100); return; }}
-        const ctx=document.getElementById('threatsChart').getContext('2d');
-        new Chart(ctx,{{
-            type:'doughnut',
-            data:{{
-                labels:{labels},
-                datasets:[{{
-                    data:{counts},
-                    backgroundColor:['#ea580c','#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#84cc16'],
-                    borderWidth:0
-                }}]
-            }},
-            options:{{
-                responsive:true,
-                maintainAspectRatio:false,
-                plugins:{{legend:{{position:'right',labels:{{font:{{size:12}}}}}}}}
-            }}
-        }});
-    }}
-    if (document.readyState === 'complete') {{ initThreatsChart(); }} else {{ window.addEventListener('load', initThreatsChart); }}
-}})();</script></div></div>"#,
+            r#"<div class="relative group">
+                <div class="printable-slide aspect-[16/9] w-full flex flex-col shadow-lg mb-8 relative bg-[#121212] text-white overflow-hidden">
+                    <!-- Wireframe background pattern -->
+                    <div class="absolute inset-0 wireframe-bg opacity-50"></div>
+                    
+                    <!-- Content -->
+                    <div class="relative z-10 h-full flex flex-col p-14">
+                        <!-- Header -->
+                        <div class="mb-6">
+                            <span class="bg-[#FF5824] text-white px-5 py-2 text-xs font-bold tracking-wider uppercase">
+                                ANÁLISIS
+                            </span>
+                        </div>
+                        
+                        <!-- Two Column Layout -->
+                        <div class="flex gap-12 flex-grow">
+                            <!-- Left: Stats and Title -->
+                            <div class="w-1/3 flex flex-col">
+                                <h2 class="text-4xl font-bold mb-4 text-white">{title}</h2>
+                                <p class="text-zinc-400 text-sm mb-8 leading-relaxed">{desc}</p>
+                                
+                                <!-- Big Number -->
+                                <div class="mt-auto">
+                                    <div class="text-7xl font-black text-[#FF5824] glow-orange-text">{total}</div>
+                                    <div class="text-sm text-zinc-400 uppercase tracking-wider mt-2">Total Threats Detected</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Right: Bar Chart -->
+                            <div class="w-2/3 flex flex-col justify-center">
+                                <div class="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800">
+                                    <h3 class="text-lg font-semibold text-white mb-6">Distribution by Type</h3>
+                                    {bars}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    {footer}
+                </div>
+            </div>"#,
             title = t.get("threats_title"),
             desc = t.format("threats_desc", &[("total", &total_threats.to_string())]),
-            labels = labels_json,
-            counts = counts_json,
-            footer = footer_light(7, &t.get("footer_text")),
+            total = total_threats,
+            bars = bars_html,
+            footer = footer_dark(7, &t.get("footer_text")),
         );
 
         vec![SlideOutput {

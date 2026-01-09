@@ -32,6 +32,9 @@ mod traits;
 
 pub mod builtin;
 
-pub use traits::{DataPlugin, ExportPlugin, PluginConfig, PluginContext, SlideOutput, SlidePlugin};
+pub use traits::{
+    CloudExportOutput, CloudExportPlugin, DataPlugin, ExportPlugin, PluginConfig, PluginContext,
+    SlideOutput, SlidePlugin, ThemeMode,
+};
 
 pub use registry::{PluginRegistry, RegistryStats};

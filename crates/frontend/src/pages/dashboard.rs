@@ -34,6 +34,37 @@ impl AppError {
     }
 }
 
+/// Helper to create a slide toggle checkbox
+fn slide_toggle(
+    plugin_id: &'static str,
+    label: &'static str,
+    disabled_slides: RwSignal<Vec<String>>,
+) -> impl IntoView {
+    let is_enabled = move || !disabled_slides.get().contains(&plugin_id.to_string());
+
+    let toggle = move |_| {
+        disabled_slides.update(|list| {
+            if list.contains(&plugin_id.to_string()) {
+                list.retain(|id| id != plugin_id);
+            } else {
+                list.push(plugin_id.to_string());
+            }
+        });
+    };
+
+    view! {
+        <label class="flex items-center gap-2 text-zinc-400 cursor-pointer hover:text-zinc-300">
+            <input
+                type="checkbox"
+                class="w-3 h-3 rounded"
+                prop:checked=is_enabled
+                on:change=toggle
+            />
+            {label}
+        </label>
+    }
+}
+
 /// Dashboard page component
 #[component]
 #[allow(non_snake_case)]
@@ -61,7 +92,23 @@ pub fn DashboardPage() -> impl IntoView {
     let include_threat_intel = create_rw_signal(false);
     let use_user_credits = create_rw_signal(false);
     let use_plugins = create_rw_signal(false); // New plugin system toggle
-    let selected_template = create_rw_signal::<Option<String>>(None); // Template ID for custom template
+
+    // Load preferences from localStorage
+    let plugin_theme = create_rw_signal(crate::load_theme());
+    let disabled_slides = create_rw_signal(crate::load_disabled_slides());
+    let selected_template = create_rw_signal::<Option<String>>(None);
+
+    // Auto-save theme when it changes
+    create_effect(move |_| {
+        let theme = plugin_theme.get();
+        crate::save_theme(&theme);
+    });
+
+    // Auto-save disabled slides when they change
+    create_effect(move |_| {
+        let slides = disabled_slides.get();
+        crate::save_disabled_slides(&slides);
+    });
 
     // UI state
     let loading_tenants = create_rw_signal(true);
@@ -78,6 +125,13 @@ pub fn DashboardPage() -> impl IntoView {
 
     // Queue status
     let current_queue_job = create_rw_signal::<Option<String>>(None);
+
+    // Google Slides export state
+    let exporting_slides = create_rw_signal(false);
+
+    // PPTX export state
+    let exporting_pptx = create_rw_signal(false);
+    let selected_pptx_template = create_rw_signal::<Option<String>>(None);
 
     // Load tenants on mount
     spawn_local(async move {
@@ -292,6 +346,16 @@ pub fn DashboardPage() -> impl IntoView {
         };
 
         let template_id = selected_template.get();
+        let theme_value = if use_plugins.get() {
+            Some(plugin_theme.get())
+        } else {
+            None
+        };
+        let disabled_value = if use_plugins.get() && !disabled_slides.get().is_empty() {
+            Some(disabled_slides.get())
+        } else {
+            None
+        };
 
         match api::generate_report(
             &tenant,
@@ -303,6 +367,8 @@ pub fn DashboardPage() -> impl IntoView {
             template_id,
             None,
             use_plugins.get(),
+            theme_value,
+            disabled_value,
         )
         .await
         {
@@ -604,6 +670,80 @@ pub fn DashboardPage() -> impl IntoView {
                                 </label>
                                 <p class="text-zinc-500 text-xs mt-1 ml-7">"Activa la nueva arquitectura modular con 20 plugins de slides"
                                 </p>
+
+                                // Plugin Options - only show when enabled
+                                <Show when=move || use_plugins.get()>
+                                    <div class="mt-4 pt-4 border-t border-green-700/30 space-y-4">
+                                        // Industry Template Selector
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-400 mb-2">"📊 Plantilla por Industria"</label>
+                                            <select
+                                                class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-2 px-3 outline-none text-sm"
+                                                on:change=move |ev| {
+                                                    let template = event_target_value(&ev);
+                                                    // Apply template presets
+                                                    match template.as_str() {
+                                                        "fintech" => {
+                                                            plugin_theme.set("dark".to_string());
+                                                            disabled_slides.set(vec!["builtin.geospatial".to_string()]);
+                                                        },
+                                                        "retail" => {
+                                                            plugin_theme.set("dark".to_string());
+                                                            disabled_slides.set(vec![]);
+                                                        },
+                                                        "healthcare" => {
+                                                            plugin_theme.set("light".to_string());
+                                                            disabled_slides.set(vec!["builtin.evidence".to_string()]);
+                                                        },
+                                                        _ => {
+                                                            plugin_theme.set("dark".to_string());
+                                                            disabled_slides.set(vec![]);
+                                                        }
+                                                    }
+                                                }
+                                            >
+                                                <option value="general">"🎯 General"</option>
+                                                <option value="fintech">"🏦 Fintech - Credenciales y fraude"</option>
+                                                <option value="retail">"🛒 Retail - Phishing y falsificaciones"</option>
+                                                <option value="healthcare">"🏥 Healthcare - Exposición de datos"</option>
+                                            </select>
+                                            <p class="text-zinc-500 text-xs mt-1">"Selecciona una plantilla para aplicar configuraciones predefinidas"</p>
+                                        </div>
+
+                                        // Theme Selector
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-400 mb-2">"🎨 Tema del Reporte"</label>
+                                            <select
+                                                class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-2 px-3 outline-none text-sm"
+                                                on:change=move |ev| plugin_theme.set(event_target_value(&ev))
+                                            >
+                                                <option value="dark" selected=move || plugin_theme.get() == "dark">"🌙 Oscuro (Axur.com)"</option>
+                                                <option value="light" selected=move || plugin_theme.get() == "light">"☀️ Claro"</option>
+                                                <option value="auto" selected=move || plugin_theme.get() == "auto">"🔄 Automático"</option>
+                                            </select>
+                                        </div>
+
+                                        // Slide Toggles (Collapsible)
+                                        <details class="group">
+                                            <summary class="cursor-pointer text-zinc-400 text-sm hover:text-white flex items-center gap-2">
+                                                <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                                </svg>
+                                                "Personalizar slides incluidos"
+                                            </summary>
+                                            <div class="mt-3 ml-6 space-y-2 text-xs">
+                                                {slide_toggle("builtin.cover", "Cover & Intro", disabled_slides)}
+                                                {slide_toggle("builtin.toc", "Table of Contents", disabled_slides)}
+                                                {slide_toggle("builtin.metrics", "General Metrics", disabled_slides)}
+                                                {slide_toggle("builtin.threats", "Threats Analysis", disabled_slides)}
+                                                {slide_toggle("builtin.takedowns", "Takedowns & ROI", disabled_slides)}
+                                                {slide_toggle("builtin.exposure", "Data Exposure", disabled_slides)}
+                                                {slide_toggle("builtin.geospatial", "Geospatial Map", disabled_slides)}
+                                                {slide_toggle("builtin.evidence", "Evidence & Screenshots", disabled_slides)}
+                                            </div>
+                                        </details>
+                                    </div>
+                                </Show>
                             </div>
 
                             <button
@@ -640,9 +780,9 @@ pub fn DashboardPage() -> impl IntoView {
                                     </div>
                                 }
                             >
-                                <div class="mb-4">
+                                <div class="mb-4 flex gap-4">
                                     <button
-                                        class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                                        class="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
                                         on:click=move |_| {
                                             if let Some(html) = report_html.get() {
                                                 // Generate descriptive filename
@@ -668,6 +808,120 @@ pub fn DashboardPage() -> impl IntoView {
                                     >
                                         {move || dict.get().download_html}
                                     </button>
+
+                                    // Export to Google Slides button
+                                    <button
+                                        class="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                                        disabled=move || exporting_slides.get()
+                                        on:click=move |_| {
+                                            if exporting_slides.get() { return; }
+                                            exporting_slides.set(true);
+
+                                            let html = report_html.get().unwrap_or_default();
+                                            let tenant_key = selected_tenant.get();
+                                            let tenant_name = tenants.get()
+                                                .iter()
+                                                .find(|t| t.key == tenant_key)
+                                                .map(|t| t.name.clone())
+                                                .unwrap_or_else(|| "Report".to_string());
+
+                                            spawn_local(async move {
+                                                // Parse HTML to extract slides
+                                                let slide_data = parse_html_to_slides(&html);
+                                                let title = format!("{} - Threat Report", tenant_name);
+
+                                                match api::export_to_slides(&title, slide_data).await {
+                                                    Ok(resp) => {
+                                                        leptos::logging::log!("Exported to Google Slides: {}", resp.presentation_url);
+                                                        // Open presentation in new tab
+                                                        if let Some(window) = web_sys::window() {
+                                                            let _ = window.open_with_url_and_target(
+                                                                &resp.presentation_url,
+                                                                "_blank"
+                                                            );
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        leptos::logging::error!("Google Slides export failed: {}", e);
+                                                        if let Some(window) = web_sys::window() {
+                                                            let _ = window.alert_with_message(&format!("Export failed: {}", e));
+                                                        }
+                                                    }
+                                                }
+                                                exporting_slides.set(false);
+                                            });
+                                        }
+                                    >
+                                        <span>{move || if exporting_slides.get() { "⏳" } else { "📊" }}</span>
+                                        <span>{move || if exporting_slides.get() { "Exporting..." } else { "Google Slides" }}</span>
+                                    </button>
+
+                                    // Export to PPTX button (only if user has templates)
+                                    <Show when=move || !user_templates.get().is_empty()>
+                                        <button
+                                            class="flex-1 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                                            disabled=move || exporting_pptx.get()
+                                            on:click=move |_| {
+                                                if exporting_pptx.get() { return; }
+
+                                                // Check if template is selected
+                                                let templates = user_templates.get();
+                                                if templates.is_empty() {
+                                                    if let Some(window) = web_sys::window() {
+                                                        let _ = window.alert_with_message("No tienes templates PPTX. Créalos en el Editor.");
+                                                    }
+                                                    return;
+                                                }
+
+                                                // Get first template (or selected)
+                                                let template_id = selected_pptx_template.get()
+                                                    .or_else(|| templates.first().map(|t| t.id.clone()));
+
+                                                let Some(tid) = template_id else { return; };
+
+                                                exporting_pptx.set(true);
+                                                let tenant_key = selected_tenant.get();
+                                                let tenant_name = tenants.get()
+                                                    .iter()
+                                                    .find(|t| t.key == tenant_key)
+                                                    .map(|t| t.name.clone())
+                                                    .unwrap_or_else(|| "Report".to_string());
+
+                                                spawn_local(async move {
+                                                    leptos::logging::log!("PPTX export initiated: template={}, tenant={}", tid, tenant_key);
+
+                                                    // For now, show info about what would happen
+                                                    // Full implementation requires:
+                                                    // 1. Load template from API (get PPTX file + edits)
+                                                    // 2. Map placeholder values from current report data
+                                                    // 3. Call generate_pptx_report API
+                                                    // 4. Download resulting PPTX
+
+                                                    if let Some(window) = web_sys::window() {
+                                                        let msg = format!(
+                                                            "📑 PPTX Export\n\n\
+                                                            Template: {}\n\
+                                                            Empresa: {}\n\n\
+                                                            La funcionalidad completa requiere:\n\
+                                                            1. Cargar template con archivo PPTX original\n\
+                                                            2. El template debe tener placeholders definidos en el Editor\n\n\
+                                                            Por ahora, usa el Editor para:\n\
+                                                            - Importar tu PPTX\n\
+                                                            - Agregar placeholders\n\
+                                                            - Exportar con datos de ejemplo",
+                                                            tid, tenant_name
+                                                        );
+                                                        let _ = window.alert_with_message(&msg);
+                                                    }
+
+                                                    exporting_pptx.set(false);
+                                                });
+                                            }
+                                        >
+                                            <span>{move || if exporting_pptx.get() { "⏳" } else { "📑" }}</span>
+                                            <span>{move || if exporting_pptx.get() { "Exportando..." } else { "PPTX Template" }}</span>
+                                        </button>
+                                    </Show>
                                 </div>
                                 <div class="bg-white rounded-lg overflow-hidden aspect-video">
                                     <iframe
@@ -753,4 +1007,106 @@ fn download_html(content: &str, filename: &str) {
 
     // Cleanup
     web_sys::Url::revoke_object_url(&url).unwrap();
+}
+
+/// Parse HTML report to extract slides for Google Slides export
+fn parse_html_to_slides(html: &str) -> Vec<api::ExportSlideData> {
+    let mut slides = Vec::new();
+
+    // Simple regex-like parsing to extract slide sections
+    // Look for section patterns in the HTML report
+
+    // Pattern 1: Look for h1/h2 headers and following content
+    let mut current_title = String::new();
+    let mut current_body: Vec<String> = Vec::new();
+
+    for line in html.lines() {
+        let line = line.trim();
+
+        // Check for slide section markers (common patterns in Axur reports)
+        if line.contains("<section") || line.contains("class=\"slide\"") {
+            // Save previous slide if exists
+            if !current_title.is_empty() || !current_body.is_empty() {
+                slides.push(api::ExportSlideData {
+                    title: if current_title.is_empty() {
+                        format!("Slide {}", slides.len() + 1)
+                    } else {
+                        current_title.clone()
+                    },
+                    body: current_body.clone(),
+                    layout: Some("TITLE_AND_BODY".to_string()),
+                });
+            }
+            current_title = String::new();
+            current_body = Vec::new();
+        }
+
+        // Extract h1/h2 as titles
+        if line.contains("<h1") || line.contains("<h2") {
+            // Simple extraction between > and </h
+            if let Some(start) = line.find('>') {
+                if let Some(end) = line.find("</h") {
+                    let title = &line[start + 1..end];
+                    // Strip remaining HTML tags
+                    current_title = title
+                        .replace("<span>", "")
+                        .replace("</span>", "")
+                        .replace("<strong>", "")
+                        .replace("</strong>", "")
+                        .trim()
+                        .to_string();
+                }
+            }
+        }
+
+        // Extract paragraphs as body text
+        if line.contains("<p") && line.contains("</p>") {
+            if let Some(start) = line.find('>') {
+                if let Some(end) = line.rfind("</p>") {
+                    let text = &line[start + 1..end];
+                    // Strip HTML tags and get clean text
+                    let clean_text: String = text
+                        .replace("<span", "")
+                        .replace("</span>", "")
+                        .replace("<strong>", "")
+                        .replace("</strong>", "")
+                        .replace("<em>", "")
+                        .replace("</em>", "")
+                        .chars()
+                        .filter(|c| !c.is_control())
+                        .collect::<String>()
+                        .trim()
+                        .to_string();
+
+                    if !clean_text.is_empty() && clean_text.len() > 5 {
+                        current_body.push(clean_text);
+                    }
+                }
+            }
+        }
+    }
+
+    // Don't forget the last slide
+    if !current_title.is_empty() || !current_body.is_empty() {
+        slides.push(api::ExportSlideData {
+            title: if current_title.is_empty() {
+                format!("Slide {}", slides.len() + 1)
+            } else {
+                current_title
+            },
+            body: current_body,
+            layout: Some("TITLE_AND_BODY".to_string()),
+        });
+    }
+
+    // If no slides were extracted, create a basic one
+    if slides.is_empty() {
+        slides.push(api::ExportSlideData {
+            title: "Threat Intelligence Report".to_string(),
+            body: vec!["Report generated by Axur Web".to_string()],
+            layout: Some("TITLE".to_string()),
+        });
+    }
+
+    slides
 }

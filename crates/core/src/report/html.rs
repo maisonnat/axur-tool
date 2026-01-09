@@ -1,9 +1,36 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+//! HTML Report Generation Module
+//!
+//! This module contains two rendering paths:
+//!
+//! 1. **Plugin System (Recommended)**: Use `generate_report_with_plugins()` for the new
+//!    modular approach with `PluginRegistry`. This is the future-proof method.
+//!
+//! 2. **Legacy Path**: Use `generate_full_report_html()` for backward compatibility.
+//!    The following `render_*_slide` functions are deprecated in favor of their plugin equivalents:
+//!    
+//!    | Legacy Function | Plugin Replacement |
+//!    |-----------------|-------------------|
+//!    | `render_cover_full` | `CoverSlidePlugin` |
+//!    | `render_intro_slide` | `IntroSlidePlugin` |
+//!    | `render_toc_slide` | `TocSlidePlugin` |
+//!    | `render_general_metrics_slide` | `MetricsSlidePlugin` |
+//!    | `render_takedowns_realizados_slide` | `TakedownsSlidePlugin` |
+//!    | `render_impact_roi_slide` | `RoiSlidePlugin` |
+//!    | `render_geospatial_slide` | `GeospatialSlidePlugin` |
+//!    | `render_ai_intent_slide` | `AiIntentSlidePlugin` |
+//!    | `render_data_exposure_slide` | `DataExposureSlidePlugin` |
+//!    | `render_infostealer_slide` | `CredentialsSlidePlugin` |
+//!    | `render_threats_slide` | `ThreatsSlidePlugin` |
+//!
+//! Migration: Enable `use_plugins` flag in the frontend to switch to the plugin system.
+
 use super::OfflineAssets;
 use crate::api::report::{DeepAnalyticsData, PocReport, PocReportData, ResolvedTakedown};
-use crate::i18n::Dictionary;
+use crate::i18n::{Dictionary, Translations};
+use crate::plugins::{PluginConfig, PluginContext, PluginRegistry};
 use chrono::{DateTime, Datelike, Timelike};
 use std::collections::HashMap;
 
@@ -157,6 +184,84 @@ pub fn generate_full_report_html(
 </html>"#,
         company = data.company_name,
         slides = all_slides,
+        font_links = font_links,
+        tailwind = tailwind_script,
+        font_family = font_family,
+    )
+}
+
+/// Generate report HTML using the plugin system
+/// 
+/// This is the new modular approach that uses PluginRegistry.
+/// It coexists with `generate_full_report_html` for backward compatibility.
+pub fn generate_report_with_plugins(
+    data: &PocReportData,
+    translations: &Translations,
+    offline_assets: Option<&OfflineAssets>,
+    config: Option<PluginConfig>,
+) -> String {
+    // Create registry with all builtin plugins
+    let registry = PluginRegistry::with_builtins();
+    
+    // Build the plugin context with provided config or default
+    let plugin_config = config.unwrap_or_default();
+    let ctx = PluginContext {
+        data,
+        translations,
+        tenant_name: &data.company_name,
+        config: plugin_config,
+    };
+    
+    // Generate all slides from plugins
+    let slides = registry.generate_slides(&ctx);
+    let all_slides_html: String = slides.iter().map(|s| s.html.as_str()).collect::<Vec<_>>().join("\n");
+    
+    // Choose assets based on offline mode
+    let (tailwind_script, font_links, font_family) = if let Some(assets) = offline_assets {
+        (
+            format!("<script>{}</script>", assets.tailwind_js),
+            String::new(),
+            "sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial",
+        )
+    } else {
+        (
+            r#"<script src="https://cdn.tailwindcss.com"></script>"#.to_string(),
+            r#"<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">"#.to_string(),
+            "Inter, sans-serif",
+        )
+    };
+    
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Reporte {company}</title>
+    {font_links}
+    {tailwind}
+    <script>tailwind.config={{theme:{{extend:{{fontFamily:{{sans:['{font_family}']}}}}}}}};</script>
+    <style>
+        @media print {{
+            @page {{ size: 16in 9in landscape; margin: 0; }}
+            body {{ background-color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; width: 16in; height: 9in; }}
+            .no-print {{ display: none !important; }}
+            .printable-slide {{ width: 16in; height: 9in; box-sizing: border-box; aspect-ratio: 16/9 !important; padding: 0.75in !important; box-shadow: none !important; border-radius: 0 !important; break-inside: avoid; break-after: page; page-break-after: always; margin: 0 !important; }}
+        }}
+        .printable-slide {{ aspect-ratio: 16/9; }}
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-200">
+    <div id="report-content" class="p-4 md:p-8">
+        {slides}
+    </div>
+</body>
+</html>"#,
+        company = data.company_name,
+        slides = all_slides_html,
         font_links = font_links,
         tailwind = tailwind_script,
         font_family = font_family,
@@ -3543,6 +3648,8 @@ mod tests {
                     ..Default::default()
                 }
             ],
+            // Comparison data for comparative analysis
+            comparison: None,
         };
         
         let html = generate_full_report_html(&data, None, None, &dict);

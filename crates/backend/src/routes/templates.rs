@@ -1031,3 +1031,98 @@ async fn ensure_user_exists(pool: &PgPool, axur_tenant_id: &str) -> Option<Uuid>
 
     Some(result.get("id"))
 }
+
+/// GET /api/templates/:id/pptx - Get the base PPTX file of a template
+pub async fn get_template_pptx(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Path(template_id): Path<String>,
+) -> impl IntoResponse {
+    let pool = match &state.pool {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "success": false, "error": "Database not available" })),
+            )
+        }
+    };
+
+    let config = match GitHubConfig::from_env() {
+        Some(c) => c,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "success": false, "error": "GitHub not configured" })),
+            )
+        }
+    };
+
+    let template_uuid = match Uuid::parse_str(&template_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "success": false, "error": "Invalid template ID" })),
+            )
+        }
+    };
+
+    // Get template info to verify ownership and get path
+    let result = sqlx::query(
+        r#"
+        SELECT ut.github_path
+        FROM user_templates ut JOIN users u ON ut.user_id = u.id
+        WHERE ut.id = $1 AND u.axur_tenant_id = $2
+        "#,
+    )
+    .bind(template_uuid)
+    .bind(&user_id)
+    .fetch_optional(pool)
+    .await;
+
+    let github_path: String = match result {
+        Ok(Some(row)) => row.get("github_path"),
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "success": false, "error": "Template not found" })),
+            )
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "success": false, "error": e.to_string() })),
+            )
+        }
+    };
+
+    // Construct PPTX path from metadata path
+    // metadata is at: templates/{user_id}/{template_id}/metadata.json
+    // PPTX is at: templates/{user_id}/{template_id}/base.pptx
+    let pptx_path = github_path.replace("metadata.json", "base.pptx");
+
+    tracing::info!("Fetching PPTX from: {}", pptx_path);
+
+    // Fetch PPTX from GitHub
+    match fetch_raw_file_from_github(&config, &pptx_path).await {
+        Ok(bytes) => {
+            let base64_pptx = BASE64.encode(&bytes);
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "success": true,
+                    "pptx_base64": base64_pptx,
+                    "size_bytes": bytes.len()
+                })),
+            )
+        }
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "success": false,
+                "error": format!("PPTX file not found: {}", e)
+            })),
+        ),
+    }
+}

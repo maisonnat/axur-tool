@@ -27,6 +27,18 @@ pub struct PluginContext<'a> {
     pub config: PluginConfig,
 }
 
+/// Theme mode for report generation
+#[derive(Debug, Clone, Default, PartialEq)]
+pub enum ThemeMode {
+    /// Dark theme (default) - Axur.com style
+    #[default]
+    Dark,
+    /// Light theme
+    Light,
+    /// Auto detection based on data
+    Auto,
+}
+
 /// Configuration options for plugins
 #[derive(Debug, Clone, Default)]
 pub struct PluginConfig {
@@ -36,6 +48,36 @@ pub struct PluginConfig {
     pub show_compliance: bool,
     /// Custom branding enabled
     pub custom_branding: bool,
+    /// Theme mode (dark/light/auto)
+    pub theme: ThemeMode,
+    /// List of plugin IDs to disable
+    pub disabled_plugins: Vec<String>,
+    /// Custom CSS to inject
+    pub custom_css: Option<String>,
+}
+
+impl PluginConfig {
+    /// Create a new config with default dark theme
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set theme mode
+    pub fn with_theme(mut self, theme: ThemeMode) -> Self {
+        self.theme = theme;
+        self
+    }
+
+    /// Disable specific plugins by ID
+    pub fn disable_plugins(mut self, plugins: Vec<String>) -> Self {
+        self.disabled_plugins = plugins;
+        self
+    }
+
+    /// Check if a plugin is enabled
+    pub fn is_plugin_enabled(&self, plugin_id: &str) -> bool {
+        !self.disabled_plugins.contains(&plugin_id.to_string())
+    }
 }
 
 /// Plugin that generates one or more slides for the report
@@ -93,4 +135,51 @@ pub trait ExportPlugin: Send + Sync {
 
     /// Export slides to bytes
     fn export(&self, slides: &[SlideOutput]) -> Result<Vec<u8>, String>;
+}
+
+// =====================================================
+// CLOUD EXPORT PLUGINS
+// =====================================================
+
+/// Output from a cloud export plugin
+#[derive(Debug, Clone)]
+pub struct CloudExportOutput {
+    /// Public URL to the exported presentation
+    pub url: String,
+    /// Cloud provider identifier (e.g., "google_slides", "onedrive")
+    pub provider: String,
+    /// Provider's resource ID (e.g., Google Slides presentation ID)
+    pub resource_id: String,
+    /// Number of slides exported
+    pub slides_count: usize,
+}
+
+/// Plugin that exports to cloud services (returns URLs, not bytes)
+///
+/// This trait is designed for integrations with cloud presentation services
+/// like Google Slides, Microsoft OneDrive/PowerPoint Online, Canva, etc.
+///
+/// Unlike `ExportPlugin` which returns raw bytes, cloud exports return
+/// a URL to the created presentation.
+pub trait CloudExportPlugin: Send + Sync {
+    /// Unique identifier (e.g., "builtin.export.google_slides")
+    fn id(&self) -> &'static str;
+
+    /// Cloud provider name (e.g., "google_slides", "onedrive")
+    fn provider(&self) -> &'static str;
+
+    /// Human-readable name for UI display
+    fn display_name(&self) -> &'static str;
+
+    /// Export slides to the cloud service
+    ///
+    /// # Arguments
+    /// * `slides` - The generated slide outputs from SlidePlugins
+    /// * `title` - Title for the presentation
+    /// * `services` - Optional service context (injected by backend)
+    ///
+    /// # Returns
+    /// * `Ok(CloudExportOutput)` - URL and metadata of created presentation
+    /// * `Err(String)` - Error message if export failed
+    fn export(&self, slides: &[SlideOutput], title: &str) -> Result<CloudExportOutput, String>;
 }

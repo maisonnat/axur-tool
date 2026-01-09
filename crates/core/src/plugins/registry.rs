@@ -2,7 +2,9 @@
 //!
 //! Manages registration and execution of plugins.
 
-use super::traits::{DataPlugin, ExportPlugin, PluginContext, SlideOutput, SlidePlugin};
+use super::traits::{
+    CloudExportPlugin, DataPlugin, ExportPlugin, PluginContext, SlideOutput, SlidePlugin,
+};
 use crate::api::report::PocReportData;
 
 /// Central registry for all plugins
@@ -10,6 +12,7 @@ pub struct PluginRegistry {
     slide_plugins: Vec<Box<dyn SlidePlugin>>,
     data_plugins: Vec<Box<dyn DataPlugin>>,
     export_plugins: Vec<Box<dyn ExportPlugin>>,
+    cloud_export_plugins: Vec<Box<dyn CloudExportPlugin>>,
 }
 
 impl Default for PluginRegistry {
@@ -25,6 +28,7 @@ impl PluginRegistry {
             slide_plugins: Vec::new(),
             data_plugins: Vec::new(),
             export_plugins: Vec::new(),
+            cloud_export_plugins: Vec::new(),
         }
     }
 
@@ -39,12 +43,15 @@ impl PluginRegistry {
         registry.register_slide(Box::new(TocSlidePlugin));
         registry.register_slide(Box::new(PocDataSlidePlugin));
         registry.register_slide(Box::new(MetricsSlidePlugin));
+        registry.register_slide(Box::new(ComparativeSlidePlugin)); // NEW: Comparative analysis
         registry.register_slide(Box::new(TimelineSlidePlugin));
         registry.register_slide(Box::new(ThreatsSlidePlugin));
         registry.register_slide(Box::new(ViralitySlidePlugin));
         registry.register_slide(Box::new(AiIntentSlidePlugin));
         registry.register_slide(Box::new(DataExposureSlidePlugin));
         registry.register_slide(Box::new(GeospatialSlidePlugin));
+        registry.register_slide(Box::new(HeatmapSlidePlugin)); // NEW: Attack heatmap
+        registry.register_slide(Box::new(RadarSlidePlugin)); // NEW: Threat radar
         registry.register_slide(Box::new(IncidentsSlidePlugin));
         registry.register_slide(Box::new(TakedownsSlidePlugin));
         registry.register_slide(Box::new(CredentialsSlidePlugin));
@@ -52,6 +59,7 @@ impl PluginRegistry {
         registry.register_slide(Box::new(ThreatIntelSlidePlugin));
         registry.register_slide(Box::new(TakedownExamplesSlidePlugin));
         registry.register_slide(Box::new(PocExamplesSlidePlugin));
+        registry.register_slide(Box::new(InsightsSlidePlugin)); // NEW: Insights & Recommendations
         registry.register_slide(Box::new(ClosingSlidePlugin));
         registry
     }
@@ -74,6 +82,11 @@ impl PluginRegistry {
         self.export_plugins.push(plugin);
     }
 
+    /// Register a cloud export plugin
+    pub fn register_cloud_export(&mut self, plugin: Box<dyn CloudExportPlugin>) {
+        self.cloud_export_plugins.push(plugin);
+    }
+
     /// Get list of registered slide plugins
     pub fn slide_plugins(&self) -> &[Box<dyn SlidePlugin>] {
         &self.slide_plugins
@@ -87,6 +100,21 @@ impl PluginRegistry {
     /// Get export plugin by format
     pub fn export_plugin(&self, format: &str) -> Option<&Box<dyn ExportPlugin>> {
         self.export_plugins.iter().find(|p| p.format() == format)
+    }
+
+    /// Get cloud export plugin by provider name
+    pub fn cloud_export_plugin(&self, provider: &str) -> Option<&Box<dyn CloudExportPlugin>> {
+        self.cloud_export_plugins
+            .iter()
+            .find(|p| p.provider() == provider)
+    }
+
+    /// Get list of available cloud export providers
+    pub fn available_cloud_providers(&self) -> Vec<(&'static str, &'static str)> {
+        self.cloud_export_plugins
+            .iter()
+            .map(|p| (p.provider(), p.display_name()))
+            .collect()
     }
 
     /// Run all data plugins to transform report data
@@ -111,6 +139,7 @@ impl PluginRegistry {
             slide_plugins: self.slide_plugins.len(),
             data_plugins: self.data_plugins.len(),
             export_plugins: self.export_plugins.len(),
+            cloud_export_plugins: self.cloud_export_plugins.len(),
         }
     }
 }
@@ -121,6 +150,7 @@ pub struct RegistryStats {
     pub slide_plugins: usize,
     pub data_plugins: usize,
     pub export_plugins: usize,
+    pub cloud_export_plugins: usize,
 }
 
 #[cfg(test)]

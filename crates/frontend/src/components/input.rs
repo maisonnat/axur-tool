@@ -11,9 +11,23 @@ pub fn TextInput(
     #[prop(optional)] input_type: Option<String>,
     #[prop(optional)] disabled: Option<Signal<bool>>,
     #[prop(optional)] autocomplete: Option<String>,
+    #[prop(optional)] autofocus: Option<bool>,
 ) -> impl IntoView {
     let input_type = input_type.unwrap_or_else(|| "text".to_string());
     let autocomplete = autocomplete.unwrap_or_else(|| "off".to_string());
+    let should_autofocus = autofocus.unwrap_or(false);
+
+    // Node ref for autofocus
+    let input_ref = create_node_ref::<html::Input>();
+
+    // Autofocus effect
+    if should_autofocus {
+        create_effect(move |_| {
+            if let Some(input) = input_ref.get() {
+                let _ = input.focus();
+            }
+        });
+    }
 
     view! {
         <div class="mb-4">
@@ -21,6 +35,7 @@ pub fn TextInput(
                 {move || label.get()}
             </label>
             <input
+                node_ref=input_ref
                 type=input_type
                 placeholder=move || placeholder.get()
                 autocomplete=autocomplete

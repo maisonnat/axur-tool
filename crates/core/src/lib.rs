@@ -9,4 +9,6 @@ pub mod error_codes;
 pub mod errors;
 pub mod i18n;
 pub mod plugins;
+pub mod pptx_mapper;
 pub mod report;
+pub mod templates;

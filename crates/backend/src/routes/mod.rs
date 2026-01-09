@@ -84,7 +84,12 @@ pub fn create_router(_state: AppState) -> Router {
         .route("/api/tenants", get(report::list_tenants))
         .route("/api/report/generate", post(report::generate_report))
         .route("/api/export/inject", post(import_export::inject_pptx))
+        .route(
+            "/api/export/generate-pptx",
+            post(import_export::generate_pptx_report),
+        )
         .route("/api/import/pptx", post(import_export::import_pptx))
+        .route("/api/export/slides", post(import_export::export_to_slides)) // Google Slides export
         .route(
             "/api/threat-hunting/preview",
             post(report::threat_hunting_preview),
@@ -108,6 +113,7 @@ pub fn create_router(_state: AppState) -> Router {
         // GET /api/templates/:id is in public routes (mock templates)
         .route("/api/templates/:id", put(templates::update_template))
         .route("/api/templates/:id", delete(templates::delete_template))
+        .route("/api/templates/:id/pptx", get(templates::get_template_pptx))
         .route(
             "/api/templates/:id/publish",
             post(marketplace::publish_template),

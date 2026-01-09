@@ -1,7 +1,12 @@
 //! TOC (Table of Contents) Slide Plugin
+//!
+//! Displays the report table of contents with brand aesthetics.
 
-use super::helpers::{footer_light, geometric_pattern};
+use super::helpers::footer_light;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
+
+/// Embedded base64 TOC sidebar image
+const TOC_IMAGE_BASE64: &str = include_str!("../../../assets/toc_image_base64.txt");
 
 /// Plugin that generates the table of contents slide
 pub struct TocSlidePlugin;
@@ -36,15 +41,57 @@ impl SlidePlugin for TocSlidePlugin {
                 ]
             });
 
-        let items_html: String = items.iter().map(|item| format!(
-            r#"<div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">{}</span></div>"#, item
-        )).collect();
+        // Generate TOC items with orange arrow icons
+        let items_html: String = items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                format!(
+                    r#"<div class="flex items-center gap-4 group/item hover:translate-x-2 transition-transform">
+                        <div class="flex items-center justify-center w-10 h-10 rounded-full bg-[#FF5824]/10 group-hover/item:bg-[#FF5824]/20 transition-colors">
+                            <span class="text-[#FF5824] font-bold text-lg">{}</span>
+                        </div>
+                        <span class="text-2xl text-zinc-700 font-medium">{}</span>
+                    </div>"#,
+                    i + 1,
+                    item
+                )
+            })
+            .collect();
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100 p-0"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full"><div class="w-8/12 p-14 flex flex-col justify-center"><div class="mb-12"><span class="bg-orange-600 text-white px-4 py-2 text-md font-semibold">{title}</span></div><div class="space-y-5">{items}</div></div><div class="w-4/12 relative bg-zinc-800 rounded-l-xl overflow-hidden">{pattern}</div></div></div>{footer}</div></div>"#,
-            items = items_html,
+            r#"<div class="relative group">
+                <div class="printable-slide aspect-[16/9] w-full flex shadow-lg mb-8 relative bg-zinc-100 overflow-hidden">
+                    <!-- Content Section -->
+                    <div class="w-7/12 p-14 flex flex-col justify-center">
+                        <!-- Badge -->
+                        <div class="mb-10">
+                            <span class="bg-[#FF5824] text-white px-5 py-2 text-sm font-bold tracking-wider uppercase">
+                                {title}
+                            </span>
+                        </div>
+                        <!-- TOC Items -->
+                        <div class="space-y-5">
+                            {items}
+                        </div>
+                    </div>
+                    <!-- Sidebar Image -->
+                    <div class="w-5/12 relative">
+                        <img 
+                            src="data:image/png;base64,{image}" 
+                            alt="Brand visual" 
+                            class="absolute inset-0 w-full h-full object-cover"
+                        />
+                        <!-- Gradient overlay for blending -->
+                        <div class="absolute inset-0 bg-gradient-to-r from-zinc-100 to-transparent w-1/4"></div>
+                    </div>
+                    <!-- Footer -->
+                    {footer}
+                </div>
+            </div>"#,
             title = t.get("toc_title"),
-            pattern = geometric_pattern(),
+            items = items_html,
+            image = TOC_IMAGE_BASE64.trim(),
             footer = footer_light(4, &t.get("footer_text")),
         );
 

@@ -6,11 +6,13 @@ mod api;
 mod components;
 mod i18n;
 mod pages;
+mod storage;
 
 use leptos::*;
 use pages::{AnalyticsPage, DashboardPage, EditorPage, LoginPage, LogsPage, MarketplacePage};
 
 pub use i18n::{get_ui_dict, UiDict, UiLanguage};
+pub use storage::{load_disabled_slides, load_theme, save_disabled_slides, save_theme};
 
 /// Application state
 #[derive(Clone, Debug)]
