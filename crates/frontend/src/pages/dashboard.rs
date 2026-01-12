@@ -133,6 +133,9 @@ pub fn DashboardPage() -> impl IntoView {
     let exporting_pptx = create_rw_signal(false);
     let selected_pptx_template = create_rw_signal::<Option<String>>(None);
 
+    // Beta requests pending count (for admin notification badge)
+    let pending_beta_count = create_rw_signal(0i64);
+
     // Load tenants on mount
     spawn_local(async move {
         match api::list_tenants().await {
@@ -153,6 +156,25 @@ pub fn DashboardPage() -> impl IntoView {
         }
 
         loading_tenants.set(false);
+    });
+
+    // Fetch pending beta requests count for admin badge
+    let is_admin = state.is_admin;
+    spawn_local(async move {
+        if is_admin.get_untracked() {
+            if let Ok(resp) = gloo_net::http::Request::get("/api/admin/beta/requests/pending-count")
+                .send()
+                .await
+            {
+                if resp.ok() {
+                    if let Ok(json) = resp.json::<serde_json::Value>().await {
+                        if let Some(count) = json.get("count").and_then(|v| v.as_i64()) {
+                            pending_beta_count.set(count);
+                        }
+                    }
+                }
+            }
+        }
     });
 
     // Tenant options for select
@@ -375,6 +397,10 @@ pub fn DashboardPage() -> impl IntoView {
             Ok(resp) => {
                 if resp.success {
                     report_html.set(resp.html);
+                    // Unlock threat_hunting achievement if used
+                    if threat_intel {
+                        crate::onboarding::unlock_achievement("threat_hunting");
+                    }
                 } else {
                     error.set(Some(AppError::from_response(&resp)));
                 }
@@ -442,6 +468,22 @@ pub fn DashboardPage() -> impl IntoView {
                         >
                             "📦 Templates"
                         </button>
+                        // Sandbox Demo button
+                        <button
+                            class="text-amber-400 hover:text-amber-300 transition-colors flex items-center gap-2"
+                            on:click=move |_| {
+                                crate::onboarding::set_sandbox_mode(true);
+                                current_page.set(Page::Editor);
+                            }
+                        >
+                            "Probar Demo"
+                        </button>
+                        <button
+                            class="text-zinc-400 hover:text-blue-400 transition-colors flex items-center gap-2"
+                            on:click=move |_| current_page.set(Page::Onboarding)
+                        >
+                            "Help"
+                        </button>
                         <Show when=move || has_log_access.get()>
                             <button
                                 class="text-zinc-400 hover:text-emerald-400 transition-colors flex items-center gap-2"
@@ -456,6 +498,27 @@ pub fn DashboardPage() -> impl IntoView {
                                 "📋 Logs"
                             </button>
                         </Show>
+                        // Admin button in header (for admins)
+                        <Show when=move || state.is_admin.get()>
+                            <button
+                                class="text-red-400 hover:text-red-300 transition-colors flex items-center gap-2 relative"
+                                on:click=move |_| current_page.set(Page::BetaAdmin)
+                            >
+                                "Admin"
+                                {move || {
+                                    let count = pending_beta_count.get();
+                                    if count > 0 {
+                                        Some(view! {
+                                            <span class="absolute -top-1 -right-3 bg-yellow-500 text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                                                {count}
+                                            </span>
+                                        })
+                                    } else {
+                                        None
+                                    }
+                                }}
+                            </button>
+                        </Show>
                         <button
                             class="text-zinc-400 hover:text-white transition-colors"
                             on:click=move |_| logout_action.dispatch(())
@@ -465,6 +528,15 @@ pub fn DashboardPage() -> impl IntoView {
                     </div>
                 </div>
             </header>
+
+            // Progress Checklist (onboarding achievements)
+            <crate::components::ProgressChecklist />
+
+            // Tutorial Orchestrator (shows welcome modal for new users)
+            <crate::components::TutorialOrchestrator />
+
+            // Hint Manager (shows contextual hints after idle)
+            <crate::components::HintManager />
 
             // Main content
             <main class="max-w-7xl mx-auto p-6">
@@ -833,6 +905,8 @@ pub fn DashboardPage() -> impl IntoView {
                                                 match api::export_to_slides(&title, slide_data).await {
                                                     Ok(resp) => {
                                                         leptos::logging::log!("Exported to Google Slides: {}", resp.presentation_url);
+                                                        // Unlock achievement
+                                                        crate::onboarding::unlock_achievement("first_export");
                                                         // Open presentation in new tab
                                                         if let Some(window) = web_sys::window() {
                                                             let _ = window.open_with_url_and_target(

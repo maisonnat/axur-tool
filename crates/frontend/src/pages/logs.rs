@@ -6,6 +6,13 @@ use leptos::*;
 /// Logs page component
 #[component]
 pub fn LogsPage() -> impl IntoView {
+    // Get app state first
+    let state = use_context::<crate::AppState>().expect("AppState not found");
+    let current_page = state.current_page;
+
+    // Reactively update dictionary when language changes
+    let dict = move || crate::get_ui_dict(state.ui_language.get());
+
     // State
     let logs = create_rw_signal(Vec::<LogEntry>::new());
     let categories = create_rw_signal(Vec::<String>::new());
@@ -74,16 +81,19 @@ pub fn LogsPage() -> impl IntoView {
         log_content.set(String::new());
 
         let path = log.path.clone();
+        // Get dictionary for error messages (snapshot at current time)
+        let d = crate::get_ui_dict(state.ui_language.get_untracked());
+
         spawn_local(async move {
             match api::get_log_content(&path).await {
                 Ok(resp) if resp.success => {
                     log_content.set(resp.content);
                 }
                 Ok(resp) => {
-                    log_content.set(format!("Error: {}", resp.content));
+                    log_content.set(format!("{}{}", d.logs_error_prefix, resp.content));
                 }
                 Err(e) => {
-                    log_content.set(format!("Failed to load: {}", e));
+                    log_content.set(format!("{}{}", d.logs_failed_load, e));
                 }
             }
             loading_content.set(false);
@@ -134,10 +144,6 @@ pub fn LogsPage() -> impl IntoView {
         }
     };
 
-    // Get app state for navigation
-    let state = use_context::<crate::AppState>().expect("AppState not found");
-    let current_page = state.current_page;
-
     view! {
         <div class="logs-page">
             // Header with back button
@@ -156,15 +162,15 @@ pub fn LogsPage() -> impl IntoView {
                         "📊 Analytics"
                     </button>
                 </div>
-                <h1 class="logs-title">"📋 Log Viewer"</h1>
-                <p class="logs-subtitle">"Browse and search application logs"</p>
+                <h1 class="logs-title">"📋 " {move || dict().logs_title}</h1>
+                <p class="logs-subtitle">{move || dict().logs_subtitle}</p>
             </div>
 
             // Filters bar
             <div class="logs-filters">
                 // Date picker
                 <div class="filter-group">
-                    <label>"Date"</label>
+                    <label>{move || dict().logs_col_date}</label>
                     <input
                         type="date"
                         class="filter-input"
@@ -178,14 +184,14 @@ pub fn LogsPage() -> impl IntoView {
 
                 // Category dropdown
                 <div class="filter-group">
-                    <label>"Category"</label>
+                    <label>{move || dict().logs_col_category}</label>
                     <select
                         class="filter-input"
                         on:change=move |ev| {
                             selected_category.set(event_target_value(&ev));
                         }
                     >
-                        <option value="">"All Categories"</option>
+                        <option value="">{move || dict().logs_all_categories}</option>
                         <For
                             each=move || categories.get()
                             key=|cat| cat.clone()
@@ -200,11 +206,11 @@ pub fn LogsPage() -> impl IntoView {
 
                 // Search box
                 <div class="filter-group search-group">
-                    <label>"Search"</label>
+                    <label>{move || dict().logs_col_search}</label>
                     <input
                         type="text"
                         class="filter-input"
-                        placeholder="Filter by filename..."
+                        placeholder=move || dict().logs_placeholder_search
                         prop:value=move || search_query.get()
                         on:input=move |ev| {
                             search_query.set(event_target_value(&ev));
@@ -218,7 +224,7 @@ pub fn LogsPage() -> impl IntoView {
                     on:click=move |_| load_logs()
                     disabled=move || loading.get()
                 >
-                    {move || if loading.get() { "Loading..." } else { "🔄 Refresh" }}
+                    {move || if loading.get() { dict().mkt_loading } else { "🔄 Refresh" }}
                 </button>
             </div>
 
@@ -240,9 +246,9 @@ pub fn LogsPage() -> impl IntoView {
             // Logs list
             <div class="logs-list">
                 {move || if loading.get() {
-                    view! { <div class="loading-spinner">"Loading logs..."</div> }.into_view()
+                    view! { <div class="loading-spinner">{dict().mkt_loading}</div> }.into_view()
                 } else if filtered_logs().is_empty() {
-                    view! { <div class="empty-state">"No logs found for the selected criteria"</div> }.into_view()
+                    view! { <div class="empty-state">{dict().mkt_no_results}</div> }.into_view()
                 } else {
                     view! {
                         <table class="logs-table">
@@ -295,7 +301,7 @@ pub fn LogsPage() -> impl IntoView {
                         </div>
                         <div class="modal-body">
                             {move || if loading_content.get() {
-                                view! { <div class="loading-spinner">"Loading content..."</div> }.into_view()
+                                view! { <div class="loading-spinner">{dict().mkt_loading}</div> }.into_view()
                             } else {
                                 view! {
                                     <pre class="log-content">{log_content.get()}</pre>

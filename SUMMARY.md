@@ -1,110 +1,292 @@
-# SUMMARY.md - Session Handoff 2026-01-07
+# SUMMARY.md - Session Handoff
 
-**Session End:** 2026-01-07 00:53 (America/Buenos_Aires)
-
----
-
-## ✅ Completed This Session
-
-### Phase 6: Google Slides Export
-| Feature | Status |
-|---------|--------|
-| CloudExportPlugin trait | ✅ Complete |
-| Backend /api/export/slides | ✅ Complete |
-| Export button in **Editor** | ✅ Complete |
-| Export button in **Dashboard** | ✅ Complete |
-| `parse_html_to_slides()` | ✅ Basic (needs improvement) |
-
-### PPTX Import Fixes
-| Issue | Fix |
-|-------|-----|
-| 429 Rate Limit errors | Staggered pre-fetch with 500ms delay |
-| Slides cropped/cut off | Removed hardcoded dimensions, Math.min scale |
-| Thumbnails not loading | Use `<img>` elements with background URL |
-
-### UX Improvements
-| Feature | Status |
-|---------|--------|
-| 2FA autofocus | ✅ Cursor auto-focuses on code input |
+**Session Date:** 2026-01-08
+**Status:** ✅ Deployed to Production
 
 ---
 
-## 🔄 Pending - Resume Tomorrow
+## 🎯 What Was Accomplished This Session
 
-### HIGH PRIORITY: Google Slides Export Empty First Slide
-**Problem:** Google creates a blank title slide automatically. Our slides start at index 2.
+### Editor Innovation Roadmap Complete (Modules 1 & 2)
 
-**Options to fix:**
-1. **Frontend (Recommended):** Add cover slide as first element in `parse_html_to_slides()`
-2. **Backend:** Get first slide ID after creation, populate with title text
+**Module 1: UX Placeholders** ✅
+- Search filtering in modal and side panel
+- Category colors (9 distinct categories)
+- Drag & Drop to canvas + click to insert
+- Favorites with LocalStorage persistence (storage.rs)
+- Recent placeholder tracking
 
-**Files:**
-- `frontend/src/pages/dashboard.rs` - `parse_html_to_slides()`
-- `backend/src/google_services.rs` - `add_slides_batch()`
+**Module 2: Advanced Features** ✅
+- **Preview Tiempo Real**: Toggle button showing mock data (17 values)
+- **Templates Inteligentes**: Full PPTX project analysis (all slides scanned)
+- **Template Versions**: Auto-save on save, version history panel, restore
+- **Smart Placeholders**: 4 conditional types with rule-based evaluation
 
-### MEDIUM: Rich Content Extraction
-- Current HTML parsing is basic (regex-like)
-- Could extract more content: tables, lists, bullet points
-- Could include images (requires image upload to Drive first)
+**Module 3**: Removed as redundant (existing Google Slides export covers it)
 
-### LOW: Unit Tests
-- CloudExportPlugin trait tests
-- parse_html_to_slides tests
+### Files Modified
+- `crates/frontend/src/pages/editor.rs` - All UI components
+- `crates/frontend/src/storage.rs` - TemplateVersion struct + functions
+- `crates/frontend/index.html` - JS: conditionalPlaceholders, evaluateConditional, analyzeTemplateData
+
+### Production Deploy
+- Commit: `d9d7294`
+- Platforms: Cloudflare Pages + Leapcell (via GitHub Actions)
 
 ---
 
-## Key Files Modified
+## 🚀 Next Session: Implementation Plan
 
+The user wants to implement the following features. Use this as a roadmap:
+
+### 1. 🔌 Mejoras de UX del Editor (~8h)
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Undo/Redo | Ctrl+Z / Ctrl+Y with history stack | High |
+| Duplicate Objects | Clone selected object | Medium |
+| Copy/Paste Between Slides | Ctrl+C/V with clipboard | Medium |
+
+**Implementation Notes:**
+- Fabric.js has `canvas.undo()` and history management
+- Need to track canvas state changes in a stack
+- Clipboard can use browser's Clipboard API or internal state
+
+### 2. 📱 Mobile/Responsive Preview (~4h)
+
+| Feature | Description |
+|---------|-------------|
+| Device Preview | Show report in different screen sizes |
+| Responsive Check | Visual indicators for text overflow |
+
+**Implementation Notes:**
+- Add preview toggle with device presets (mobile, tablet, desktop)
+- Use CSS transforms or iframe with different widths
+
+### 3. 🎨 Editor de Estilos (~6h)
+
+| Feature | Description |
+|---------|-------------|
+| Custom Themes | Switchable color palettes |
+| Corporate Colors | User uploads brand colors |
+| Logo Upload | User's company logo for reports |
+| Custom Text | Personalized footer/header text |
+
+**Implementation Notes:**
+- Store themes in LocalStorage or DB
+- Image upload requires backend multipart handling
+- Consider a `UserBranding` struct in storage.rs
+
+### 4. 📊 Más Placeholders Inteligentes (~8h)
+
+| Feature | Description |
+|---------|-------------|
+| Dynamic Charts | Pie/bar charts from data |
+| Auto-generated Tables | Data tables from API |
+| Image Placeholders | User-uploaded images |
+
+**Implementation Notes:**
+- Use Chart.js or SVG generation
+- Tables as Fabric.js groups
+- Image placeholders need file upload + storage
+
+### 5. 🎯 Deep UX/UI Analysis (~6h)
+
+**Objetivo:** Analizar y mejorar la experiencia del editor para que sea más intuitiva y mantenga consistencia con el estilo visual de Axur.
+
+**Screenshot actual del editor:**
+![Current Editor UI](file:///C:/Users/maiso/.gemini/antigravity/brain/1f2d8010-2c46-40c5-87bc-8b3315b5cf0c/uploaded_image_1767927153357.png)
+
+**Áreas a analizar:**
+
+| Área | Problemas Potenciales | Mejoras Sugeridas |
+|------|----------------------|-------------------|
+| **Canvas vacío** | Muy grande, sin guías visuales | Agregar grid, snap-to-guide |
+| **Sidebar derecho** | Muchos elementos, posible overload | Agrupar mejor, tabs colapsables |
+| **Toolbar superior** | Botones pequeños, no todos visibles | Priorizar acciones frecuentes |
+| **Panel de slides** | Thumbs pequeños | Preview más grande, drag reorder |
+| **Onboarding modal** | Aparece siempre | Solo primera vez, tutorial guiado |
+
+**Consistencia con Axur Slides:**
+- Mantener paleta de colores Axur (indigo, orange, dark grays)
+- Tipografía consistente con reportes generados
+- Estilos de placeholder que coincidan con output HTML
+- Transición visual suave entre editor y preview
+
+**Recomendaciones:**
+1. Crear design system con tokens CSS
+2. Unificar componentes entre editor y reportes
+3. Agregar modo oscuro/claro consistente
+4. Mejorar feedback visual (hover, selected, disabled states)
+
+### 6. 🔄 Sincronización Cloud & Storage (~10h)
+
+| Feature | Description |
+|---------|-------------|
+| Auto-save | Save every X seconds |
+| Database Storage | Move from LocalStorage to existing Postgres |
+| GitHub Logs | Continue using private repo for analytics |
+
+**Existing Infrastructure:**
+- ✅ **PostgreSQL 16.8** already running (Leapcell)
+- ✅ **Current usage**: ~28MB of 500MB (5.6% used)
+- ✅ **Connection**: `DATABASE_URL` env var in Leapcell
+- ⚠️ GitHub private repo for logs may be overkill if DB has space
+
+**Storage Analysis:**
+| Storage Type | Use Case | Recommendation |
+|--------------|----------|----------------|
+| LocalStorage | UI state, favorites, recents | Keep as-is |
+| Postgres | Templates, versions, user data | Migrate |
+| GitHub Logs | Analytics, debugging | Evaluate: may move to DB |
+
+**Migration Strategy:**
+1. Create `user_templates` table in Postgres
+2. Create `template_versions` table
+3. API endpoints: `POST /api/templates/save`, `GET /api/templates/:id/versions`
+4. Keep LocalStorage for favorites, recents, UI preferences only
+5. Consider: users table for beta tester access control
+
+### 7. 👥 Sistema de Usuarios Extendido (~6h)
+
+| Feature | Description |
+|---------|-------------|
+| Beta Testers | Invite-only access list |
+| Access Control | Even with Axur creds, must be on invite list |
+| User Roles | admin, beta_tester, regular |
+
+**Implementation Notes:**
+- Add `allowed_users` table with email/user_id
+- Middleware check after Axur login: verify user is in allowed list
+- Admin panel to manage invites
+
+### 8. 💬 Mejorar Sistema de Feedbacks (~4h)
+
+| Feature | Description |
+|---------|-------------|
+| In-context feedback | Report issues with screenshot |
+| Feedback categories | Bug, suggestion, question |
+| Status tracking | User can see if feedback was addressed |
+
+**Implementation Notes:**
+- Enhance existing feedback widget
+- Add dropdown for category
+- Track status in GitHub issues with labels
+
+### 9. 📚 Tutorial Interactivo (~8h)
+
+| Feature | Description |
+|---------|-------------|
+| Onboarding Tour | Step-by-step first-time user guide |
+| Feature Highlights | Tooltips for new features |
+| Auto-update Rule | When new feature added, add tutorial step |
+
+**Implementation Notes:**
+- Use library like `intro.js` or `shepherd.js`
+- Store tutorial progress in LocalStorage
+- Create `.agent/workflows/tutorial-update.md` rule
+
+### � Bonus Ideas (Para Evaluar)
+
+| Idea | Valor | Esfuerzo |
+|------|-------|----------|
+| **Keyboard Shortcuts** | Alto - Power users | Bajo (~2h) |
+| **Export to PDF** | Medio - Alternativa a HTML | Medio (~4h) |
+| **Template Marketplace** | Alto - Compartir entre equipos | Alto (~20h) |
+| **AI Content Assist** | Alto - Auto-generar insights | Alto (~15h) |
+| **Offline Mode** | Medio - Trabajo sin conexión | Medio (~6h) |
+| **Audit Log** | Medio - Compliance | Bajo (~3h) |
+| **Multi-idioma Editor** | Medio - i18n del editor | Medio (~4h) |
+| **Collaborative Editing** | Alto - Google Docs style | Muy Alto (~40h) |
+
+**Quick Wins recomendados:**
+- Keyboard shortcuts (Ctrl+S guardar, Ctrl+D duplicar, Del eliminar)
+- Audit log (quién editó qué y cuándo - para compliance)
+- Export to PDF (usando librería existente)
+
+---
+
+## 📋 Priority Order Recommendation
+
+**Fase 1 - Foundation (Semana 1-2)**
+1. Sistema de Usuarios (Beta Testers) - Control de acceso
+2. Deep UX/UI Analysis - Base para mejoras
+3. Sincronización Cloud - Persistencia real
+
+**Fase 2 - Core UX (Semana 3-4)**
+4. UX Editor (Undo/Redo, shortcuts)
+5. Tutorial Interactivo - Onboarding
+6. Feedback System mejorado
+
+**Fase 3 - Polish (Semana 5+)**
+7. Editor de Estilos
+8. Mobile Preview
+9. Más Placeholders Inteligentes
+
+---
+
+## � BUGS CRÍTICOS A RESOLVER
+
+### HTML Reports No Son Self-Contained (REGRESIÓN)
+
+**Problema detectado:** Los reportes HTML exportados ya no son completamente offline.
+
+| Antes (Correcto) | Ahora (Bug) |
+|------------------|-------------|
+| HTML pesado (~5MB) | HTML liviano (~100KB) |
+| Datos embebidos inline | Datos cargados dinámicamente |
+| Funciona offline ✅ | Requiere conexión ❌ |
+| Imágenes en base64 | URLs externas |
+
+**Impacto:**
+- Usuario descarga HTML
+- Abre sin internet → **NO CARGA DATOS**
+- Reportes inútiles para presentaciones offline
+
+**Solución requerida:**
+1. Revisar `crates/core/src/report/html.rs`
+2. Embeber todos los datos como JSON inline
+3. Convertir imágenes a base64
+4. Incluir CSS/JS inline (no CDN)
+5. Verificar que funcione sin conexión
+
+**Prioridad:** 🔴 **ALTA** - Esto es funcionalidad core que se rompió
+
+---
+
+## �🔧 Technical Context
+
+### Current Architecture
 ```
-crates/frontend/src/
-├── components/input.rs     # Added autofocus prop
-├── pages/
-│   ├── dashboard.rs        # Export button + parse_html_to_slides()
-│   ├── editor.rs           # Export button
-│   └── login.rs            # 2FA autofocus
-├── api.rs                  # export_to_slides()
-└── index.html              # PPTX import fixes
-
-crates/backend/src/
-├── google_services.rs      # create_presentation, add_slides_batch
-└── routes/import_export.rs # /api/export/slides endpoint
+Frontend (Leptos/WASM) → Cloudflare Pages
+        ↓ /api/*
+Backend (Axum/Rust) → Leapcell
+        ↓
+Supabase (DB) + Axur API
 ```
+
+### Key Files to Know
+- `crates/frontend/src/pages/editor.rs` - Template editor (main work area)
+- `crates/frontend/src/storage.rs` - LocalStorage utilities
+- `crates/frontend/index.html` - Fabric.js and JS functions
+- `crates/backend/src/routes/*` - API routes
+- `.agent/workflows/` - Automation workflows
+
+### Important Signals (Leptos)
+- `slides: RwSignal<Vec<EditorSlide>>` - All slides in editor
+- `template_id: RwSignal<Option<String>>` - Current template ID
+- `preview_mode: RwSignal<bool>` - Preview toggle state
 
 ---
 
-## Quick Commands
+## ⚠️ Notes for Next Session
 
-```bash
-# Development
-.\dev.ps1
-
-# Build check
-cargo build -p axur-frontend -p axur-backend
-
-# Deploy
-fly deploy
-```
+1. **Don't recreate Module 3** - Native Google Slides export already exists
+2. **Check Supabase free tier** limits before implementing cloud storage
+3. **Beta tester list** should be simple - email whitelist in DB
+4. **Tutorial library** - intro.js is recommended (small, no deps)
+5. **Rate limits** - Remember Axur API has 60 req/min limit (see `.agent/memory/api-rate-limit.md`)
 
 ---
 
-## Context for Next Session
-
-When resuming work on Google Slides export:
-
-1. **Test current state:** Export from Dashboard after generating a report
-2. **Observe:** First slide is empty, subsequent slides have content
-3. **Fix:** Modify `parse_html_to_slides()` to add explicit cover slide
-
-```rust
-// In dashboard.rs, around line 940
-// Add this as FIRST slide before the HTML parsing loop:
-slides.push(api::ExportSlideData {
-    title: tenant_name.clone(),
-    body: vec!["Threat Intelligence Report".to_string(), "Generated by Axur Web".to_string()],
-    layout: Some("TITLE".to_string()),
-});
-```
-
----
-
-*Generated automatically - Close this session to free resources*
+**Handoff Ready** ✅

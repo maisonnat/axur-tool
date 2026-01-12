@@ -17,8 +17,9 @@ pub struct ImportResponse {
     pub message: String,
 }
 
-/// Upload PPTX to Google Drive, generate thumbnails via Slides API, and return URLs.
+/// Upload PPTX to Google Drive, generate thumbnails via Slides API, and return data URLs.
 /// Uses strict Rate Limiting (4 req/sec) to stay within Free Tier.
+/// Images are downloaded to base64 data URLs to avoid 429 errors on frontend.
 pub async fn import_pptx(
     State(state): State<AppState>,
     mut multipart: Multipart,
@@ -58,22 +59,37 @@ pub async fn import_pptx(
         .await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    // 2. Generate Previews (Rate Limited)
+    // 2. Generate Previews (Rate Limited) - get Google content URLs
     tracing::info!("Generating previews for file ID: {}", file_id);
-    let urls = services.generate_previews(&file_id).await.map_err(|e| {
-        // Attempt cleanup even on error
-        // tokio::spawn(async move { let _ = services.delete_file(&file_id).await; }); // Move unavailable
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e)
-    })?;
+    let google_urls = services
+        .generate_previews(&file_id)
+        .await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
 
-    // 3. Cleanup
+    // 3. Download images as base64 to avoid 429 on frontend
+    // Uses Retry-After header handling for proper rate limiting
+    tracing::info!("Downloading {} images as base64...", google_urls.len());
+    let data_urls = services
+        .fetch_images_as_base64(google_urls)
+        .await
+        .map_err(|e| {
+            // Attempt cleanup on error
+            let services_clone = services.clone();
+            let file_id_clone = file_id.clone();
+            tokio::spawn(async move {
+                let _ = services_clone.delete_file(&file_id_clone).await;
+            });
+            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e)
+        })?;
+
+    // 4. Cleanup
     tracing::info!("Cleaning up file from Drive: {}", file_id);
     let _ = services.delete_file(&file_id).await;
 
     Ok(Json(ImportResponse {
         success: true,
-        slides: urls,
-        message: "Successfully generated previews via Google Slides API".to_string(),
+        slides: data_urls, // Now returns base64 data URLs instead of Google URLs
+        message: "Successfully generated previews with embedded images".to_string(),
     }))
 }
 

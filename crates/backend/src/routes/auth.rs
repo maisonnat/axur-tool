@@ -5,7 +5,7 @@
 //! 2. POST /2fa - 2FA code verification  
 //! 3. POST /finalize - Get master token, set httpOnly cookie
 
-use axum::{response::IntoResponse, Json};
+use axum::{extract::State, response::IntoResponse, Json};
 use axum_extra::extract::CookieJar;
 use cookie::{Cookie, SameSite};
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ use serde_json::json;
 
 use crate::error::ApiError;
 use crate::middleware::{AUTH_COOKIE_NAME, AUTH_USER_COOKIE_NAME};
+use crate::routes::AppState;
 
 // Axur API URL
 const AXUR_API_URL: &str = "https://api.axur.com/gateway/1.0/api";
@@ -67,6 +68,8 @@ pub struct TwoFactorResponse {
 pub struct ValidateResponse {
     pub valid: bool,
     pub message: String,
+    pub is_admin: bool,
+    pub has_log_access: bool,
 }
 
 // Internal Axur API response
@@ -98,6 +101,7 @@ pub async fn login(Json(payload): Json<LoginRequest>) -> Result<Json<LoginRespon
 
     // Call Axur auth endpoint
     let url = format!("{}/identity/session", AXUR_API_URL);
+    tracing::info!("Login: connecting to {}", url); // Log the authenticating URL
     let resp = client
         .post(&url)
         .json(&json!({
@@ -107,17 +111,45 @@ pub async fn login(Json(payload): Json<LoginRequest>) -> Result<Json<LoginRespon
         .send()
         .await?;
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        tracing::warn!("Axur login failed: {} - {}", status, body);
-        return Err(ApiError::Unauthorized("Invalid credentials".into()));
-    }
-
-    let data: AxurAuthResponse = resp
-        .json()
+    // Read full body first
+    let body_bytes = resp
+        .bytes()
         .await
+        .map_err(|e| ApiError::Internal(e.to_string()))?;
+    let body_str = String::from_utf8_lossy(&body_bytes);
+
+    // Re-parse from string
+    let mut data: AxurAuthResponse = serde_json::from_str(&body_str)
         .map_err(|e| ApiError::Internal(format!("Failed to parse Axur response: {}", e)))?;
+
+    // Helper to extract correlation from JWT if missing
+    if data.correlation.is_none() {
+        if let Some(token) = &data.token {
+            // JWT format: header.payload.signature
+            let parts: Vec<&str> = token.split('.').collect();
+            if parts.len() >= 2 {
+                // Decode payload (2nd part)
+                // Use standard or URL-safe base64 decoding engine
+                use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+                use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine as _};
+
+                // Try URL safe first, then standard
+                let payload_res = URL_SAFE_NO_PAD
+                    .decode(parts[1])
+                    .or_else(|_| STANDARD_NO_PAD.decode(parts[1]));
+
+                if let Ok(payload_bytes) = payload_res {
+                    if let Ok(claims) = serde_json::from_slice::<serde_json::Value>(&payload_bytes)
+                    {
+                        if let Some(crl) = claims.get("crl").and_then(|v| v.as_str()) {
+                            tracing::info!("Extracted check correlation ID from token: {}", crl);
+                            data.correlation = Some(crl.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Ok(Json(LoginResponse {
         success: true,
@@ -134,9 +166,9 @@ pub async fn verify_2fa(
 ) -> Result<Json<TwoFactorResponse>, ApiError> {
     // Validate input
     if payload.code.is_empty() || payload.token.is_empty() {
+        tracing::error!("Missing code or token.");
         return Err(ApiError::BadRequest("Code and token required".into()));
     }
-
     let code: u32 = payload
         .code
         .parse()
@@ -183,6 +215,7 @@ pub async fn verify_2fa(
 
 /// Step 3: Finalize login and set httpOnly cookie
 pub async fn finalize(
+    State(state): State<crate::routes::AppState>,
     jar: CookieJar,
     Json(payload): Json<FinalizeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
@@ -190,6 +223,33 @@ pub async fn finalize(
     if payload.token.is_empty() || payload.device_id.is_empty() {
         return Err(ApiError::BadRequest("Token and device_id required".into()));
     }
+
+    // ========================================
+    // BETA ACCESS CONTROL: Check allowed_users
+    // ========================================
+    if let Some(pool) = &state.pool {
+        let email_lower = payload.email.to_lowercase();
+        let allowed: Option<(String,)> =
+            sqlx::query_as("SELECT role FROM allowed_users WHERE LOWER(email) = $1")
+                .bind(&email_lower)
+                .fetch_optional(pool)
+                .await
+                .unwrap_or(None);
+
+        if allowed.is_none() {
+            tracing::warn!(
+                email = %payload.email,
+                "Login denied: user not in allowed_users whitelist"
+            );
+            return Err(ApiError::Forbidden(
+                "Access denied. You are not part of the beta program. Contact admin to request access.".into()
+            ));
+        }
+        tracing::info!(email = %payload.email, "User authorized via allowed_users");
+    } else {
+        tracing::warn!("DB pool not available, skipping beta access check");
+    }
+    // ========================================
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -258,16 +318,41 @@ pub async fn finalize(
 }
 
 /// Validate current session
-pub async fn validate(jar: CookieJar) -> Result<Json<ValidateResponse>, ApiError> {
+pub async fn validate(
+    State(state): State<AppState>,
+    jar: CookieJar,
+) -> Result<Json<ValidateResponse>, ApiError> {
     let token = match jar.get(AUTH_COOKIE_NAME) {
         Some(c) => c.value().to_string(),
         None => {
             return Ok(Json(ValidateResponse {
                 valid: false,
                 message: "No session found".into(),
+                is_admin: false,
+                has_log_access: false,
             }))
         }
     };
+
+    // Check admin status from database using the user cookie
+    let mut is_admin = false;
+    if let Some(user_cookie) = jar.get(AUTH_USER_COOKIE_NAME) {
+        let email = user_cookie.value();
+        if let Some(pool) = &state.pool {
+            let role: Option<(String,)> =
+                sqlx::query_as("SELECT role FROM allowed_users WHERE LOWER(email) = $1")
+                    .bind(email.to_lowercase())
+                    .fetch_optional(pool)
+                    .await
+                    .unwrap_or(None);
+
+            if let Some((r,)) = role {
+                if r == "admin" {
+                    is_admin = true;
+                }
+            }
+        }
+    }
 
     // Validate token with Axur API
     let client = reqwest::Client::builder()
@@ -292,6 +377,9 @@ pub async fn validate(jar: CookieJar) -> Result<Json<ValidateResponse>, ApiError
         } else {
             "Session expired".into()
         },
+
+        is_admin,
+        has_log_access: is_admin,
     }))
 }
 

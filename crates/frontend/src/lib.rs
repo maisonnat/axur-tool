@@ -5,11 +5,15 @@
 mod api;
 mod components;
 mod i18n;
+pub mod onboarding;
 mod pages;
 mod storage;
 
 use leptos::*;
-use pages::{AnalyticsPage, DashboardPage, EditorPage, LoginPage, LogsPage, MarketplacePage};
+use pages::{
+    AdminBetaPage, AnalyticsPage, BetaApplyPage, DashboardPage, EditorPage, LoginPage, LogsPage,
+    MarketplacePage, OnboardingPage,
+};
 
 pub use i18n::{get_ui_dict, UiDict, UiLanguage};
 pub use storage::{load_disabled_slides, load_theme, save_disabled_slides, save_theme};
@@ -29,6 +33,7 @@ pub struct AppState {
     pub editor_template_id: RwSignal<Option<String>>,
     /// Template ID to fetch content from but treat as new (fork)
     pub editor_clone_from_id: RwSignal<Option<String>>,
+    pub is_admin: RwSignal<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -39,6 +44,9 @@ pub enum Page {
     Analytics,
     Editor,
     Marketplace,
+    BetaApply,
+    BetaAdmin,
+    Onboarding,
 }
 
 impl Default for AppState {
@@ -52,6 +60,7 @@ impl Default for AppState {
             has_log_access: create_rw_signal(false),
             editor_template_id: create_rw_signal(None),
             editor_clone_from_id: create_rw_signal(None),
+            is_admin: create_rw_signal(false),
         }
     }
 }
@@ -68,9 +77,11 @@ pub fn App() -> impl IntoView {
 
     // Check if already authenticated on load
     spawn_local(async move {
-        if let Ok(valid) = api::validate_session().await {
-            if valid {
+        if let Ok(res) = api::validate_session().await {
+            if res.valid {
                 state.is_authenticated.set(true);
+                state.is_admin.set(res.is_admin);
+                state.has_log_access.set(res.has_log_access);
                 state.current_page.set(Page::Dashboard);
             }
         }
@@ -85,7 +96,11 @@ pub fn App() -> impl IntoView {
                 Page::Analytics => view! { <AnalyticsPage/> }.into_view(),
                 Page::Editor => view! { <EditorPage/> }.into_view(),
                 Page::Marketplace => view! { <MarketplacePage/> }.into_view(),
+                Page::BetaApply => view! { <BetaApplyPage/> }.into_view(),
+                Page::BetaAdmin => view! { <AdminBetaPage/> }.into_view(),
+                Page::Onboarding => view! { <OnboardingPage/> }.into_view(),
             }}
+
         </div>
     }
 }

@@ -7,14 +7,288 @@
     <title>Axur Web - Threat Hunting</title>
     <meta name="description" content="Axur Web - Generador de reportes de inteligencia de amenazas externas">
     <link data-trunk rel="rust" href="Cargo.toml" />
+    <link data-trunk rel="copy-dir" href="assets" />
 
     <!-- JSZip -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <!-- html2canvas for screenshots -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        // Screenshot capability
+        window.captureScreenshot = async function () {
+            try {
+                // If in editor, try to capture valid canvas first?
+                // But html2canvas captures entire DOM which is better for context (sidebar, modals)
+                if (typeof html2canvas === 'undefined') return null;
+
+                // Capture entire body
+                const canvas = await html2canvas(document.body, {
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true,
+                    ignoreElements: (element) => {
+                        // Ignore the feedback widget itself to avoid recursion if it's open
+                        return element.classList.contains('feedback-widget-ignore');
+                    }
+                });
+
+                // Return as base64 JPEG
+                return canvas.toDataURL('image/jpeg', 0.7);
+            } catch (e) {
+                console.error('[Feedback] Screenshot failed:', e);
+                return null;
+            }
+        };
+
+        // ==================== ANNOTATION EDITOR ====================
+        window.annotationEditor = {
+            canvas: null,
+            ctx: null,
+            isDrawing: false,
+            color: '#ef4444', // red
+            lineWidth: 4,
+            originalImage: null,
+            annotatedData: null,
+
+            open: function (screenshotData) {
+                const overlay = document.getElementById('annotation-overlay');
+                const canvas = document.getElementById('annotation-canvas');
+                if (!overlay || !canvas) return;
+
+                overlay.classList.remove('hidden');
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+
+                // Load screenshot as background
+                const img = new Image();
+                img.onload = () => {
+                    // Size canvas to fit screen
+                    const maxW = window.innerWidth - 32;
+                    const maxH = window.innerHeight - 100;
+                    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    this.ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    this.originalImage = img;
+                };
+                img.src = screenshotData;
+
+                // Bind events
+                this._bindEvents();
+                this._bindColorButtons();
+            },
+
+            _bindEvents: function () {
+                const c = this.canvas;
+                c.onmousedown = (e) => this._startDraw(e);
+                c.onmousemove = (e) => this._draw(e);
+                c.onmouseup = () => this._endDraw();
+                c.onmouseleave = () => this._endDraw();
+
+                // Touch support
+                c.ontouchstart = (e) => { e.preventDefault(); this._startDraw(e.touches[0]); };
+                c.ontouchmove = (e) => { e.preventDefault(); this._draw(e.touches[0]); };
+                c.ontouchend = () => this._endDraw();
+
+                // Buttons
+                document.getElementById('annotation-clear')?.addEventListener('click', () => this.clear());
+                document.getElementById('annotation-done')?.addEventListener('click', () => this.done());
+            },
+
+            _bindColorButtons: function () {
+                const colors = { 'red': '#ef4444', 'yellow': '#facc15', 'blue': '#3b82f6' };
+                Object.keys(colors).forEach(name => {
+                    const btn = document.getElementById(`annotation-color-${name}`);
+                    if (btn) {
+                        btn.onclick = () => {
+                            this.color = colors[name];
+                            // Update border
+                            Object.keys(colors).forEach(n => {
+                                const b = document.getElementById(`annotation-color-${n}`);
+                                if (b) b.classList.toggle('border-white', n === name);
+                            });
+                        };
+                    }
+                });
+            },
+
+            _startDraw: function (e) {
+                this.isDrawing = true;
+                const rect = this.canvas.getBoundingClientRect();
+                this.lastX = e.clientX - rect.left;
+                this.lastY = e.clientY - rect.top;
+            },
+
+            _draw: function (e) {
+                if (!this.isDrawing) return;
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                this.ctx.strokeStyle = this.color;
+                this.ctx.lineWidth = this.lineWidth;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.lastX, this.lastY);
+                this.ctx.lineTo(x, y);
+                this.ctx.stroke();
+
+                this.lastX = x;
+                this.lastY = y;
+            },
+
+            _endDraw: function () {
+                this.isDrawing = false;
+            },
+
+            clear: function () {
+                if (this.originalImage && this.ctx) {
+                    this.ctx.drawImage(this.originalImage, 0, 0, this.canvas.width, this.canvas.height);
+                }
+            },
+
+            done: function () {
+                if (this.canvas) {
+                    this.annotatedData = this.canvas.toDataURL('image/jpeg', 0.8);
+                }
+                document.getElementById('annotation-overlay')?.classList.add('hidden');
+            },
+
+            getAnnotated: function () {
+                return this.annotatedData;
+            }
+        };
+
+        // Global wrappers for Rust binding
+        window.openAnnotationEditor = function (screenshotData) {
+            window.annotationEditor.open(screenshotData);
+        };
+        window.getAnnotatedScreenshot = function () {
+            return window.annotationEditor.getAnnotated();
+        };
+
+        // ==================== ACHIEVEMENT SYSTEM ====================
+        window._achievementTitles = {
+            'tutorial': '🎓 Tutorial completado',
+            'first_import': '📥 Primera importación',
+            'first_export': '📤 Primera exportación',
+            'template_created': '✨ Template creado',
+            'threat_hunting': '🔍 Threat Hunter',
+            'shortcut_master': '⌨️ Maestro de atajos'
+        };
+
+        // Unlock achievement (called from JS, syncs to localStorage)
+        window.unlockAchievement = function (id) {
+            const key = 'axur_onboarding';
+            let progress = JSON.parse(localStorage.getItem(key) || '{}');
+            if (!progress.unlocked_achievements) progress.unlocked_achievements = [];
+            if (!progress.unlocked_achievements.includes(id)) {
+                progress.unlocked_achievements.push(id);
+                localStorage.setItem(key, JSON.stringify(progress));
+                window.showAchievementToast(id);
+            }
+        };
+
+        // Show achievement toast notification with confetti
+        window.showAchievementToast = function (id) {
+            const title = window._achievementTitles[id] || id;
+            const toast = document.createElement('div');
+            toast.className = 'achievement-toast';
+            toast.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg, #18181b 0%, #27272a 100%); border: 1px solid #3f3f46; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); color: white; font-family: Inter, sans-serif;">
+                    <span style="font-size: 32px; animation: bounce 0.5s ease;">🏆</span>
+                    <div>
+                        <p style="margin: 0 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #f97316;">Logro Desbloqueado</p>
+                        <p style="margin: 0; font-size: 16px; font-weight: 600;">${title}</p>
+                    </div>
+                </div>
+            `;
+            toast.style.cssText = 'position: fixed; bottom: 100px; left: 20px; z-index: 10000; animation: slideUp 0.4s ease, fadeOut 0.4s ease 3s forwards;';
+            document.body.appendChild(toast);
+
+            // Trigger confetti effect
+            window.launchConfetti();
+
+            setTimeout(() => toast.remove(), 3500);
+        };
+
+        // Simple canvas confetti effect
+        window.launchConfetti = function () {
+            const canvas = document.createElement('canvas');
+            canvas.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10001;';
+            document.body.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#f97316', '#fbbf24', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
+
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 15,
+                    vy: (Math.random() - 0.5) * 15 - 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    size: Math.random() * 8 + 4,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 10
+                });
+            }
+
+            let frame = 0;
+            const animate = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.3; // gravity
+                    p.rotation += p.rotationSpeed;
+
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation * Math.PI / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+
+                frame++;
+                if (frame < 120) requestAnimationFrame(animate);
+                else canvas.remove();
+            };
+            animate();
+        };
+
+        // Add achievement animation styles
+        const achievementStyles = document.createElement('style');
+        achievementStyles.textContent = `
+            @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+            @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
+            @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+        `;
+        document.head.appendChild(achievementStyles);
+
+        // Shortcut tracking (call when any shortcut is used)
+        window.trackShortcutUsage = function () {
+            const key = 'axur_onboarding';
+            let progress = JSON.parse(localStorage.getItem(key) || '{}');
+            progress.shortcuts_used = (progress.shortcuts_used || 0) + 1;
+            localStorage.setItem(key, JSON.stringify(progress));
+            if (progress.shortcuts_used >= 5) {
+                window.unlockAchievement('shortcut_master');
+            }
+        };
     </script>
 
     <!-- Tailwind CSS -->
@@ -348,46 +622,17 @@
 
                     const slides = [];
 
-                    // Helper: Pre-fetch image with retry and delay to avoid 429
-                    const prefetchWithRetry = async (url, retries = 3, delayMs = 500) => {
-                        for (let attempt = 1; attempt <= retries; attempt++) {
-                            try {
-                                const img = new Image();
-                                img.crossOrigin = 'anonymous';
-                                await new Promise((resolve, reject) => {
-                                    img.onload = resolve;
-                                    img.onerror = () => reject(new Error('Image load failed'));
-                                    img.src = url;
-                                });
-                                return true; // Success
-                            } catch (e) {
-                                if (attempt < retries) {
-                                    const backoff = delayMs * Math.pow(2, attempt - 1);
-                                    console.log(`[PPTX] Retry ${attempt}/${retries} for image, waiting ${backoff}ms`);
-                                    await new Promise(r => setTimeout(r, backoff));
-                                }
-                            }
-                        }
-                        return false; // Failed after retries
-                    };
+                    // Images are now base64 data URLs from backend (no pre-fetching needed!)
+                    // Backend handles rate limiting with Retry-After header support
+                    console.log('[PPTX] Backend returned ' + imageUrls.length + ' embedded images (no 429 risk)');
 
-                    // 2. Pre-fetch images SEQUENTIALLY with delays to avoid 429
-                    console.log('[PPTX] Pre-fetching slide images with rate limiting...');
                     for (let i = 0; i < imageUrls.length; i++) {
                         const url = imageUrls[i];
                         const slideNum = i + 1;
 
                         // Update progress per slide
                         if (window.showPptxProgress) {
-                            window.showPptxProgress('processing', `Loading slide ${slideNum}/${imageUrls.length}`);
-                        }
-
-                        // Pre-fetch with retry
-                        await prefetchWithRetry(url, 3, 500);
-
-                        // Add delay between fetches to avoid rate limit (500ms)
-                        if (i < imageUrls.length - 1) {
-                            await new Promise(r => setTimeout(r, 500));
+                            window.showPptxProgress('processing', `Preparing slide ${slideNum}/${imageUrls.length}`);
                         }
 
                         // Note: DO NOT hardcode width/height - let Fabric.js detect from actual image
@@ -403,11 +648,11 @@
                                     originY: 'top',
                                     left: 0,
                                     top: 0,
-                                    // Removed hardcoded width/height - Fabric will use actual image dimensions
+                                    // Data URL is already embedded (no network fetch at display time)
                                     src: url,
                                     scaleX: 1,
                                     scaleY: 1,
-                                    crossOrigin: 'anonymous', // Important for Google URLs
+                                    crossOrigin: 'anonymous',
                                     stroke: null,
                                     strokeWidth: 0,
                                     fill: 'rgb(0,0,0)',
@@ -418,7 +663,7 @@
                             })
                         });
                     }
-                    console.log('[PPTX] All slides pre-fetched successfully');
+                    console.log('[PPTX] All slides prepared successfully');
 
                     this.state.slides = slides;
                     // Clean up URL object? No, these are remote URLs.
@@ -544,6 +789,8 @@
                     window.showImportGuideEditable(result.slideCount, result.fileName, function () {
                         console.log('[PPTX] User ready to edit ' + editableSlides.length + ' slides');
                         window.updatePptxIndicator();
+                        // Unlock first_import achievement
+                        if (window.unlockAchievement) window.unlockAchievement('first_import');
                     });
                 } else {
                     alert('❌ No se encontraron slides en el archivo');
@@ -1068,6 +1315,196 @@
                 console.log('[Templates] Deleted:', id);
             }
         };
+
+        // ==================== CSAT SYSTEM ====================
+        window.csatSystem = {
+            show: function () {
+                if (document.getElementById('csat-toast')) return;
+
+                const div = document.createElement('div');
+                div.id = 'csat-toast';
+                div.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-zinc-800 border border-zinc-700 rounded-full px-4 py-2 shadow-2xl flex items-center gap-3 animate-in slide-in-from-bottom-5 fade-in duration-300';
+                div.innerHTML = `
+                    <span class="text-sm text-white font-medium">¿Qué tal funcionó?</span>
+                    <div class="flex gap-2">
+                        <button onclick="window.csatSystem.vote(5)" class="text-xl hover:scale-125 transition" title="Bien">😀</button>
+                        <button onclick="window.csatSystem.vote(3)" class="text-xl hover:scale-125 transition" title="Regular">😐</button>
+                        <button onclick="window.csatSystem.vote(1)" class="text-xl hover:scale-125 transition" title="Mal">☹️</button>
+                    </div>
+                    <button onclick="window.csatSystem.close()" class="ml-2 text-zinc-500 hover:text-white text-lg leading-none">&times;</button>
+                `;
+                document.body.appendChild(div);
+
+                // Auto close after 10s
+                setTimeout(() => this.close(), 10000);
+            },
+
+            close: function () {
+                const el = document.getElementById('csat-toast');
+                if (el) {
+                    el.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom-5');
+                    setTimeout(() => el.remove(), 300);
+                }
+            },
+
+            vote: async function (score) {
+                this.close();
+
+                if (score >= 4) {
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-green-600/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-sm font-medium animate-in fade-in zoom-in duration-300';
+                    toast.textContent = '¡Gracias por tu feedback!';
+                    document.body.appendChild(toast);
+                    setTimeout(() => {
+                        toast.classList.add('animate-out', 'fade-out');
+                        setTimeout(() => toast.remove(), 300);
+                    }, 2000);
+                } else if (score <= 3) {
+                    // Encourage detailed feedback
+                    const toast = document.createElement('div');
+                    toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-zinc-800 text-zinc-300 px-4 py-1.5 rounded-full text-sm font-medium border border-zinc-600';
+                    toast.innerHTML = '¿Algo salió mal? <button onclick="document.querySelector(\'[title=\\\'Enviar Feedback\\\']\').click()" class="text-orange-400 font-bold hover:underline ml-1">Repórtalo aquí</button>';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 5000);
+                }
+
+                try {
+                    const apiBase = window.API_BASE_URL || '';
+                    await fetch(`${apiBase}/api/feedback`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: `[CSAT Vote] Score: ${score}/5`,
+                            url: window.location.href,
+                            user_agent: navigator.userAgent
+                        })
+                    });
+                } catch (e) { console.error('[CSAT] Failed to log:', e); }
+            }
+        };
+
+        // Expose globally for simpler Rust binding
+        window.showCsat = function () { if (window.csatSystem) window.csatSystem.show(); };
+
+        // ==================== CLOUD AUTO-SAVE ====================
+        window.cloudAutoSave = {
+            INTERVAL_MS: 30000, // 30 seconds
+            _intervalId: null,
+            _lastContent: null,
+            _templateName: null,
+            _isSaving: false,
+
+            // Start auto-save (call after importing PPTX or loading template)
+            start: function (templateName) {
+                this._templateName = templateName || 'Untitled Template';
+                if (this._intervalId) clearInterval(this._intervalId);
+                this._intervalId = setInterval(() => this.save(), this.INTERVAL_MS);
+                console.log('[CloudAutoSave] Started with name:', this._templateName);
+            },
+
+            stop: function () {
+                if (this._intervalId) {
+                    clearInterval(this._intervalId);
+                    this._intervalId = null;
+                }
+                console.log('[CloudAutoSave] Stopped');
+            },
+
+            // Save current slides to cloud (if changed)
+            save: async function () {
+                if (this._isSaving) return;
+
+                const slides = window._importedSlides;
+                if (!slides || slides.length === 0) return;
+
+                // Sync current canvas to slide first
+                if (window.fabricCanvas && slides[window._currentImportedSlideIndex]) {
+                    slides[window._currentImportedSlideIndex].canvasJson =
+                        JSON.stringify(window.fabricCanvas.toJSON(['placeholderKey']));
+                }
+
+                // Check if content changed
+                const currentContent = JSON.stringify(slides);
+                if (currentContent === this._lastContent) {
+                    console.log('[CloudAutoSave] No changes, skipping');
+                    return;
+                }
+
+                this._isSaving = true;
+                this._updateIndicator('saving');
+
+                try {
+                    const apiBase = window.API_BASE_URL || '';
+                    const response = await fetch(`${apiBase}/api/templates/quick-save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            name: this._templateName,
+                            description: 'Auto-saved template',
+                            slides: slides.map((s, i) => ({
+                                id: s.id || `slide-${i + 1}`,
+                                name: s.name || `Slide ${i + 1}`,
+                                canvas_json: s.canvasJson
+                            }))
+                        })
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this._lastContent = currentContent;
+                        this._updateIndicator('saved');
+                        console.log('[CloudAutoSave] Saved:', result.id, result.saved_at);
+                    } else {
+                        console.error('[CloudAutoSave] Failed:', result.message);
+                        this._updateIndicator('error');
+                    }
+                } catch (e) {
+                    console.error('[CloudAutoSave] Error:', e);
+                    this._updateIndicator('error');
+                }
+
+                this._isSaving = false;
+            },
+
+            // Update save indicator in UI
+            _updateIndicator: function (status) {
+                const indicator = document.getElementById('autosave-indicator');
+                if (!indicator) return;
+
+                switch (status) {
+                    case 'saving':
+                        indicator.textContent = '☁️ Guardando...';
+                        indicator.className = 'text-yellow-400 text-xs';
+                        break;
+                    case 'saved':
+                        indicator.textContent = '☁️ Guardado';
+                        indicator.className = 'text-green-400 text-xs';
+                        setTimeout(() => {
+                            if (indicator.textContent === '☁️ Guardado') {
+                                indicator.textContent = '';
+                            }
+                        }, 3000);
+                        break;
+                    case 'error':
+                        indicator.textContent = '⚠️ Error';
+                        indicator.className = 'text-red-400 text-xs';
+                        break;
+                }
+            }
+        };
+
+        // Auto-start when PPTX is imported
+        const originalImport = window.importPptxFile;
+        if (originalImport) {
+            window.importPptxFile = async function (file) {
+                const result = await originalImport.call(this, file);
+                if (result && result.success) {
+                    window.cloudAutoSave.start(file.name.replace('.pptx', ''));
+                }
+                return result;
+            };
+        }
     </script>
 
     <!-- Fabric.js for canvas editing -->
@@ -1128,6 +1565,124 @@
         window.canUndo = function () { return historyIndex > 0; };
         window.canRedo = function () { return historyIndex < canvasHistory.length - 1; };
 
+        // ==================== KEYBOARD UX ACTIONS ====================
+        window._clipboard = null;
+
+        window.copyObject = function () {
+            if (!fabricCanvas) return;
+            const activeObj = fabricCanvas.getActiveObject();
+            if (activeObj) {
+                activeObj.clone(function (cloned) {
+                    window._clipboard = cloned;
+                });
+                console.log('[Editor] Copied object');
+            }
+        };
+
+        window.pasteObject = function () {
+            if (!fabricCanvas || !window._clipboard) return;
+            window._clipboard.clone(function (clonedObj) {
+                fabricCanvas.discardActiveObject();
+                clonedObj.set({
+                    left: clonedObj.left + 20,
+                    top: clonedObj.top + 20,
+                    evented: true,
+                });
+                if (clonedObj.type === 'activeSelection') {
+                    // special handling for multiple objects
+                    clonedObj.canvas = fabricCanvas;
+                    clonedObj.forEachObject(function (obj) {
+                        fabricCanvas.add(obj);
+                    });
+                    clonedObj.setCoords();
+                } else {
+                    fabricCanvas.add(clonedObj);
+                }
+                window._clipboard = clonedObj; // Enable multiple pastes "staircase" effect
+                fabricCanvas.setActiveObject(clonedObj);
+                fabricCanvas.requestRenderAll();
+                window.saveCanvasState();
+                console.log('[Editor] Pasted object');
+            });
+        };
+
+        window.duplicateObject = function () {
+            if (!fabricCanvas) return;
+            const activeObj = fabricCanvas.getActiveObject();
+            if (activeObj) {
+                activeObj.clone(function (clonedObj) {
+                    fabricCanvas.discardActiveObject();
+                    clonedObj.set({
+                        left: activeObj.left + 20,
+                        top: activeObj.top + 20,
+                        evented: true,
+                    });
+                    if (clonedObj.type === 'activeSelection') {
+                        clonedObj.canvas = fabricCanvas;
+                        clonedObj.forEachObject(function (obj) {
+                            fabricCanvas.add(obj);
+                        });
+                        clonedObj.setCoords();
+                    } else {
+                        fabricCanvas.add(clonedObj);
+                    }
+                    fabricCanvas.setActiveObject(clonedObj);
+                    fabricCanvas.requestRenderAll();
+                    window.saveCanvasState();
+                    console.log('[Editor] Duplicated object');
+                });
+            }
+        };
+
+        // Keyboard Shortcuts Listener
+        document.addEventListener('keydown', function (e) {
+            // Ignorar si estamos escribiendo en un input
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+
+            // Ctrl+Z (Undo)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                window.undoCanvas();
+            }
+            // Ctrl+Shift+Z or Ctrl+Y (Redo)
+            if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key === 'z') || e.key === 'y')) {
+                e.preventDefault();
+                window.redoCanvas();
+            }
+            // Ctrl+C (Copy)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+                e.preventDefault();
+                window.copyObject();
+            }
+            // Ctrl+V (Paste)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                e.preventDefault();
+                window.pasteObject();
+            }
+            // Ctrl+D (Duplicate)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+                e.preventDefault();
+                window.duplicateObject();
+            }
+            // Delete / Backspace
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (fabricCanvas && fabricCanvas.getActiveObject()) {
+                    e.preventDefault();
+                    const activeObjects = fabricCanvas.getActiveObjects();
+                    if (activeObjects.length) {
+                        fabricCanvas.discardActiveObject();
+                        // Iterate reversed copy to avoid index issues
+                        activeObjects.forEach(function (obj) {
+                            fabricCanvas.remove(obj);
+                        });
+                    } else {
+                        fabricCanvas.remove(fabricCanvas.getActiveObject());
+                    }
+                    window.saveCanvasState();
+                }
+            }
+        });
+
         // Initialize Fabric.js canvas
         window.initFabricCanvas = function (canvasId) {
             console.log('[Fabric] Initializing canvas:', canvasId);
@@ -1162,8 +1717,93 @@
                 }
             });
 
-            console.log('[Fabric] Canvas initialized with history and hybrid sync');
+            // Add grid overlay for visual guidance
+            window.toggleCanvasGrid(window._gridEnabled !== false); // Default ON
+
+            console.log('[Fabric] Canvas initialized with history, hybrid sync, and grid');
             return fabricCanvas;
+        };
+
+        // Grid state
+        window._gridEnabled = true;
+        window._gridLines = [];
+
+        // Toggle canvas grid on/off
+        window.toggleCanvasGrid = function (enabled) {
+            if (!fabricCanvas) return;
+            window._gridEnabled = enabled;
+
+            // Remove existing grid lines
+            window._gridLines.forEach(line => fabricCanvas.remove(line));
+            window._gridLines = [];
+
+            if (!enabled) {
+                fabricCanvas.renderAll();
+                return;
+            }
+
+            const gridSize = 60; // 60px grid cells
+            const canvasWidth = fabricCanvas.width || 960;
+            const canvasHeight = fabricCanvas.height || 540;
+            const gridColor = 'rgba(255,255,255,0.05)';
+
+            // Vertical lines
+            for (let x = gridSize; x < canvasWidth; x += gridSize) {
+                const line = new fabric.Line([x, 0, x, canvasHeight], {
+                    stroke: gridColor,
+                    selectable: false,
+                    evented: false,
+                    strokeWidth: 1,
+                    excludeFromExport: true
+                });
+                window._gridLines.push(line);
+                fabricCanvas.add(line);
+                fabricCanvas.sendToBack(line);
+            }
+
+            // Horizontal lines
+            for (let y = gridSize; y < canvasHeight; y += gridSize) {
+                const line = new fabric.Line([0, y, canvasWidth, y], {
+                    stroke: gridColor,
+                    selectable: false,
+                    evented: false,
+                    strokeWidth: 1,
+                    excludeFromExport: true
+                });
+                window._gridLines.push(line);
+                fabricCanvas.add(line);
+                fabricCanvas.sendToBack(line);
+            }
+
+            // Center lines (slightly more visible)
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            const centerColor = 'rgba(99,102,241,0.15)'; // Indigo tint
+
+            const centerVLine = new fabric.Line([centerX, 0, centerX, canvasHeight], {
+                stroke: centerColor,
+                selectable: false,
+                evented: false,
+                strokeWidth: 1,
+                excludeFromExport: true
+            });
+            window._gridLines.push(centerVLine);
+            fabricCanvas.add(centerVLine);
+            fabricCanvas.sendToBack(centerVLine);
+
+            const centerHLine = new fabric.Line([0, centerY, canvasWidth, centerY], {
+                stroke: centerColor,
+                selectable: false,
+                evented: false,
+                strokeWidth: 1,
+                excludeFromExport: true
+            });
+            window._gridLines.push(centerHLine);
+            fabricCanvas.add(centerHLine);
+            fabricCanvas.sendToBack(centerHLine);
+
+            fabricCanvas.renderAll();
+            console.log('[Fabric] Grid ' + (enabled ? 'enabled' : 'disabled'));
         };
         // ==================== KEYBOARD SHORTCUTS ====================
         document.addEventListener('keydown', function (e) {

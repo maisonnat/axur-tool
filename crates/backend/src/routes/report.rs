@@ -24,6 +24,7 @@ use axur_core::api::report::{
 use axur_core::error_codes::{self, ErrorCode};
 use axur_core::i18n::{get_dictionary, Language, Translations};
 use axur_core::report::html::{generate_full_report_html, generate_report_with_plugins};
+use axur_core::report::OfflineAssets;
 
 // ========================
 // REQUEST/RESPONSE TYPES
@@ -292,6 +293,9 @@ pub async fn generate_report(
     }
 
     // Generate HTML report
+    // FIXED: Load offline assets to ensure report is self-contained (HTML size will increase ~400KB)
+    let offline_assets = OfflineAssets::load_embedded();
+
     let html = if payload.use_plugins && custom_template_slides.is_none() {
         // Use the new plugin-based system
         let lang_code = match language {
@@ -313,10 +317,20 @@ pub async fn generate_report(
             .with_theme(theme_mode)
             .disable_plugins(payload.disabled_plugins.clone().unwrap_or_default());
 
-        generate_report_with_plugins(&report_data, &translations, None, Some(config))
+        generate_report_with_plugins(
+            &report_data,
+            &translations,
+            Some(&offline_assets),
+            Some(config),
+        )
     } else {
         // Use legacy system for custom templates or when plugins not requested
-        generate_full_report_html(&report_data, custom_template_slides, None, &dict)
+        generate_full_report_html(
+            &report_data,
+            custom_template_slides,
+            Some(&offline_assets),
+            &dict,
+        )
     };
 
     // ⏱️ Calculate duration

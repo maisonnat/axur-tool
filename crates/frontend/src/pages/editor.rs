@@ -55,6 +55,12 @@ extern "C" {
     #[wasm_bindgen(js_namespace = window, js_name = canRedo)]
     fn can_redo() -> bool;
 
+    #[wasm_bindgen(js_namespace = window, js_name = duplicateObject)]
+    fn duplicate_object();
+
+    #[wasm_bindgen(js_namespace = window, js_name = showCsat)]
+    fn show_csat();
+
     // Zoom controls
     #[wasm_bindgen(js_namespace = window, js_name = zoomIn)]
     fn zoom_in() -> f64;
@@ -106,6 +112,13 @@ pub struct EditorSlide {
     pub canvas_json: String,
 }
 
+/// Convert sandbox slide to Fabric.js canvas JSON
+fn sandbox_slides_to_canvas_json(slide: &crate::onboarding::SandboxSlide) -> String {
+    let title = &slide.name;
+    let json = serde_json::json!({ "version": "5.3.0", "objects": [{ "type": "text", "left": 100, "top": 100, "text": title, "fontSize": 32, "fill": "white" }] });
+    json.to_string()
+}
+
 /// Main Editor Page Component
 #[component]
 pub fn EditorPage() -> impl IntoView {
@@ -123,6 +136,9 @@ pub fn EditorPage() -> impl IntoView {
     let is_saving = create_rw_signal(false);
     let is_exporting_slides = create_rw_signal(false); // Google Slides export
     let preview_mode = create_rw_signal(false); // Real-time preview toggle
+
+    // Sandbox mode - demo environment for practice
+    let is_sandbox = create_rw_signal(crate::onboarding::is_sandbox_mode());
 
     // New state for CRUD
     let template_id = create_rw_signal::<Option<String>>(None);
@@ -166,6 +182,31 @@ pub fn EditorPage() -> impl IntoView {
                     js_sys::eval("if(window.setupCanvasDragDrop) window.setupCanvasDragDrop();");
 
                 // Check if we need to load a template
+                // SANDBOX MODE: Load demo slides instead of user templates
+                if is_sandbox.get() {
+                    let demo_slides = crate::onboarding::get_sandbox_slides();
+                    let new_slides: Vec<EditorSlide> = demo_slides
+                        .iter()
+                        .enumerate()
+                        .map(|(i, s)| EditorSlide {
+                            id: s.id.to_string(),
+                            name: s.name.to_string(),
+                            canvas_json: sandbox_slides_to_canvas_json(s),
+                        })
+                        .collect();
+
+                    if !new_slides.is_empty() {
+                        slides.set(new_slides);
+                        current_slide_idx.set(0);
+                        template_name.set("Demo Template (Sandbox)".to_string());
+                        if let Some(first) = slides.get().first() {
+                            load_canvas_json(&first.canvas_json);
+                        }
+                    }
+                    log("Sandbox mode: Loaded demo slides");
+                    return; // Don't load user templates
+                }
+
                 if let Some(tid) = tid_opt {
                     is_loading.set(true);
                     spawn_local(async move {
@@ -321,6 +362,12 @@ pub fn EditorPage() -> impl IntoView {
         has_unsaved_changes.set(true);
     };
 
+    // Duplicate object action
+    let do_duplicate_object = move |_: web_sys::MouseEvent| {
+        duplicate_object();
+        has_unsaved_changes.set(true);
+    };
+
     // Add text element
     let add_text = move |_| {
         add_text_to_canvas("Edit this text");
@@ -420,6 +467,8 @@ pub fn EditorPage() -> impl IntoView {
                             }
                         }
                         has_unsaved_changes.set(false);
+                        // Trigger CSAT survey
+                        show_csat();
                     } else {
                         log(&format!("Save failed: {}", resp.message));
                     }
@@ -434,6 +483,15 @@ pub fn EditorPage() -> impl IntoView {
 
     view! {
         <div class="min-h-screen bg-zinc-950 flex flex-col">
+            // Sandbox Mode Banner
+            <crate::components::SandboxBanner
+                is_active=Signal::derive(move || is_sandbox.get())
+                on_exit=Callback::new(move |_| {
+                    crate::onboarding::set_sandbox_mode(false);
+                    state.current_page.set(crate::Page::Dashboard);
+                })
+            />
+            
             // Top Bar
             <header class="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 gap-4">
                 <button
@@ -515,6 +573,10 @@ pub fn EditorPage() -> impl IntoView {
                                 match api::export_to_slides(&title, slide_data).await {
                                     Ok(resp) => {
                                         log(&format!("Exported to Google Slides: {}", resp.presentation_url));
+                                        // Trigger CSAT survey
+                                        show_csat();
+                                        // Unlock achievement
+                                        crate::onboarding::unlock_achievement("first_export");
                                         // Open presentation in new tab
                                         if let Some(window) = web_sys::window() {
                                             let _ = window.open_with_url_and_target(
@@ -543,17 +605,17 @@ pub fn EditorPage() -> impl IntoView {
                 </div>
                 <button
                     on:click=save_template
-                    disabled=move || is_saving.get()
-                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50"
-                    title="Guarda el template en tu perfil para usar en Dashboard"
+                    disabled=move || is_saving.get() || is_sandbox.get()
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    title=move || if is_sandbox.get() { "Guardar deshabilitado en modo práctica" } else { "Guarda el template en tu perfil para usar en Dashboard" }
                 >
-                    {move || if is_saving.get() { "Guardando..." } else { "☁️ Guardar en Perfil" }}
+                    {move || if is_sandbox.get() { "🔒 Modo Práctica" } else if is_saving.get() { "Guardando..." } else { "☁️ Guardar en Perfil" }}
                 </button>
             </header>
 
             <div class="flex-1 flex overflow-hidden">
-                // Left Sidebar - Slides Panel
-                <aside class="w-48 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+                // Left Sidebar - Slides Panel (wider for bigger thumbnails)
+                <aside class="w-56 bg-zinc-900 border-r border-zinc-800 flex flex-col">
                     <div class="p-3 border-b border-zinc-800 flex items-center justify-between">
                         <span class="text-sm text-zinc-400 font-medium">"Slides"</span>
                         <button
@@ -661,74 +723,100 @@ pub fn EditorPage() -> impl IntoView {
 
                 // Main Canvas Area
                 <main class="flex-1 flex flex-col bg-zinc-950">
-                    // Toolbar
-                    <div class="h-12 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 gap-2">
-                        <button
-                            on:click=add_text
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white"
-                            title="Add Text"
-                        >
-                            "T Text"
-                        </button>
-                        <button
-                            on:click=add_rectangle
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white"
-                            title="Add Rectangle"
-                        >
-                            "□ Rectangle"
-                        </button>
-                        <button
-                            on:click=add_circle
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white"
-                            title="Add Circle"
-                        >
-                            "○ Circle"
-                        </button>
-                        <div class="w-px h-6 bg-zinc-700 mx-2"></div>
+                    // Toolbar - Grouped by function
+                    <div class="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 gap-3">
+                        // GROUP 1: Add Elements
+                        <div class="flex items-center gap-1 bg-zinc-800/50 rounded-lg px-2 py-1">
+                            <span class="text-xs text-zinc-500 mr-1">"Add:"</span>
+                            <button
+                                on:click=add_text
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Add Text (T)"
+                            >
+                                "T"
+                            </button>
+                            <button
+                                on:click=add_rectangle
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Add Rectangle"
+                            >
+                                "□"
+                            </button>
+                            <button
+                                on:click=add_circle
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Add Circle"
+                            >
+                                "○"
+                            </button>
+                            <button
+                                on:click=move |_| trigger_image_upload()
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Upload Image"
+                            >
+                                "🖼️"
+                            </button>
+                        </div>
+
+                        // GROUP 2: Placeholders (highlighted)
                         <button
                             on:click=toggle_library
-                            class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded text-sm text-white font-medium"
+                            class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm text-white font-medium shadow-sm"
                             title="Marcadores que se reemplazan con datos reales del reporte"
                         >
                             "📦 Placeholders"
                         </button>
-                        <div class="w-px h-6 bg-zinc-700 mx-2"></div>
-                        // Image upload button - trigger file picker via JS
-                        <button
-                            on:click=move |_| trigger_image_upload()
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white"
-                            title="Upload Image"
-                        >
-                            "🖼️ Image"
-                        </button>
-                        <div class="w-px h-6 bg-zinc-700 mx-2"></div>
-                        // Undo/Redo buttons
-                        <button
-                            on:click=do_undo
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white disabled:opacity-40"
-                            title="Undo (Ctrl+Z)"
-                        >
-                            "↶ Undo"
-                        </button>
-                        <button
-                            on:click=do_redo
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white disabled:opacity-40"
-                            title="Redo (Ctrl+Y)"
-                        >
-                            "↷ Redo"
-                        </button>
-                        <div class="w-px h-6 bg-zinc-700 mx-2"></div>
-                        // Duplicate slide button
-                        <button
-                            on:click=duplicate_slide
-                            class="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-sm text-white"
-                            title="Duplicate Current Slide"
-                        >
-                            "📋 Duplicate"
-                        </button>
-                        <div class="w-px h-6 bg-zinc-700 mx-2"></div>
-                        // PPTX Imported Slides Navigation
-                        <div class="flex items-center gap-2 bg-zinc-800/50 rounded px-2 py-1">
+
+                        // Separator
+                        <div class="w-px h-8 bg-zinc-700"></div>
+
+                        // GROUP 3: Edit Actions
+                        <div class="flex items-center gap-1 bg-zinc-800/50 rounded-lg px-2 py-1">
+                            <button
+                                on:click=do_undo
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white disabled:opacity-40"
+                                title="Undo (Ctrl+Z)"
+                            >
+                                "↶"
+                            </button>
+                            <button
+                                on:click=do_redo
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white disabled:opacity-40"
+                                title="Redo (Ctrl+Y)"
+                            >
+                                "↷"
+                            </button>
+                            <button
+                                on:click=do_duplicate_object
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Duplicate Object (Ctrl+D)"
+                            >
+                                "❐"
+                            </button>
+                            <div class="w-px h-4 bg-zinc-600 mx-1"></div>
+                            <button
+                                on:click=duplicate_slide
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Duplicate Slide"
+                            >
+                                "📋"
+                            </button>
+                            <div class="w-px h-4 bg-zinc-600 mx-1"></div>
+                            <button
+                                onclick="window.toggleCanvasGrid(!window._gridEnabled);"
+                                class="px-2 py-1 hover:bg-zinc-700 rounded text-sm text-white"
+                                title="Toggle Grid"
+                            >
+                                "⊞"
+                            </button>
+                        </div>
+
+                        // Spacer
+                        <div class="flex-1"></div>
+
+                        // GROUP 4: PPTX Navigation (right side)
+                        <div class="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-2 py-1">
+                            <span class="text-xs text-zinc-500">"PPTX:"</span>
                             <button
                                 on:click=move |_| {
                                     let _ = js_sys::eval("if(window._importedSlides && window._currentImportedSlideIndex > 0) { window.navigateImportedSlide(window._currentImportedSlideIndex - 1); }");
@@ -739,13 +827,10 @@ pub fn EditorPage() -> impl IntoView {
                                 "◀"
                             </button>
                             <span
-                                class="text-xs text-zinc-400 min-w-[60px] text-center"
+                                class="text-xs text-zinc-400 min-w-[40px] text-center"
                                 id="pptx-slide-indicator"
                             >
-                                {move || {
-                                    // This will be updated by JS, show default
-                                    "PPTX: --"
-                                }}
+                                {move || "--"}
                             </span>
                             <button
                                 on:click=move |_| {
@@ -757,39 +842,70 @@ pub fn EditorPage() -> impl IntoView {
                                 "▶"
                             </button>
                         </div>
+
+                        // Auto-save indicator (updated by cloudAutoSave)
+                        <span id="autosave-indicator" class="text-xs ml-2"></span>
                     </div>
 
                     // Canvas Container with Onboarding Banner
                     <div class="flex-1 flex flex-col items-center justify-center p-8 overflow-auto">
-                        // Onboarding banner - shown when no PPTX is imported
-                        <div
-                            id="onboarding-banner"
-                            class="mb-4 p-4 bg-zinc-800/80 rounded-lg border border-zinc-700 max-w-xl text-center"
-                        >
-                            <h3 class="text-lg font-bold text-white mb-2">"📤 ¿Cómo funciona?"</h3>
-                            <div class="text-sm text-zinc-400 space-y-1">
-                                <p>"1. Importa tu PPTX corporativo"</p>
-                                <p>"2. Agrega placeholders donde irán los datos"</p>
-                                <p>"3. Guarda el template para usarlo en Dashboard"</p>
-                            </div>
-                            <button
-                                class="mt-3 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm font-medium"
-                                onclick="document.getElementById('pptx-input').click();"
-                            >
-                                "📤 Importar mi PPTX"
-                            </button>
-                        </div>
+                        // Onboarding banner - shown only first time (dismissed via localStorage)
+                        {move || {
+                            // Check if banner was dismissed
+                            let dismissed = web_sys::window()
+                                .and_then(|w| w.local_storage().ok().flatten())
+                                .and_then(|s| s.get_item("onboarding_dismissed").ok().flatten())
+                                .map(|v| v == "true")
+                                .unwrap_or(false);
+
+                            if dismissed {
+                                view! { <div></div> }.into_view()
+                            } else {
+                                view! {
+                                    <div
+                                        id="onboarding-banner"
+                                        class="mb-4 p-4 bg-zinc-800/80 rounded-lg border border-zinc-700 max-w-xl text-center relative"
+                                    >
+                                        // Dismiss button
+                                        <button
+                                            class="absolute top-2 right-2 text-zinc-500 hover:text-white text-sm"
+                                            title="Dismiss"
+                                            onclick="localStorage.setItem('onboarding_dismissed', 'true'); this.parentElement.style.display='none';"
+                                        >
+                                            "✕"
+                                        </button>
+                                        <h3 class="text-lg font-bold text-white mb-2">"📤 ¿Cómo funciona?"</h3>
+                                        <div class="text-sm text-zinc-400 space-y-1">
+                                            <p>"1. Importa tu PPTX corporativo"</p>
+                                            <p>"2. Agrega placeholders donde irán los datos"</p>
+                                            <p>"3. Guarda el template para usarlo en Dashboard"</p>
+                                        </div>
+                                        <button
+                                            class="mt-3 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium"
+                                            onclick="document.getElementById('pptx-input').click(); localStorage.setItem('onboarding_dismissed', 'true'); document.getElementById('onboarding-banner').style.display='none';"
+                                        >
+                                            "📤 Importar mi PPTX"
+                                        </button>
+                                        <button
+                                            class="mt-3 ml-2 px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-lg text-sm"
+                                            onclick="localStorage.setItem('onboarding_dismissed', 'true'); document.getElementById('onboarding-banner').style.display='none';"
+                                        >
+                                            "Saltar tutorial"
+                                        </button>
+                                    </div>
+                                }.into_view()
+                            }
+                        }}
                         <div class="relative bg-zinc-900 shadow-2xl canvas-drop-zone" style="width: 960px; height: 540px;">
                             <canvas id="editor-canvas" width="960" height="540"></canvas>
                         </div>
                     </div>
                 </main>
 
-                // Right Sidebar - Tools Panel
-                <aside class="w-64 bg-zinc-900 border-l border-zinc-800 flex flex-col">
+                // Right Sidebar - Tools Panel (Collapsible Sections)
+                <aside class="w-64 bg-zinc-900 border-l border-zinc-800 flex flex-col overflow-y-auto">
                     // Zoom Controls
-                    <div class="p-3 border-b border-zinc-800">
-                        <h3 class="text-xs text-zinc-500 font-medium uppercase mb-2">"Zoom"</h3>
+                    <CollapsibleSection storage_key="zoom" title="Zoom" icon="🔍" default_expanded=true>
                         <div class="flex items-center gap-2">
                             <button
                                 on:click=move |_| {
@@ -797,7 +913,7 @@ pub fn EditorPage() -> impl IntoView {
                                 }
                                 class="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white flex items-center justify-center"
                                 title="Zoom Out"
-                            >"−"</button>
+                            >"-"</button>
                             <span class="flex-1 text-center text-sm text-zinc-300" id="zoom-display">
                                 "100%"
                             </span>
@@ -816,11 +932,10 @@ pub fn EditorPage() -> impl IntoView {
                                 title="Reset Zoom"
                             >"⟲"</button>
                         </div>
-                    </div>
+                    </CollapsibleSection>
 
                     // Alignment Tools
-                    <div class="p-3 border-b border-zinc-800">
-                        <h3 class="text-xs text-zinc-500 font-medium uppercase mb-2">"Align (select 2+)"</h3>
+                    <CollapsibleSection storage_key="align" title="Align (select 2+)" icon="⫿" default_expanded=false>
                         <div class="grid grid-cols-3 gap-1">
                             <button on:click=move |_| { align_selected("left"); }
                                 class="h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white text-xs" title="Left">"⫷"</button>
@@ -835,11 +950,10 @@ pub fn EditorPage() -> impl IntoView {
                             <button on:click=move |_| { align_selected("bottom"); }
                                 class="h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white text-xs" title="Bottom">"⟘"</button>
                         </div>
-                    </div>
+                    </CollapsibleSection>
 
                     // Layer Controls
-                    <div class="p-3 border-b border-zinc-800">
-                        <h3 class="text-xs text-zinc-500 font-medium uppercase mb-2">"Layers"</h3>
+                    <CollapsibleSection storage_key="layers" title="Layers" icon="📚" default_expanded=false>
                         <div class="grid grid-cols-2 gap-1">
                             <button on:click=move |_| { bring_to_front(); }
                                 class="h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white text-xs" title="Bring to Front"
@@ -848,11 +962,10 @@ pub fn EditorPage() -> impl IntoView {
                                 class="h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white text-xs" title="Send to Back"
                             >"↓ Back"</button>
                         </div>
-                    </div>
+                    </CollapsibleSection>
 
-                    // Delete Selected
-                    <div class="p-3 border-b border-zinc-800">
-                        <h3 class="text-xs text-zinc-500 font-medium uppercase mb-2">"Actions"</h3>
+                    // Actions
+                    <CollapsibleSection storage_key="actions" title="Actions" icon="⚡" default_expanded=true>
                         <div class="flex gap-1">
                             <button on:click=move |_| { duplicate_selected(); }
                                 class="flex-1 h-8 bg-zinc-800 hover:bg-zinc-700 rounded text-white text-xs"
@@ -861,7 +974,7 @@ pub fn EditorPage() -> impl IntoView {
                                 class="flex-1 h-8 bg-red-900/50 hover:bg-red-800/50 rounded text-red-300 text-xs"
                             >"🗑 Delete"</button>
                         </div>
-                    </div>
+                    </CollapsibleSection>
 
                     // Collapsible Placeholder Side Panel
                     <PlaceholderSidePanel on_insert=insert_placeholder.clone() />
@@ -881,6 +994,70 @@ pub fn EditorPage() -> impl IntoView {
                     on_insert=insert_placeholder
                 />
             </Show>
+        </div>
+    }
+}
+
+/// Collapsible Section with localStorage persistence
+#[component]
+fn CollapsibleSection(
+    /// Unique key for localStorage persistence
+    storage_key: &'static str,
+    /// Section title
+    title: &'static str,
+    /// Section icon (emoji)
+    #[prop(default = "")]
+    icon: &'static str,
+    /// Whether default is expanded
+    #[prop(default = true)]
+    default_expanded: bool,
+    /// Children content
+    children: Children,
+) -> impl IntoView {
+    // Read initial state from localStorage
+    let key = format!("sidebar_{}_expanded", storage_key);
+    let initial_expanded = web_sys::window()
+        .and_then(|w| w.local_storage().ok().flatten())
+        .and_then(|s| s.get_item(&key).ok().flatten())
+        .map(|v| v == "true")
+        .unwrap_or(default_expanded);
+
+    let expanded = create_rw_signal(initial_expanded);
+    let key_for_toggle = key.clone();
+
+    let toggle = move |_| {
+        let new_val = !expanded.get();
+        expanded.set(new_val);
+        // Persist to localStorage
+        if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+            let _ = storage.set_item(&key_for_toggle, if new_val { "true" } else { "false" });
+        }
+    };
+
+    // Render children immediately to avoid FnOnce closure issue
+    let children_view = children();
+
+    view! {
+        <div class="border-b border-zinc-800">
+            // Header (always visible, clickable)
+            <button
+                on:click=toggle
+                class="w-full p-3 flex items-center justify-between text-left hover:bg-zinc-800/50 transition-colors"
+            >
+                <span class="text-xs text-zinc-500 font-medium uppercase flex items-center gap-1">
+                    {if !icon.is_empty() { Some(view! { <span>{icon}</span> }) } else { None }}
+                    {title}
+                </span>
+                <span class="text-zinc-500 text-xs transition-transform"
+                    class:rotate-180=move || expanded.get()
+                >
+                    "▼"
+                </span>
+            </button>
+            // Content (collapsible)
+            <div class="px-3 pb-3" style:display=move || if expanded.get() { "block" } else { "none" }>
+                {children_view}
+            </div>
         </div>
     }
 }

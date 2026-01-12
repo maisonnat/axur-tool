@@ -297,6 +297,100 @@ impl GoogleServices {
         Ok(urls)
     }
 
+    /// Download images from URLs and convert to base64 data URLs.
+    /// Handles 429 rate limiting with Retry-After header support.
+    pub async fn fetch_images_as_base64(&self, urls: Vec<String>) -> Result<Vec<String>, String> {
+        use base64::Engine;
+        let mut data_urls = Vec::with_capacity(urls.len());
+
+        for (idx, url) in urls.iter().enumerate() {
+            let mut attempt = 0;
+            let max_attempts = 5;
+
+            loop {
+                // Rate limit first
+                self.limiter.until_ready().await;
+
+                let resp = self
+                    .http_client
+                    .get(url)
+                    .send()
+                    .await
+                    .map_err(|e| format!("Image fetch error: {}", e))?;
+
+                let status = resp.status();
+
+                if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                    // Read Retry-After header (seconds)
+                    let retry_after = resp
+                        .headers()
+                        .get("Retry-After")
+                        .and_then(|v| v.to_str().ok())
+                        .and_then(|s| s.parse::<u64>().ok())
+                        .unwrap_or(5); // Default 5 seconds if header missing
+
+                    tracing::warn!(
+                        "[GoogleServices] 429 on image {}/{}, Retry-After: {}s (attempt {})",
+                        idx + 1,
+                        urls.len(),
+                        retry_after,
+                        attempt + 1
+                    );
+
+                    tokio::time::sleep(std::time::Duration::from_secs(retry_after)).await;
+                    attempt += 1;
+
+                    if attempt >= max_attempts {
+                        return Err(format!(
+                            "Image {} failed after {} attempts due to rate limiting",
+                            idx + 1,
+                            max_attempts
+                        ));
+                    }
+                    continue;
+                }
+
+                if !status.is_success() {
+                    return Err(format!(
+                        "Image {} fetch error: {} {}",
+                        idx + 1,
+                        status.as_u16(),
+                        status.canonical_reason().unwrap_or("")
+                    ));
+                }
+
+                // Get content type for data URL
+                let content_type = resp
+                    .headers()
+                    .get("content-type")
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("image/png")
+                    .to_string();
+
+                // Download bytes
+                let bytes = resp
+                    .bytes()
+                    .await
+                    .map_err(|e| format!("Image {} bytes error: {}", idx + 1, e))?;
+
+                // Encode to base64
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                let data_url = format!("data:{};base64,{}", content_type, b64);
+
+                data_urls.push(data_url);
+                tracing::info!(
+                    "[GoogleServices] Image {}/{} downloaded ({} KB)",
+                    idx + 1,
+                    urls.len(),
+                    bytes.len() / 1024
+                );
+                break;
+            }
+        }
+
+        Ok(data_urls)
+    }
+
     // =================================================================
     // GOOGLE SLIDES EXPORT METHODS
     // =================================================================

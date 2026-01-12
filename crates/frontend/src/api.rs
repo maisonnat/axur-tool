@@ -68,6 +68,8 @@ pub struct FinalizeResponse {
 pub struct ValidateResponse {
     pub valid: bool,
     pub message: String,
+    pub is_admin: bool,
+    pub has_log_access: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -117,7 +119,8 @@ pub struct GenerateReportResponse {
 
 /// Step 1: Login with email/password
 pub async fn login(email: &str, password: &str) -> Result<LoginResponse, String> {
-    let resp = Request::post(&format!("{}/api/auth/login", API_BASE))
+    let url = format!("{}/api/auth/login", API_BASE);
+    let resp = Request::post(&url)
         .header("Content-Type", "application/json")
         .json(&LoginRequest {
             email: email.to_string(),
@@ -129,7 +132,8 @@ pub async fn login(email: &str, password: &str) -> Result<LoginResponse, String>
         .map_err(|e| e.to_string())?;
 
     if resp.ok() {
-        resp.json().await.map_err(|e| e.to_string())
+        let text = resp.text().await.map_err(|e| e.to_string())?;
+        serde_json::from_str(&text).map_err(|e| e.to_string())
     } else {
         Err(format!("Login failed: {}", resp.status()))
     }
@@ -191,7 +195,7 @@ pub async fn finalize(
 }
 
 /// Validate current session
-pub async fn validate_session() -> Result<bool, String> {
+pub async fn validate_session() -> Result<ValidateResponse, String> {
     let resp = Request::get(&format!("{}/api/auth/validate", API_BASE))
         .credentials(web_sys::RequestCredentials::Include)
         .send()
@@ -199,10 +203,14 @@ pub async fn validate_session() -> Result<bool, String> {
         .map_err(|e| e.to_string())?;
 
     if resp.ok() {
-        let data: ValidateResponse = resp.json().await.map_err(|e| e.to_string())?;
-        Ok(data.valid)
+        resp.json().await.map_err(|e| e.to_string())
     } else {
-        Ok(false)
+        Ok(ValidateResponse {
+            valid: false,
+            message: "Session invalid".into(),
+            is_admin: false,
+            has_log_access: false,
+        })
     }
 }
 

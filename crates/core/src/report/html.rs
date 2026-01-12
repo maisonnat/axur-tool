@@ -116,15 +116,17 @@ pub fn generate_full_report_html(
     let all_slides = slides.join("\n");
 
     // Choose assets based on offline mode
-    let (tailwind_script, font_links, font_family) = if let Some(assets) = offline_assets {
+    let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) = offline_assets {
         (
             format!("<script>{}</script>", assets.tailwind_js),
+            format!("<script>{}</script>", assets.chart_js),
             String::new(), // No Google Fonts in offline mode
             "sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial", // System fonts
         )
     } else {
         (
             r#"<script src="https://cdn.tailwindcss.com"></script>"#.to_string(),
+            r#"<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>"#.to_string(),
             r#"<link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">"#.to_string(),
@@ -174,7 +176,7 @@ pub fn generate_full_report_html(
             aspect-ratio: 16/9;
         }}
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {chart}
 </head>
 <body class="bg-zinc-950 text-zinc-200">
     <div id="report-content" class="p-4 md:p-8">
@@ -187,6 +189,7 @@ pub fn generate_full_report_html(
         font_links = font_links,
         tailwind = tailwind_script,
         font_family = font_family,
+        chart = chart_script,
     )
 }
 
@@ -217,15 +220,17 @@ pub fn generate_report_with_plugins(
     let all_slides_html: String = slides.iter().map(|s| s.html.as_str()).collect::<Vec<_>>().join("\n");
     
     // Choose assets based on offline mode
-    let (tailwind_script, font_links, font_family) = if let Some(assets) = offline_assets {
+    let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) = offline_assets {
         (
             format!("<script>{}</script>", assets.tailwind_js),
+            format!("<script>{}</script>", assets.chart_js),
             String::new(),
             "sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial",
         )
     } else {
         (
             r#"<script src="https://cdn.tailwindcss.com"></script>"#.to_string(),
+            r#"<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>"#.to_string(),
             r#"<link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">"#.to_string(),
@@ -252,7 +257,7 @@ pub fn generate_report_with_plugins(
         }}
         .printable-slide {{ aspect-ratio: 16/9; }}
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    {chart}
 </head>
 <body class="bg-zinc-950 text-zinc-200">
     <div id="report-content" class="p-4 md:p-8">
@@ -265,6 +270,7 @@ pub fn generate_report_with_plugins(
         font_links = font_links,
         tailwind = tailwind_script,
         font_family = font_family,
+        chart = chart_script,
     )
 }
 

@@ -89,6 +89,66 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
+    // 2b. Allowed Users Table (Beta Testers / Access Control)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS allowed_users (
+            email TEXT PRIMARY KEY,
+            role TEXT DEFAULT 'beta_tester',
+            description TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            added_by TEXT
+        );
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // 2c. Beta Requests Table (Public Sign-up)
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS beta_requests (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            email TEXT NOT NULL,
+            company TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            requested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            processed_at TIMESTAMP WITH TIME ZONE,
+            processed_by TEXT
+        );
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index on status for admin filtering
+    sqlx::query(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_beta_requests_status ON beta_requests(status);
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    // Seed initial super admin if table is empty
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM allowed_users")
+        .fetch_one(pool)
+        .await
+        .unwrap_or((0,));
+
+    if count.0 == 0 {
+        let _ = sqlx::query(
+            "INSERT INTO allowed_users (email, role, description, added_by) VALUES ($1, $2, $3, $4)",
+        )
+        .bind("alejandro.maisonnat@axur.com")
+        .bind("admin")
+        .bind("Initial Super Admin")
+        .bind("system")
+        .execute(pool)
+        .await;
+        tracing::info!("Seeded initial super admin: alejandro.maisonnat@axur.com");
+    }
+
     // 3. Analytics Events Table (for structured events)
     sqlx::query(
         r#"
@@ -134,7 +194,7 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     .execute(pool)
     .await?;
 
-    // 5. User Templates Table (metadata only, content in GitHub)
+    // 5. User Templates Table (with direct content storage for auto-save)
     sqlx::query(
         r#"
         CREATE TABLE IF NOT EXISTS user_templates (
@@ -142,7 +202,8 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
             user_id UUID REFERENCES users(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             description TEXT,
-            github_path TEXT NOT NULL,
+            github_path TEXT,
+            content JSONB,
             is_public BOOLEAN DEFAULT false,
             preview_image_url TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -152,6 +213,15 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
     )
     .execute(pool)
     .await?;
+
+    // Migration: Add content column if missing (for existing deployments)
+    let _ = sqlx::query("ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS content JSONB")
+        .execute(pool)
+        .await;
+    // Make github_path optional (was required before)
+    let _ = sqlx::query("ALTER TABLE user_templates ALTER COLUMN github_path DROP NOT NULL")
+        .execute(pool)
+        .await;
 
     // Create index on user_id for fast lookup
     sqlx::query(

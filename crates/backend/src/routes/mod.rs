@@ -1,7 +1,9 @@
 //! Route handlers
 
+pub mod admin; // Admin user management
 pub mod admin_config; // Admin access control
 pub mod auth;
+pub mod beta;
 pub mod feedback;
 pub mod import_export;
 pub mod logs_api; // Log viewing API
@@ -11,7 +13,7 @@ pub mod remote_log; // Private GitHub log uploads
 pub mod report;
 pub mod status; // Production health checks
 pub mod storage; // GitHub storage for user data
-pub mod templates; // Template CRUD
+pub mod templates; // Template CRUD // Beta registration
 
 use axum::{
     extract::DefaultBodyLimit,
@@ -29,7 +31,7 @@ pub struct AppState {
 }
 
 /// Create the main router with all routes and middleware
-pub fn create_router(_state: AppState) -> Router {
+pub fn create_router(state: AppState) -> Router {
     // CORS configuration - allow frontend origins (dev + production)
     let cors = CorsLayer::new()
         .allow_origin([
@@ -38,6 +40,8 @@ pub fn create_router(_state: AppState) -> Router {
             "http://localhost:8080".parse::<HeaderValue>().unwrap(),
             "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
             "http://127.0.0.1:8080".parse::<HeaderValue>().unwrap(),
+            "http://localhost:8081".parse::<HeaderValue>().unwrap(),
+            "http://127.0.0.1:8081".parse::<HeaderValue>().unwrap(),
             // Production (Cloudflare Pages)
             "https://axtool.pages.dev".parse::<HeaderValue>().unwrap(),
             // Leapcell
@@ -65,13 +69,15 @@ pub fn create_router(_state: AppState) -> Router {
         .allow_credentials(true)
         .max_age(std::time::Duration::from_secs(3600)); // Cache preflight for 1 hour
 
-    // Public routes (Auth, Health, Status)
-    let public_routes = Router::new()
+    // Public routes (Auth, Health, Status) - Note: finalize needs state
+    let public_routes: Router<AppState> = Router::new()
         .route("/health", get(health_check))
         .route("/api/status", get(status::full_status))
+        .route("/api/public/beta-request", post(beta::submit_beta_request))
+        .route("/api/public/beta-status", get(beta::check_beta_status))
         .route("/api/auth/login", post(auth::login))
         .route("/api/auth/2fa", post(auth::verify_2fa))
-        .route("/api/auth/finalize", post(auth::finalize))
+        .route("/api/auth/finalize", post(auth::finalize)) // Needs State for beta check
         .route("/api/auth/validate", get(auth::validate))
         .route("/api/auth/logout", post(auth::logout))
         // Marketplace (browse is public)
@@ -114,6 +120,15 @@ pub fn create_router(_state: AppState) -> Router {
         .route("/api/templates/:id", put(templates::update_template))
         .route("/api/templates/:id", delete(templates::delete_template))
         .route("/api/templates/:id/pptx", get(templates::get_template_pptx))
+        // Auto-save endpoints (DB-only, faster than GitHub)
+        .route(
+            "/api/templates/quick-save",
+            post(templates::quick_save_template),
+        )
+        .route(
+            "/api/templates/quick-load/:id",
+            get(templates::quick_load_template),
+        )
         .route(
             "/api/templates/:id/publish",
             post(marketplace::publish_template),
@@ -140,28 +155,32 @@ pub fn create_router(_state: AppState) -> Router {
             "/api/admin/marketplace/:id/reject",
             post(marketplace::reject_template),
         )
+        // Admin user management (Beta access control)
+        .nest("/api/admin", admin::admin_routes())
         .route_layer(axum::middleware::from_fn(crate::middleware::require_auth));
 
-    // Queue routes (public - users need to check their queue status)
-    let queue_routes = queue::queue_routes();
+    // Queue routes (public - uses global queue, no AppState needed)
+    let queue_routes: Router<AppState> = queue::queue_routes().with_state(());
 
-    // Storage routes (user templates via GitHub)
-    let storage_routes = storage::storage_routes();
+    // Storage routes (user templates via GitHub, no AppState needed)
+    let storage_routes: Router<AppState> = storage::storage_routes().with_state(());
 
-    let app = Router::new()
+    let app: Router<AppState> = Router::new()
         .merge(public_routes)
-        .merge(protected_routes.with_state(_state))
+        .merge(protected_routes)
         .nest("/api/queue", queue_routes)
         .nest("/api/storage", storage_routes)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024)) // 50MB limit
         .layer(TraceLayer::new_for_http())
         .layer(cors);
 
+    let app_with_state = app.with_state(state);
+
     if let Some(pool) = crate::db::get_db() {
-        app.layer(axum::Extension(pool.clone()))
+        app_with_state.layer(axum::Extension(pool.clone()))
     } else {
         tracing::warn!("Database pool not initialized - some routes may fail");
-        app
+        app_with_state
     }
 }
 

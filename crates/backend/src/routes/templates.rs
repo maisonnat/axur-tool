@@ -1126,3 +1126,216 @@ pub async fn get_template_pptx(
         ),
     }
 }
+
+// ==================== AUTO-SAVE ENDPOINTS (DB-only, no GitHub) ====================
+
+/// Request for quick save (auto-save feature)
+#[derive(Debug, Deserialize)]
+pub struct QuickSaveRequest {
+    /// Template name
+    pub name: String,
+    /// Optional description
+    pub description: Option<String>,
+    /// Slides content as JSON (array of slide objects with canvas_json)
+    pub slides: serde_json::Value,
+}
+
+/// Response for quick-save operations
+#[derive(Debug, Serialize)]
+pub struct QuickSaveResponse {
+    pub success: bool,
+    pub id: String,
+    pub message: String,
+    pub saved_at: String,
+}
+
+/// POST /api/templates/quick-save - Create or update template in DB (not GitHub)
+/// This is the fast path for auto-save functionality
+pub async fn quick_save_template(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Json(req): Json<QuickSaveRequest>,
+) -> impl IntoResponse {
+    let pool = match &state.pool {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(QuickSaveResponse {
+                    success: false,
+                    id: String::new(),
+                    message: "Database not available".to_string(),
+                    saved_at: String::new(),
+                }),
+            )
+        }
+    };
+
+    let user_uuid = match ensure_user_exists(pool, &user_id).await {
+        Some(id) => id,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(QuickSaveResponse {
+                    success: false,
+                    id: String::new(),
+                    message: "User creation failed".to_string(),
+                    saved_at: String::new(),
+                }),
+            )
+        }
+    };
+
+    // Check if template with same name exists for this user
+    let existing = sqlx::query("SELECT id FROM user_templates WHERE user_id = $1 AND name = $2")
+        .bind(user_uuid)
+        .bind(&req.name)
+        .fetch_optional(pool)
+        .await;
+
+    let (template_id, is_update) = match existing {
+        Ok(Some(row)) => {
+            let id: Uuid = row.get("id");
+            (id, true)
+        }
+        _ => (Uuid::new_v4(), false),
+    };
+
+    // Build content JSON
+    let content = serde_json::json!({
+        "slides": req.slides,
+        "version": 1,
+        "saved_at": chrono::Utc::now().to_rfc3339()
+    });
+
+    let result = if is_update {
+        // Update existing
+        sqlx::query(
+            r#"
+            UPDATE user_templates 
+            SET content = $1, description = $2, updated_at = NOW()
+            WHERE id = $3
+            "#,
+        )
+        .bind(&content)
+        .bind(&req.description)
+        .bind(template_id)
+        .execute(pool)
+        .await
+    } else {
+        // Insert new
+        sqlx::query(
+            r#"
+            INSERT INTO user_templates (id, user_id, name, description, content)
+            VALUES ($1, $2, $3, $4, $5)
+            "#,
+        )
+        .bind(template_id)
+        .bind(user_uuid)
+        .bind(&req.name)
+        .bind(&req.description)
+        .bind(&content)
+        .execute(pool)
+        .await
+    };
+
+    match result {
+        Ok(_) => {
+            tracing::info!(
+                "[AutoSave] {} template '{}' for user {}",
+                if is_update { "Updated" } else { "Created" },
+                req.name,
+                user_id
+            );
+            (
+                StatusCode::OK,
+                Json(QuickSaveResponse {
+                    success: true,
+                    id: template_id.to_string(),
+                    message: if is_update {
+                        "Template updated"
+                    } else {
+                        "Template created"
+                    }
+                    .to_string(),
+                    saved_at: chrono::Utc::now().to_rfc3339(),
+                }),
+            )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(QuickSaveResponse {
+                success: false,
+                id: String::new(),
+                message: e.to_string(),
+                saved_at: String::new(),
+            }),
+        ),
+    }
+}
+
+/// GET /api/templates/quick-load/:id - Load template content from DB
+pub async fn quick_load_template(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Path(template_id): Path<String>,
+) -> impl IntoResponse {
+    let pool = match &state.pool {
+        Some(p) => p,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "success": false, "error": "Database not available" })),
+            )
+        }
+    };
+
+    let template_uuid = match Uuid::parse_str(&template_id) {
+        Ok(id) => id,
+        Err(_) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({ "success": false, "error": "Invalid template ID" })),
+            )
+        }
+    };
+
+    // Verify ownership and get template
+    let result = sqlx::query(
+        r#"
+        SELECT ut.id::text, ut.name, ut.description, ut.content, ut.updated_at::text
+        FROM user_templates ut
+        JOIN users u ON ut.user_id = u.id
+        WHERE ut.id = $1 AND u.axur_tenant_id = $2
+        "#,
+    )
+    .bind(template_uuid)
+    .bind(&user_id)
+    .fetch_optional(pool)
+    .await;
+
+    match result {
+        Ok(Some(row)) => {
+            let content: Option<serde_json::Value> = row.get("content");
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "success": true,
+                    "id": row.get::<String, _>("id"),
+                    "name": row.get::<String, _>("name"),
+                    "description": row.get::<Option<String>, _>("description"),
+                    "content": content,
+                    "updated_at": row.get::<String, _>("updated_at")
+                })),
+            )
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "success": false, "error": "Template not found" })),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "success": false, "error": e.to_string() })),
+        ),
+    }
+}

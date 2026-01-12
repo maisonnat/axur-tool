@@ -17,20 +17,13 @@ struct MarketplaceCard {
     category: String,
 }
 
-/// Template categories
-const CATEGORIES: &[&str] = &[
-    "All",
-    "Executive",
-    "Technical",
-    "Compliance",
-    "Risk",
-    "Custom",
-];
-
 /// Marketplace Page Component
 #[component]
 pub fn MarketplacePage() -> impl IntoView {
     let state = expect_context::<crate::AppState>();
+
+    // Reactively update dictionary when language changes
+    let dict = move || crate::get_ui_dict(state.ui_language.get());
 
     // Mock data for now - will be loaded from API
     let templates = create_rw_signal(vec![
@@ -103,6 +96,20 @@ pub fn MarketplacePage() -> impl IntoView {
         state.current_page.set(crate::Page::Editor);
     };
 
+    // Helper to get translated category name
+    let get_cat_name = move |cat: &str| {
+        let d = dict();
+        match cat {
+            "All" => d.cat_all.to_string(),
+            "Executive" => d.cat_exec.to_string(),
+            "Technical" => d.cat_tech.to_string(),
+            "Compliance" => d.cat_comp.to_string(),
+            "Risk" => d.cat_risk.to_string(),
+            "Custom" => d.cat_custom.to_string(),
+            _ => cat.to_string(),
+        }
+    };
+
     // Filtered templates
     let filtered_templates = move || {
         let query = search_query.get().to_lowercase();
@@ -126,6 +133,15 @@ pub fn MarketplacePage() -> impl IntoView {
             .collect::<Vec<_>>()
     };
 
+    let categories_list = vec![
+        "All",
+        "Executive",
+        "Technical",
+        "Compliance",
+        "Risk",
+        "Custom",
+    ];
+
     view! {
         <div class="min-h-screen bg-zinc-950 flex flex-col">
             // Header
@@ -136,9 +152,9 @@ pub fn MarketplacePage() -> impl IntoView {
                             on:click=go_back
                             class="text-zinc-400 hover:text-white"
                         >
-                            "← Back"
+                            "←"
                         </button>
-                        <h1 class="text-xl font-bold text-white">"📦 Template Marketplace"</h1>
+                        <h1 class="text-xl font-bold text-white">"📦 " {move || dict().mkt_title}</h1>
                     </div>
                     <button
                         on:click=open_editor
@@ -155,7 +171,7 @@ pub fn MarketplacePage() -> impl IntoView {
                     <div class="flex items-center gap-4">
                         <input
                             type="text"
-                            placeholder="Search templates..."
+                            placeholder=move || dict().mkt_search_placeholder
                             class="flex-1 max-w-md bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500"
                             prop:value=move || search_query.get()
                             on:input=move |ev| search_query.set(event_target_value(&ev))
@@ -167,27 +183,28 @@ pub fn MarketplacePage() -> impl IntoView {
                                 prop:checked=move || filter_featured.get()
                                 on:change=move |_| filter_featured.update(|v| *v = !*v)
                             />
-                            "Featured only"
+                            {move || dict().mkt_featured}
                         </label>
                     </div>
                     // Category tabs
                     <div class="flex items-center gap-2">
-                        {CATEGORIES.iter().map(|cat| {
-                            let cat_str = cat.to_string();
-                            let cat_for_click = cat_str.clone();
+                        {categories_list.into_iter().map(|cat| {
+                            let cat_key = cat.to_string();
+                            let cat_key_click = cat_key.clone();
+                            let cat_key_class = cat_key.clone();
                             view! {
                                 <button
-                                    on:click=move |_| selected_category.set(cat_for_click.clone())
+                                    on:click=move |_| selected_category.set(cat_key_click.clone())
                                     class=move || format!(
                                         "px-3 py-1 rounded-full text-sm transition {}",
-                                        if selected_category.get() == cat_str {
+                                        if selected_category.get() == cat_key_class {
                                             "bg-indigo-600 text-white"
                                         } else {
                                             "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
                                         }
                                     )
                                 >
-                                    {*cat}
+                                    {get_cat_name(cat)}
                                 </button>
                             }
                         }).collect_view()}
@@ -200,8 +217,8 @@ pub fn MarketplacePage() -> impl IntoView {
                 <div class="max-w-7xl mx-auto">
                     <Show
                         when=move || !is_loading.get()
-                        fallback=|| view! {
-                            <div class="text-center py-12 text-zinc-500">"Loading..."</div>
+                        fallback=move || view! {
+                            <div class="text-center py-12 text-zinc-500">{move || dict().mkt_loading}</div>
                         }
                     >
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -224,7 +241,7 @@ pub fn MarketplacePage() -> impl IntoView {
                     <Show when=move || filtered_templates().is_empty() && !is_loading.get()>
                         <div class="text-center py-12">
                             <div class="text-4xl mb-4">"📭"</div>
-                            <div class="text-zinc-400">"No templates found"</div>
+                            <div class="text-zinc-400">{move || dict().mkt_no_results}</div>
                         </div>
                     </Show>
                 </div>
@@ -235,6 +252,9 @@ pub fn MarketplacePage() -> impl IntoView {
                 {move || {
                     let tmpl = preview_template.get().unwrap();
                     let tmpl_id = tmpl.id.clone();
+                    let author_name = tmpl.author.clone();
+                    let author_display = move || if author_name == "Axur" { dict().mkt_author_axur } else { dict().mkt_author_community };
+
                     view! {
                         <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-8">
                             <div class="bg-zinc-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -242,7 +262,7 @@ pub fn MarketplacePage() -> impl IntoView {
                                 <div class="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
                                     <div>
                                         <h2 class="text-xl font-bold text-white">{tmpl.name.clone()}</h2>
-                                        <p class="text-sm text-zinc-400">"by " {tmpl.author.clone()}</p>
+                                        <p class="text-sm text-zinc-400">"by " {author_display}</p>
                                     </div>
                                     <button
                                         on:click=move |_| preview_template.set(None)
@@ -256,7 +276,7 @@ pub fn MarketplacePage() -> impl IntoView {
                                     </div>
                                     <p class="text-zinc-300 mb-4">{tmpl.description.clone().unwrap_or_default()}</p>
                                     <div class="flex items-center gap-4 text-sm text-zinc-400">
-                                        <span class="px-2 py-1 bg-zinc-800 rounded">{tmpl.category.clone()}</span>
+                                        <span class="px-2 py-1 bg-zinc-800 rounded">{get_cat_name(&tmpl.category)}</span>
                                         <span>"⬇️ " {tmpl.downloads} " downloads"</span>
                                         <span>"⭐ " {format!("{:.1}", tmpl.rating)} " rating"</span>
                                     </div>
@@ -266,7 +286,7 @@ pub fn MarketplacePage() -> impl IntoView {
                                     <button
                                         on:click=move |_| preview_template.set(None)
                                         class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg"
-                                    >"Close"</button>
+                                    >{move || dict().mkt_close}</button>
                                     <button
                                         on:click=move |_| {
                                             state.editor_clone_from_id.set(Some(tmpl_id.clone()));
@@ -274,7 +294,7 @@ pub fn MarketplacePage() -> impl IntoView {
                                             state.current_page.set(crate::Page::Editor);
                                         }
                                         class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium"
-                                    >"Use This Template"</button>
+                                    >{move || dict().mkt_use_template}</button>
                                 </div>
                             </div>
                         </div>
@@ -292,8 +312,33 @@ where
     P: Fn(web_sys::MouseEvent) + 'static + Clone,
 {
     let state = expect_context::<crate::AppState>();
+    let dict = move || crate::get_ui_dict(state.ui_language.get());
+
     let template_id = template.id.clone();
     let category = template.category.clone();
+
+    // Helper to get translated category name
+    let get_cat_name = move |cat: &str| {
+        let d = dict();
+        match cat {
+            "All" => d.cat_all.to_string(),
+            "Executive" => d.cat_exec.to_string(),
+            "Technical" => d.cat_tech.to_string(),
+            "Compliance" => d.cat_comp.to_string(),
+            "Risk" => d.cat_risk.to_string(),
+            "Custom" => d.cat_custom.to_string(),
+            _ => cat.to_string(),
+        }
+    };
+
+    let author_name = template.author.clone();
+    let author_display = move || {
+        if author_name == "Axur" {
+            dict().mkt_author_axur
+        } else {
+            dict().mkt_author_community
+        }
+    };
 
     let use_template = move |_| {
         // Set the template ID to load as CLONE in the Editor
@@ -317,16 +362,16 @@ where
                 </div>
                 // Category badge
                 <div class="absolute top-2 left-2 px-2 py-1 bg-zinc-700/80 text-zinc-300 text-xs rounded-full">
-                    {category}
+                    {move || get_cat_name(&category)}
                 </div>
                 {template.featured.then(|| view! {
                     <div class="absolute top-2 right-2 px-2 py-1 bg-indigo-600 text-white text-xs rounded-full font-medium">
-                        "⭐ Featured"
+                        {move || dict().mkt_featured}
                     </div>
                 })}
                 // Hover overlay
                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                    <span class="text-white text-sm font-medium">"👁 Preview"</span>
+                    <span class="text-white text-sm font-medium">{move || dict().preview}</span>
                 </div>
             </div>
 
@@ -339,7 +384,7 @@ where
 
                 <div class="flex items-center justify-between text-sm">
                     <div class="flex items-center gap-2 text-zinc-500">
-                        <span>"by " {template.author}</span>
+                        <span>"by " {author_display}</span>
                     </div>
                     <div class="flex items-center gap-3 text-zinc-400">
                         <span class="flex items-center gap-1">
@@ -358,7 +403,7 @@ where
                     on:click=use_template
                     class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm"
                 >
-                    "Use Template"
+                    {move || dict().mkt_use_template}
                 </button>
             </div>
         </div>
