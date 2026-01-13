@@ -4,6 +4,7 @@ use web_sys::window;
 
 const THEME_KEY: &str = "axur_plugin_theme";
 const DISABLED_SLIDES_KEY: &str = "axur_disabled_slides";
+const UI_LANGUAGE_KEY: &str = "axur_ui_language";
 
 /// Save a string value to localStorage
 fn set_item(key: &str, value: &str) {
@@ -29,6 +30,16 @@ pub fn save_theme(theme: &str) {
 /// Load theme preference (defaults to "dark")
 pub fn load_theme() -> String {
     get_item(THEME_KEY).unwrap_or_else(|| "dark".to_string())
+}
+
+/// Save UI language preference
+pub fn save_ui_language(lang_code: &str) {
+    set_item(UI_LANGUAGE_KEY, lang_code);
+}
+
+/// Load UI language preference (defaults to "es")
+pub fn load_ui_language() -> String {
+    get_item(UI_LANGUAGE_KEY).unwrap_or_else(|| "es".to_string())
 }
 
 /// Save disabled slides list

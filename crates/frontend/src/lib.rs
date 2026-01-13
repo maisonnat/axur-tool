@@ -16,7 +16,10 @@ use pages::{
 };
 
 pub use i18n::{get_ui_dict, UiDict, UiLanguage};
-pub use storage::{load_disabled_slides, load_theme, save_disabled_slides, save_theme};
+pub use storage::{
+    load_disabled_slides, load_theme, load_ui_language, save_disabled_slides, save_theme,
+    save_ui_language,
+};
 
 /// Application state
 #[derive(Clone, Debug)]
@@ -55,7 +58,7 @@ impl Default for AppState {
             is_authenticated: create_rw_signal(false),
             current_page: create_rw_signal(Page::Login),
             error_message: create_rw_signal(None),
-            ui_language: create_rw_signal(UiLanguage::Es),
+            ui_language: create_rw_signal(UiLanguage::from_code(&storage::load_ui_language())),
             user_email: create_rw_signal(None),
             has_log_access: create_rw_signal(false),
             editor_template_id: create_rw_signal(None),
@@ -74,6 +77,15 @@ pub fn App() -> impl IntoView {
     // Create global state
     let state = AppState::default();
     provide_context(state.clone());
+
+    // Auto-save UI language when it changes
+    {
+        let ui_lang = state.ui_language;
+        create_effect(move |_| {
+            let lang = ui_lang.get();
+            storage::save_ui_language(lang.code());
+        });
+    }
 
     // Check if already authenticated on load
     spawn_local(async move {
