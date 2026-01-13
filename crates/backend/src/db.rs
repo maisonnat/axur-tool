@@ -223,6 +223,12 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await;
 
+    // Migration: Add preview_image_url if missing
+    let _ =
+        sqlx::query("ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS preview_image_url TEXT")
+            .execute(pool)
+            .await;
+
     // Create index on user_id for fast lookup
     sqlx::query(
         r#"
