@@ -5,7 +5,7 @@
  * This is needed because _redirects only works for GET requests.
  */
 
-const BACKEND_URL = "https://axur-tool-maisonnat2655-5j70lozi.leapcell.dev";
+const BACKEND_URL = "https://axur-backend-844146909418.us-central1.run.app";
 
 export async function onRequest(context) {
   const { request, params } = context;
