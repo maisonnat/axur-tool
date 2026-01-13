@@ -18,14 +18,23 @@ CLI_REFERENCE.md
 .DS_Store
 Thumbs.db
 
-# Environment
+# === SECURITY & SECRETS (CRITICAL) ===
+gcp_key.json
+adc.json
+gha-creds-*.json
+setup_gcp.ps1
+policy.json
 .env
-.env.local
-.env.*.local
+.env.*
+config/credentials.json
+config/client_secret.json
+config/token.json
+config/admins.json
 
 # Logs
 *.log
 npm-debug.log*
+debug_logs/
 
 # Dependencies
 node_modules/
@@ -36,14 +45,10 @@ node_modules/
 # Build logs and temporary text files
 *.txt
 !crates/core/assets/*.txt
-*.log
 
 # Custom WASM build target
 target-wasm/
 **/target-wasm/
-
-# Cargo lock for libraries (keep for binaries)
-# Cargo.lock
 
 # Local development
 *.local
@@ -59,6 +64,7 @@ target-wasm/
 
 # WASM build intermediates
 crates/frontend/target/
+crates/frontend/dist/
 
 # Data files (local testing data, should not be committed)
 miwbob.json
@@ -66,18 +72,10 @@ ax_tickets.json
 story_debug.log
 *.debug.json
 
-# Private API documentation (not for public repo)
+# Private API documentation
 axur-api-doc/
 
-# Debug logs
-debug_logs/
-
-
-config/credentials.json
-config/client_secret.json
+# Other
 *.pptx
 restore_script.js
 docs/temp_docs.md
-config/token.json
-config/admins.json
-crates/frontend/dist/
