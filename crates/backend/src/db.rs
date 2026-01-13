@@ -4,6 +4,8 @@ use std::time::Duration;
 
 /// Global database pool
 pub static DB_POOL: OnceLock<PgPool> = OnceLock::new();
+/// Global initialization error
+pub static DB_INIT_ERROR: OnceLock<String> = OnceLock::new();
 
 /// Initialize the database connection pool
 pub async fn init_db_pool() -> Result<PgPool, sqlx::Error> {
@@ -27,6 +29,11 @@ pub async fn init_db_pool() -> Result<PgPool, sqlx::Error> {
 /// Get a reference to the global database pool
 pub fn get_db() -> Option<&'static PgPool> {
     DB_POOL.get()
+}
+
+/// Get initialization error if any
+pub fn get_init_error() -> Option<&'static String> {
+    DB_INIT_ERROR.get()
 }
 
 /// Create necessary tables if they don't exist

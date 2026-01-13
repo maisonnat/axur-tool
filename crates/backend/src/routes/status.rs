@@ -295,11 +295,15 @@ async fn check_database() -> ServiceCheck {
     let pool = match crate::db::get_db() {
         Some(p) => p,
         None => {
+            let msg = crate::db::get_init_error()
+                .map(|e| format!("Pool not initialized: {}", e))
+                .unwrap_or_else(|| "Pool not initialized".into());
+
             return ServiceCheck {
                 name: "Database".into(),
                 status: ServiceStatus::Error,
                 latency_ms: None,
-                message: Some("Pool not initialized".into()),
+                message: Some(msg),
                 version: None,
             };
         }

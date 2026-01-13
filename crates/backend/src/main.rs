@@ -19,7 +19,9 @@ async fn main() {
 
     // Initialize database
     if let Err(e) = axur_backend::db::init_db_pool().await {
-        tracing::error!("Failed to initialize database: {}", e);
+        let err_msg = e.to_string();
+        tracing::error!("Failed to initialize database: {}", err_msg);
+        let _ = axur_backend::db::DB_INIT_ERROR.set(err_msg);
         // We continue even if DB fails, but logs won't be saved to DB
     } else {
         tracing::info!("Database connection established");
