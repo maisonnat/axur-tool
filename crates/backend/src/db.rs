@@ -1,6 +1,7 @@
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::sync::OnceLock;
 use std::time::Duration;
+// Deploy trigger: 2026-01-13T15:11
 
 /// Global database pool
 pub static DB_POOL: OnceLock<PgPool> = OnceLock::new();
