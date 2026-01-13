@@ -189,16 +189,16 @@ pub fn LoginPage() -> impl IntoView {
                             </div>
 
                             <h1 class="text-2xl font-light text-zinc-300">
-                                <span class="text-white font-semibold">"AI Solutions"</span> " to protect your business"
+                                <span class="text-white font-semibold">{move || dict.get().landing_tagline_highlight}</span> {move || dict.get().landing_tagline}
                             </h1>
-                            <p class="text-zinc-500 text-sm -mt-4">"Beyond the perimeter"</p>
+                            <p class="text-zinc-500 text-sm -mt-4">{move || dict.get().landing_subtitle}</p>
 
                             <div class="space-y-4 pt-8">
                                 <button
                                     class="w-full bg-white text-black hover:bg-zinc-200 font-bold text-lg py-4 px-8 rounded-full transition-all hover:scale-105 shadow-xl flex items-center justify-center gap-2"
                                     on:click=move |_| set_view_state.set(LoginView::Login)
                                 >
-                                    "Log In"
+                                    {move || dict.get().landing_login_btn}
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
                                     </svg>
@@ -208,7 +208,7 @@ pub fn LoginPage() -> impl IntoView {
                                     class="w-full bg-transparent border-2 border-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-white font-semibold text-lg py-4 px-8 rounded-full transition-all hover:scale-105 flex items-center justify-center gap-2"
                                     on:click=move |_| current_page.set(Page::BetaApply)
                                 >
-                                    "Request Beta Access"
+                                    {move || dict.get().landing_beta_btn}
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                                     </svg>
@@ -233,7 +233,7 @@ pub fn LoginPage() -> impl IntoView {
                                 }).collect_view()}
                             </div>
 
-                            <p class="text-zinc-600 text-sm mt-8">"© 2026 Axur. All rights reserved."</p>
+                            <p class="text-zinc-600 text-sm mt-8">{move || dict.get().landing_rights}</p>
                          </div>
                     }.into_view(),
                     LoginView::Login => view! {

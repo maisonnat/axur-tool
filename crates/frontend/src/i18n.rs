@@ -53,6 +53,14 @@ pub struct UiDict {
     pub continue_btn: &'static str,
     pub email_password_required: &'static str,
 
+    // Landing page
+    pub landing_tagline: &'static str,
+    pub landing_tagline_highlight: &'static str,
+    pub landing_subtitle: &'static str,
+    pub landing_login_btn: &'static str,
+    pub landing_beta_btn: &'static str,
+    pub landing_rights: &'static str,
+
     // 2FA
     pub tfa_title: &'static str,
     pub tfa_subtitle: &'static str,
@@ -166,6 +174,14 @@ const DICT_ES: UiDict = UiDict {
     continue_btn: "Continuar",
     email_password_required: "Email y contraseña son requeridos",
 
+    // Landing page
+    landing_tagline: " para proteger tu negocio",
+    landing_tagline_highlight: "Soluciones IA",
+    landing_subtitle: "Más allá del perímetro",
+    landing_login_btn: "Iniciar Sesión",
+    landing_beta_btn: "Solicitar Acceso Beta",
+    landing_rights: "© 2026 Axur. Todos los derechos reservados.",
+
     tfa_title: "Verificación 2FA",
     tfa_subtitle: "Ingresa el código de tu app autenticadora",
     tfa_label: "Código 2FA",
@@ -267,6 +283,14 @@ const DICT_EN: UiDict = UiDict {
     continue_btn: "Continue",
     email_password_required: "Email and password are required",
 
+    // Landing page
+    landing_tagline: " to protect your business",
+    landing_tagline_highlight: "AI Solutions",
+    landing_subtitle: "Beyond the perimeter",
+    landing_login_btn: "Log In",
+    landing_beta_btn: "Request Beta Access",
+    landing_rights: "© 2026 Axur. All rights reserved.",
+
     tfa_title: "2FA Verification",
     tfa_subtitle: "Enter the code from your authenticator app",
     tfa_label: "2FA Code",
@@ -367,6 +391,14 @@ const DICT_PT: UiDict = UiDict {
     password_placeholder: "••••••••",
     continue_btn: "Continuar",
     email_password_required: "Email e senha são obrigatórios",
+
+    // Landing page
+    landing_tagline: " para proteger seu negócio",
+    landing_tagline_highlight: "Soluções IA",
+    landing_subtitle: "Além do perímetro",
+    landing_login_btn: "Entrar",
+    landing_beta_btn: "Solicitar Acesso Beta",
+    landing_rights: "© 2026 Axur. Todos os direitos reservados.",
 
     tfa_title: "Verificação 2FA",
     tfa_subtitle: "Digite o código do seu app autenticador",
