@@ -30,14 +30,60 @@
 - `crates/frontend/index.html` - JS: conditionalPlaceholders, evaluateConditional, analyzeTemplateData
 
 ### Production Deploy
-- Commit: `d9d7294`
-- Platforms: Cloudflare Pages + Leapcell (via GitHub Actions)
+- Status: ✅ **Active & Healthy** (Backend)
+- Backend URL: `https://axur-backend-844146909418.us-central1.run.app`
+- Platform: Google Cloud Run (Compute) + Leapcell (Database)
+- Security: `.gitignore` hardened, Budget Alert active.
 
 ---
 
-## 🚀 Next Session: Implementation Plan
+## 🚀 Next Session: Immediate Tasks
 
-The user wants to implement the following features. Use this as a roadmap:
+### 🔴 CRITICAL: Connect Frontend to New Backend
+
+The Backend is live on Google Cloud, but the Frontend (Cloudflare Pages) likely still points to the old Leapcell URL or localhost.
+
+**Instructions for Next Agent:**
+1.  **Locate Frontend Config:** Check `crates/frontend/.env`, `.env.production`, or `Trunk.toml` for `API_BASE_URL`.
+2.  **Update URL:** Change the API base URL to: `https://axur-backend-844146909418.us-central1.run.app`
+3.  **Deploy Frontend:** Run the deployment workflow for Cloudflare Pages (or guide user to trigger it).
+4.  **Verify End-to-End:**
+    -   Open the deployed Frontend.
+    -   Try to login / fetch data.
+    -   Confirm it hits the GCP Backend (inspect Network tab).
+
+---
+
+## 🏗️ Architecture (Updated Jan 2026)
+
+### Components
+```mermaid
+graph LR
+    User[Browser] -->|https| Frontend[Cloudflare Pages (WASM)]
+    Frontend -->|/api/*| CloudRun[GCP Cloud Run (Rust Backend)]
+    CloudRun -->|SQL| DB[Leapcell PostgreSQL]
+    CloudRun -->|HTTP| AxurAPI[Axur External API]
+```
+
+### Zero Cost Strategy (Strict)
+-   **Compute:** GCP Cloud Run (Tier 1 `us-central1`, 1 instance max).
+-   **Storage:** Artifact Registry (Auto-cleanup policy <500MB).
+-   **Database:** Retained Free Leapcell instance.
+-   **Policy:** See `docs/ZERO_COST_POLICY.md` for rules.
+
+---
+
+## 📋 Roadmap Status
+
+### ✅ Completed This Session
+-   **GCP Migration:** Moved backend from build-limited Leapcell to Cloud Run.
+-   **Zero Cost Engineering:** Implemented aggressive Docker cleanup and resource limits to ensure $0 cost.
+-   **Database Verification:** Confirmed Leapcell DB is accessible externally.
+-   **Security Hardening:** Removed sensitive setup files from git tracking.
+
+### ⏳ Pending / Next Up
+-   **Frontend Update:** Point Cloudflare to new GCP URL (See Critical Task above).
+-   **Editor UX:** Undo/Redo, Shortcuts (See detailed list below).
 
 ### 1. 🔌 Mejoras de UX del Editor (~8h)
 
