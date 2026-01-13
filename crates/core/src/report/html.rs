@@ -374,11 +374,10 @@ fn render_custom_template_report(
         ));
     }
     
-    let fabric_script = if let Some(_) = offline_assets {
-        // TODO: Bundle fabric.js in offline assets if needed. For now use CDN or fallback
-        r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>"#
+    let fabric_script = if let Some(assets) = offline_assets {
+        format!("<script>{}</script>", assets.fabric_js)
     } else {
-        r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>"#
+        r#"<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>"#.to_string()
     };
 
     let global_patch = r#"

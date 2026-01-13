@@ -52,8 +52,8 @@ async fn download_image_as_base64(
 
     let bytes = resp.bytes().await.ok()?;
 
-    // Limit image size to avoid huge HTML files (max 500KB)
-    if bytes.len() > 500_000 {
+    // Limit image size to avoid huge HTML files (max 2MB)
+    if bytes.len() > 2_000_000 {
         tracing::warn!(
             "Screenshot too large ({} bytes), skipping base64 encoding",
             bytes.len()
@@ -2817,6 +2817,13 @@ async fn fetch_latest_incidents(
                                 })
                                 .and_then(|a| a.url.clone());
 
+                            // Download image with auth and convert to base64
+                            let screenshot_base64 = if let Some(ref img_url) = screenshot {
+                                download_image_as_base64(client, auth, img_url).await
+                            } else {
+                                None
+                            };
+
                             all_incidents.push(IncidentExample {
                                 ticket_key: ticket_info
                                     .and_then(|ti| ti.ticket_key.clone())
@@ -2838,7 +2845,7 @@ async fn fetch_latest_incidents(
                                     .unwrap_or_default(),
                                 country,
                                 registrar,
-                                screenshot_url: screenshot,
+                                screenshot_url: screenshot_base64,
                             });
                         }
                     }

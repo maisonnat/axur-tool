@@ -1,6 +1,6 @@
 # SUMMARY.md - Session Handoff
 
-**Session Date:** 2026-01-08
+**Session Date:** 2026-01-12
 **Status:** ✅ Deployed to Production
 
 ---
@@ -80,6 +80,10 @@ graph LR
 -   **Zero Cost Engineering:** Implemented aggressive Docker cleanup and resource limits to ensure $0 cost.
 -   **Database Verification:** Confirmed Leapcell DB is accessible externally.
 -   **Security Hardening:** Removed sensitive setup files from git tracking.
+-   **Bug Fix (Critical):** HTML Reports are now fully self-contained (offline).
+    -   Images embedded as Base64 (limit increased to 2MB).
+    -   CSS/JS assets (Tailwind, Chart.js, Fabric.js) embedded inline.
+    -   Confirmed `OfflineAssets` loading logic.
 
 ### ⏳ Pending / Next Up
 -   **Frontend Update:** Point Cloudflare to new GCP URL (See Critical Task above).
@@ -273,30 +277,8 @@ graph LR
 
 ## � BUGS CRÍTICOS A RESOLVER
 
-### HTML Reports No Son Self-Contained (REGRESIÓN)
+    
 
-**Problema detectado:** Los reportes HTML exportados ya no son completamente offline.
-
-| Antes (Correcto) | Ahora (Bug) |
-|------------------|-------------|
-| HTML pesado (~5MB) | HTML liviano (~100KB) |
-| Datos embebidos inline | Datos cargados dinámicamente |
-| Funciona offline ✅ | Requiere conexión ❌ |
-| Imágenes en base64 | URLs externas |
-
-**Impacto:**
-- Usuario descarga HTML
-- Abre sin internet → **NO CARGA DATOS**
-- Reportes inútiles para presentaciones offline
-
-**Solución requerida:**
-1. Revisar `crates/core/src/report/html.rs`
-2. Embeber todos los datos como JSON inline
-3. Convertir imágenes a base64
-4. Incluir CSS/JS inline (no CDN)
-5. Verificar que funcione sin conexión
-
-**Prioridad:** 🔴 **ALTA** - Esto es funcionalidad core que se rompió
 
 ---
 
