@@ -400,6 +400,71 @@ fn urlencoding_encode(s: &str) -> String {
 }
 
 // ========================
+// SSE REPORT GENERATION TYPES
+// ========================
+
+/// SSE Event types from the report generation streaming endpoint
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[allow(dead_code)]
+pub enum ReportStreamEvent {
+    Started {
+        stages: Vec<String>,
+    },
+    StageProgress {
+        stage: String,
+        message: String,
+        progress_pct: u8,
+    },
+    StageComplete {
+        stage: String,
+    },
+    Finished {
+        html: String,
+        company_name: Option<String>,
+    },
+    Error {
+        code: String,
+        message: String,
+    },
+}
+
+/// Get the SSE stream URL for report generation
+pub fn get_report_stream_url(
+    tenant_id: &str,
+    from_date: &str,
+    to_date: &str,
+    language: &str,
+    story_tag: Option<&str>,
+    include_threat_intel: bool,
+    template_id: Option<&str>,
+    use_plugins: bool,
+) -> String {
+    let mut url = format!(
+        "{}/api/reports/generate-stream?tenant_id={}&from_date={}&to_date={}&language={}&include_threat_intel={}&use_plugins={}",
+        API_BASE,
+        urlencoding_encode(tenant_id),
+        urlencoding_encode(from_date),
+        urlencoding_encode(to_date),
+        urlencoding_encode(language),
+        include_threat_intel,
+        use_plugins
+    );
+
+    if let Some(tag) = story_tag {
+        if !tag.is_empty() {
+            url.push_str(&format!("&story_tag={}", urlencoding_encode(tag)));
+        }
+    }
+
+    if let Some(tid) = template_id {
+        url.push_str(&format!("&template_id={}", urlencoding_encode(tid)));
+    }
+
+    url
+}
+
+// ========================
 // FEEDBACK API
 // ========================
 

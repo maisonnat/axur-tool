@@ -351,7 +351,7 @@ pub fn DashboardPage() -> impl IntoView {
             return;
         }
 
-        // Generate full report
+        // Generate full report via SSE streaming (avoids Cloudflare 524 timeout)
         generating.set(true);
         error.set(None);
         report_html.set(None);
@@ -364,50 +364,100 @@ pub fn DashboardPage() -> impl IntoView {
         let tag_opt = if tag.trim().is_empty() {
             None
         } else {
-            Some(tag)
+            Some(tag.as_str())
         };
 
         let template_id = selected_template.get();
-        let theme_value = if use_plugins.get() {
-            Some(plugin_theme.get())
-        } else {
-            None
-        };
-        let disabled_value = if use_plugins.get() && !disabled_slides.get().is_empty() {
-            Some(disabled_slides.get())
-        } else {
-            None
-        };
 
-        match api::generate_report(
+        // Build SSE stream URL
+        let stream_url = api::get_report_stream_url(
             &tenant,
             &from,
             &to,
             &lang,
             tag_opt,
             threat_intel,
-            template_id,
-            None,
+            template_id.as_deref(),
             use_plugins.get(),
-            theme_value,
-            disabled_value,
-        )
-        .await
-        {
-            Ok(resp) => {
-                if resp.success {
-                    report_html.set(resp.html);
-                    // Unlock threat_hunting achievement if used
-                    if threat_intel {
-                        crate::onboarding::unlock_achievement("threat_hunting");
+        );
+
+        // Use JavaScript EventSource for SSE
+        use wasm_bindgen::prelude::*;
+        use wasm_bindgen::JsCast;
+
+        // Create EventSource with credentials
+        let init = web_sys::EventSourceInit::new();
+        init.set_with_credentials(true);
+        let es = web_sys::EventSource::new_with_event_source_init_dict(&stream_url, &init);
+
+        match es {
+            Ok(event_source) => {
+                // Clone signals for closures
+                let report = report_html.clone();
+                let err = error.clone();
+                let gen = generating.clone();
+                let ti = threat_intel;
+                let es_clone = event_source.clone();
+
+                // Message handler
+                let onmessage = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
+                    if let Some(data) = event.data().as_string() {
+                        match serde_json::from_str::<api::ReportStreamEvent>(&data) {
+                            Ok(evt) => match evt {
+                                api::ReportStreamEvent::StageProgress { message, .. } => {
+                                    leptos::logging::log!("Report progress: {}", message);
+                                }
+                                api::ReportStreamEvent::Finished { html, .. } => {
+                                    report.set(Some(html));
+                                    gen.set(false);
+                                    es_clone.close();
+                                    // Unlock achievement if threat intel was used
+                                    if ti {
+                                        crate::onboarding::unlock_achievement("threat_hunting");
+                                    }
+                                }
+                                api::ReportStreamEvent::Error { code, message } => {
+                                    err.set(Some(AppError {
+                                        code: Some(code),
+                                        message,
+                                    }));
+                                    gen.set(false);
+                                    es_clone.close();
+                                }
+                                _ => {} // Started, StageComplete - just progress indicators
+                            },
+                            Err(e) => {
+                                leptos::logging::error!("Failed to parse SSE event: {}", e);
+                            }
+                        }
                     }
-                } else {
-                    error.set(Some(AppError::from_response(&resp)));
-                }
+                }) as Box<dyn FnMut(_)>);
+
+                event_source.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
+                onmessage.forget();
+
+                // Error handler
+                let err_clone = error.clone();
+                let gen_clone = generating.clone();
+                let es_err = event_source.clone();
+                let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
+                    err_clone.set(Some(AppError::simple(
+                        "Connection error during report generation",
+                    )));
+                    gen_clone.set(false);
+                    es_err.close();
+                }) as Box<dyn FnMut(_)>);
+
+                event_source.set_onerror(Some(onerror.as_ref().unchecked_ref()));
+                onerror.forget();
             }
-            Err(e) => error.set(Some(AppError::simple(e))),
+            Err(_) => {
+                error.set(Some(AppError::simple(
+                    "Failed to create EventSource for report generation",
+                )));
+                generating.set(false);
+            }
         }
-        generating.set(false);
     });
 
     // Preview callbacks

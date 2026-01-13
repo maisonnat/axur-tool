@@ -599,6 +599,51 @@ pub enum ThreatHuntingStreamEvent {
     },
 }
 
+// ========================
+// SSE STREAMING REPORT GENERATION
+// ========================
+
+/// Event types for SSE report generation streaming
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ReportStreamEvent {
+    /// Report generation started
+    Started { stages: Vec<String> },
+    /// Progress update for current stage
+    StageProgress {
+        stage: String,
+        message: String,
+        progress_pct: u8,
+    },
+    /// Stage completed
+    StageComplete { stage: String },
+    /// Report generation finished with HTML
+    Finished {
+        html: String,
+        company_name: Option<String>,
+    },
+    /// Error occurred
+    Error { code: String, message: String },
+}
+
+/// Request params for streaming report generation (GET for EventSource)
+#[derive(Debug, Deserialize)]
+pub struct GenerateReportStreamParams {
+    pub tenant_id: String,
+    pub from_date: String,
+    pub to_date: String,
+    #[serde(default = "default_language")]
+    pub language: String,
+    pub story_tag: Option<String>,
+    #[serde(default)]
+    pub include_threat_intel: bool,
+    pub template_id: Option<String>,
+    #[serde(default)]
+    pub use_plugins: bool,
+    pub plugin_theme: Option<String>,
+    pub disabled_slides: Option<String>, // Comma-separated list
+}
+
 /// SSE endpoint for streaming Threat Hunting preview progress
 /// Uses GET with query params for EventSource compatibility
 pub async fn threat_hunting_preview_stream(
@@ -788,6 +833,242 @@ pub async fn threat_hunting_preview_stream(
             chatter_count: total_chatter,
             credential_count: total_credentials,
             estimated_credits,
+        };
+        if let Ok(json) = serde_json::to_string(&finished) {
+            yield Ok(Event::default().data(json));
+        }
+    };
+
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+}
+
+/// SSE endpoint for streaming report generation with progress events
+/// Uses GET with query params for EventSource compatibility
+pub async fn generate_report_stream(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    axum::extract::Query(params): axum::extract::Query<GenerateReportStreamParams>,
+) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
+    let token = jar
+        .get(AUTH_COOKIE_NAME)
+        .map(|c| c.value().to_string())
+        .ok_or_else(|| ApiError::Unauthorized("No session found".into()))?;
+
+    tracing::info!(
+        tenant = %params.tenant_id,
+        from = %params.from_date,
+        to = %params.to_date,
+        "Starting SSE Report generation stream"
+    );
+
+    // Clone all values for the async stream
+    let tenant_id = params.tenant_id.clone();
+    let from_date = params.from_date.clone();
+    let to_date = params.to_date.clone();
+    let language_str = params.language.clone();
+    let story_tag = params.story_tag.clone();
+    let include_threat_intel = params.include_threat_intel;
+    let template_id = params.template_id.clone();
+    let use_plugins = params.use_plugins;
+    let plugin_theme = params.plugin_theme.clone();
+    let disabled_slides: Option<Vec<String>> = params
+        .disabled_slides
+        .as_ref()
+        .map(|s| s.split(',').map(|x| x.trim().to_string()).collect());
+    let pool = state.pool.clone();
+
+    let stream = async_stream::stream! {
+        // Define stages
+        let stages = vec![
+            "validating".to_string(),
+            "fetching_data".to_string(),
+            "processing".to_string(),
+            "generating_html".to_string(),
+        ];
+
+        // Emit started event
+        let started = ReportStreamEvent::Started { stages: stages.clone() };
+        if let Ok(json) = serde_json::to_string(&started) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Stage 1: Validating
+        let progress = ReportStreamEvent::StageProgress {
+            stage: "validating".into(),
+            message: "Validating request parameters...".into(),
+            progress_pct: 10,
+        };
+        if let Ok(json) = serde_json::to_string(&progress) {
+            yield Ok(Event::default().data(json));
+        }
+
+        if tenant_id.is_empty() || from_date.is_empty() || to_date.is_empty() {
+            let err = ReportStreamEvent::Error {
+                code: "RPT-001".into(),
+                message: "Invalid request parameters".into(),
+            };
+            if let Ok(json) = serde_json::to_string(&err) {
+                yield Ok(Event::default().data(json));
+            }
+            return;
+        }
+
+        let complete = ReportStreamEvent::StageComplete { stage: "validating".into() };
+        if let Ok(json) = serde_json::to_string(&complete) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Stage 2: Fetching data
+        let progress = ReportStreamEvent::StageProgress {
+            stage: "fetching_data".into(),
+            message: "Fetching incidents and metrics from Axur API...".into(),
+            progress_pct: 25,
+        };
+        if let Ok(json) = serde_json::to_string(&progress) {
+            yield Ok(Event::default().data(json));
+        }
+
+        let report_data = match fetch_full_report(
+            &token,
+            &tenant_id,
+            &from_date,
+            &to_date,
+            story_tag.clone(),
+            include_threat_intel,
+        )
+        .await
+        {
+            Ok(data) => data,
+            Err(e) => {
+                let error_code = classify_error(&e.to_string());
+                let err = ReportStreamEvent::Error {
+                    code: error_code.code(),
+                    message: e.to_string(),
+                };
+                if let Ok(json) = serde_json::to_string(&err) {
+                    yield Ok(Event::default().data(json));
+                }
+                return;
+            }
+        };
+
+        let complete = ReportStreamEvent::StageComplete { stage: "fetching_data".into() };
+        if let Ok(json) = serde_json::to_string(&complete) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Stage 3: Processing
+        let progress = ReportStreamEvent::StageProgress {
+            stage: "processing".into(),
+            message: "Processing report data...".into(),
+            progress_pct: 60,
+        };
+        if let Ok(json) = serde_json::to_string(&progress) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Get dictionary for selected language
+        let language = match language_str.to_lowercase().as_str() {
+            "en" => Language::En,
+            "pt" | "pt-br" => Language::PtBr,
+            _ => Language::Es,
+        };
+        let dict = get_dictionary(language);
+
+        // Handle custom template if provided
+        let mut custom_template_slides: Option<Vec<String>> = None;
+        if let Some(ref tid) = template_id {
+            // Try mock templates first
+            if let Some(tmpl) = crate::routes::templates::get_mock_template(tid) {
+                let slides: Vec<String> = tmpl
+                    .slides
+                    .iter()
+                    .filter_map(|s| s.canvas_json.clone())
+                    .collect();
+                if !slides.is_empty() {
+                    custom_template_slides = Some(slides);
+                }
+            }
+            // Try DB templates
+            if custom_template_slides.is_none() {
+                if let Ok(uuid) = Uuid::parse_str(tid) {
+                    if let Some(ref pool) = pool {
+                        if let Ok(Some(row)) = sqlx::query("SELECT content FROM user_templates WHERE id = $1")
+                            .bind(uuid)
+                            .fetch_optional(pool)
+                            .await
+                        {
+                            use sqlx::Row;
+                            if let Ok(content) = row.try_get::<serde_json::Value, _>("content") {
+                                if let Some(slides_arr) = content.as_array() {
+                                    let slides: Vec<String> = slides_arr
+                                        .iter()
+                                        .filter_map(|s| s.get("canvas_json").and_then(|c| c.as_str()).map(|s| s.to_string()))
+                                        .collect();
+                                    if !slides.is_empty() {
+                                        custom_template_slides = Some(slides);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let complete = ReportStreamEvent::StageComplete { stage: "processing".into() };
+        if let Ok(json) = serde_json::to_string(&complete) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Stage 4: Generating HTML
+        let progress = ReportStreamEvent::StageProgress {
+            stage: "generating_html".into(),
+            message: "Generating HTML report...".into(),
+            progress_pct: 85,
+        };
+        if let Ok(json) = serde_json::to_string(&progress) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Load offline assets (embedded for self-contained HTML)
+        let offline_assets = OfflineAssets::load_embedded();
+
+        // Generate HTML
+        let html = if use_plugins {
+            let lang_code = match language {
+                Language::En => "en",
+                Language::PtBr => "pt-br",
+                Language::Es => "es",
+            };
+            let translations = match Translations::load(lang_code) {
+                Ok(t) => t,
+                Err(_) => Translations::load("en").unwrap(),
+            };
+            generate_report_with_plugins(
+                &report_data,
+                &translations,
+                Some(&offline_assets),
+                None, // No custom config
+            )
+        } else {
+            generate_full_report_html(
+                &report_data,
+                custom_template_slides,
+                Some(&offline_assets),
+                &dict,
+            )
+        };
+
+        let complete = ReportStreamEvent::StageComplete { stage: "generating_html".into() };
+        if let Ok(json) = serde_json::to_string(&complete) {
+            yield Ok(Event::default().data(json));
+        }
+
+        // Finished!
+        let finished = ReportStreamEvent::Finished {
+            html,
+            company_name: Some(report_data.company_name.clone()),
         };
         if let Ok(json) = serde_json::to_string(&finished) {
             yield Ok(Event::default().data(json));

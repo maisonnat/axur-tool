@@ -104,6 +104,10 @@ pub fn create_router(state: AppState) -> Router {
             "/api/threat-hunting/preview-stream",
             get(report::threat_hunting_preview_stream),
         )
+        .route(
+            "/api/reports/generate-stream",
+            get(report::generate_report_stream),
+        )
         .route("/api/feedback", post(feedback::submit_feedback))
         .route("/api/logs/sync", post(remote_log::sync_logs))
         // Log viewer API
