@@ -78,6 +78,13 @@ pub async fn full_status() -> impl IntoResponse {
     }
     services.push(github_feedback_check);
 
+    // 4. Check Database connectivity
+    let db_check = check_database().await;
+    if matches!(db_check.status, ServiceStatus::Error) {
+        has_errors = true;
+    }
+    services.push(db_check);
+
     // Overall status
     let overall_status = if has_errors {
         ServiceStatus::Error
@@ -277,5 +284,42 @@ fn check_github_feedback() -> ServiceCheck {
             message: Some(format!("Missing: {}", missing.join(", "))),
             version: None,
         }
+    }
+}
+
+/// Check Database connectivity
+async fn check_database() -> ServiceCheck {
+    let start = std::time::Instant::now();
+
+    // Get DB pool
+    let pool = match crate::db::get_db() {
+        Some(p) => p,
+        None => {
+            return ServiceCheck {
+                name: "Database".into(),
+                status: ServiceStatus::Error,
+                latency_ms: None,
+                message: Some("Pool not initialized".into()),
+                version: None,
+            };
+        }
+    };
+
+    // Run simple query
+    match sqlx::query("SELECT 1").execute(pool).await {
+        Ok(_) => ServiceCheck {
+            name: "Database".into(),
+            status: ServiceStatus::Ok,
+            latency_ms: Some(start.elapsed().as_millis() as u64),
+            message: Some("Connected".into()),
+            version: None,
+        },
+        Err(e) => ServiceCheck {
+            name: "Database".into(),
+            status: ServiceStatus::Error,
+            latency_ms: Some(start.elapsed().as_millis() as u64),
+            message: Some(format!("Query failed: {}", e)),
+            version: None,
+        },
     }
 }

@@ -219,15 +219,21 @@ async fn create_schema(pool: &PgPool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await;
     // Make github_path optional (was required before)
-    let _ = sqlx::query("ALTER TABLE user_templates ALTER COLUMN github_path DROP NOT NULL")
+    if let Err(e) = sqlx::query("ALTER TABLE user_templates ALTER COLUMN github_path DROP NOT NULL")
         .execute(pool)
-        .await;
+        .await
+    {
+        tracing::error!("Failed to alter github_path column: {}", e);
+    }
 
     // Migration: Add preview_image_url if missing
-    let _ =
+    if let Err(e) =
         sqlx::query("ALTER TABLE user_templates ADD COLUMN IF NOT EXISTS preview_image_url TEXT")
             .execute(pool)
-            .await;
+            .await
+    {
+        tracing::error!("Failed to add preview_image_url column: {}", e);
+    }
 
     // Create index on user_id for fast lookup
     sqlx::query(
