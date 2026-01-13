@@ -40,6 +40,7 @@ pub struct BackendInfo {
     pub version: String,
     pub rust_version: String,
     pub build_profile: String,
+    pub git_hash: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -98,6 +99,7 @@ pub async fn full_status() -> impl IntoResponse {
                 "release"
             }
             .to_string(),
+            git_hash: env::var("GIT_HASH").unwrap_or_else(|_| "unknown".to_string()),
         },
         services,
         environment: EnvironmentInfo {
