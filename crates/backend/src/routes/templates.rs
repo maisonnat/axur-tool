@@ -322,84 +322,53 @@ pub async fn fetch_template_from_github(
 
 /// GET /api/templates - List user's templates
 pub async fn list_templates(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Extension(user_id): Extension<String>,
-    Query(params): Query<ListTemplatesQuery>,
+    Query(_params): Query<ListTemplatesQuery>,
 ) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
-        None => {
-            // Database unavailable - return empty list instead of error
-            // This allows the app to work with mock templates even when DB is down
-            tracing::warn!("Database not available for list_templates, returning empty list");
-            return (
-                StatusCode::OK,
-                Json(serde_json::json!({
-                    "success": true,
-                    "templates": [],
-                    "total": 0,
-                    "db_available": false
-                })),
-            );
-        }
-    };
-    let limit = params.limit.unwrap_or(50).min(100) as i64;
-    let offset = params.offset.unwrap_or(0) as i64;
+    // Try Firestore first
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        // Collection path: user_templates/{user_id} - documents are the templates
+        let collection = format!("user_templates/{}/items", user_id);
 
-    // Ensure user exists and get UUID
-    tracing::debug!("Listing templates for user: {}", user_id);
-    let user_uuid = match ensure_user_exists(pool, &user_id).await {
-        Some(id) => id,
-        None => {
-            return (
-                StatusCode::OK,
-                Json(serde_json::json!({ "success": true, "templates": [], "total": 0 })),
-            );
+        match firestore.list_docs::<TemplateListItem>(&collection).await {
+            Ok(templates) => {
+                tracing::debug!(
+                    "Found {} templates for user {} from Firestore",
+                    templates.len(),
+                    user_id
+                );
+                return (
+                    StatusCode::OK,
+                    Json(serde_json::json!({
+                        "success": true,
+                        "templates": templates,
+                        "total": templates.len(),
+                        "source": "firestore"
+                    })),
+                );
+            }
+            Err(crate::firebase::FirestoreError::RateLimited) => {
+                tracing::warn!("Firestore rate limited, returning empty list");
+            }
+            Err(e) => {
+                tracing::warn!("Firestore error: {}, returning empty list", e);
+            }
         }
-    };
-
-    let result = sqlx::query(
-        r#"
-        SELECT id::text, name, description, preview_image_url, 
-               created_at::text, updated_at::text
-        FROM user_templates WHERE user_id = $1
-        ORDER BY updated_at DESC LIMIT $2 OFFSET $3
-        "#,
-    )
-    .bind(user_uuid)
-    .bind(limit)
-    .bind(offset)
-    .fetch_all(pool)
-    .await;
-
-    match result {
-        Ok(rows) => {
-            tracing::debug!("Found {} templates for user uuid {}", rows.len(), user_uuid);
-            let templates: Vec<TemplateListItem> = rows
-                .iter()
-                .map(|row| TemplateListItem {
-                    id: row.get("id"),
-                    name: row.get("name"),
-                    description: row.get("description"),
-                    preview_image_url: row.get("preview_image_url"),
-                    created_at: row.get("created_at"),
-                    updated_at: row.get("updated_at"),
-                })
-                .collect();
-            (
-                StatusCode::OK,
-                Json(serde_json::json!({
-                    "success": true,
-                    "templates": templates,
-                    "total": templates.len()
-                })),
-            )
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "success": false, "error": e.to_string() })),
-        ),
+    } else {
+        tracing::debug!("Firestore not configured, returning empty list");
     }
+
+    // Fallback: return empty list
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "success": true,
+            "templates": [],
+            "total": 0,
+            "source": "fallback"
+        })),
+    )
 }
 
 /// POST /api/templates - Create a new template (Multipart)

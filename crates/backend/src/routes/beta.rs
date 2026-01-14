@@ -141,24 +141,37 @@ pub async fn check_beta_status(
 
 /// Get count of pending beta requests (for admin notification badge)
 pub async fn get_pending_count(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let pool = match state.pool.as_ref() {
-        Some(p) => p,
-        None => {
-            // Database unavailable - return 0 count silently
-            tracing::warn!("Database not available for pending_count, returning 0");
-            return Ok(Json(
-                serde_json::json!({ "count": 0, "db_available": false }),
-            ));
+    // Try Firestore first
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        // List all beta_requests and count pending ones
+        match firestore.list_docs::<BetaRequestDoc>("beta_requests").await {
+            Ok(requests) => {
+                let pending = requests.iter().filter(|r| r.status == "pending").count();
+                return Ok(Json(serde_json::json!({
+                    "count": pending,
+                    "source": "firestore"
+                })));
+            }
+            Err(e) => {
+                tracing::warn!("Firestore error getting pending count: {}", e);
+            }
         }
-    };
+    }
 
-    let count: (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM beta_requests WHERE status = 'pending'")
-            .fetch_one(pool)
-            .await
-            .map_err(|e| ApiError::Internal(e.to_string()))?;
+    // Fallback: return 0
+    Ok(Json(
+        serde_json::json!({ "count": 0, "source": "fallback" }),
+    ))
+}
 
-    Ok(Json(serde_json::json!({ "count": count.0 })))
+/// Helper struct for deserializing beta requests from Firestore
+#[derive(Debug, serde::Deserialize)]
+struct BetaRequestDoc {
+    #[allow(dead_code)]
+    email: Option<String>,
+    #[allow(dead_code)]
+    company: Option<String>,
+    status: String,
 }
