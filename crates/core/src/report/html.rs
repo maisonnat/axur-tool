@@ -219,6 +219,10 @@ pub fn generate_report_with_plugins(
     let slides = registry.generate_slides(&ctx);
     let all_slides_html: String = slides.iter().map(|s| s.html.as_str()).collect::<Vec<_>>().join("\n");
     
+    // Generate language switching components
+    use super::language_switcher;
+    let (_, lang_selector_ui, lang_scripts) = language_switcher::generate_language_switching_components("es");
+    
     // Choose assets based on offline mode
     let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) = offline_assets {
         (
@@ -260,9 +264,11 @@ pub fn generate_report_with_plugins(
     {chart}
 </head>
 <body class="bg-zinc-950 text-zinc-200">
+    {lang_selector}
     <div id="report-content" class="p-4 md:p-8">
         {slides}
     </div>
+    {lang_scripts}
 </body>
 </html>"#,
         company = data.company_name,
@@ -271,6 +277,8 @@ pub fn generate_report_with_plugins(
         tailwind = tailwind_script,
         font_family = font_family,
         chart = chart_script,
+        lang_selector = lang_selector_ui,
+        lang_scripts = lang_scripts,
     )
 }
 
