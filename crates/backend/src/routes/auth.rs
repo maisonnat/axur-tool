@@ -319,7 +319,7 @@ pub async fn finalize(
 
 /// Validate current session
 pub async fn validate(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<ValidateResponse>, ApiError> {
     let token = match jar.get(AUTH_COOKIE_NAME) {
@@ -334,23 +334,24 @@ pub async fn validate(
         }
     };
 
-    // Check admin status from database using the user cookie
+    // Check admin status from GitHub storage (replaces Leapcell DB)
     let mut is_admin = false;
     if let Some(user_cookie) = jar.get(AUTH_USER_COOKIE_NAME) {
         let email = user_cookie.value();
-        if let Some(pool) = &state.pool {
-            let role: Option<(String,)> =
-                sqlx::query_as("SELECT role FROM allowed_users WHERE LOWER(email) = $1")
-                    .bind(email.to_lowercase())
-                    .fetch_optional(pool)
-                    .await
-                    .unwrap_or(None);
 
-            if let Some((r,)) = role {
-                if r == "admin" {
-                    is_admin = true;
+        // Use GitHub storage with ETag caching (0 TTL = always fresh)
+        if let Some(storage) = crate::github_storage::get_github_storage() {
+            match storage.is_admin(email).await {
+                Ok(admin) => {
+                    is_admin = admin;
+                    tracing::debug!("GitHub storage: {} is_admin={}", email, admin);
+                }
+                Err(e) => {
+                    tracing::warn!("GitHub storage check failed: {} - falling back to false", e);
                 }
             }
+        } else {
+            tracing::warn!("GitHub storage not configured - admin check skipped");
         }
     }
 
