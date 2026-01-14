@@ -134,6 +134,10 @@ pub fn generate_full_report_html(
         )
     };
 
+    // Generate language switching components
+    use super::language_switcher;
+    let (_, lang_selector_ui, lang_scripts) = language_switcher::generate_language_switching_components("es");
+
     format!(
         r#"<!DOCTYPE html>
 <html lang="es">
@@ -143,7 +147,7 @@ pub fn generate_full_report_html(
     <title>Reporte {company}</title>
     {font_links}
     {tailwind}
-    <script>tailwind.config={{theme:{{extend:{{fontFamily:{{sans:['{font_family}']}}}}}}}};</script>
+    <script>tailwind.config={{theme:{{extend:{{fontFamily:{{sans:['{font_family}']}}}}}}}}</script>
     <style>
         @media print {{
             @page {{
@@ -179,9 +183,11 @@ pub fn generate_full_report_html(
     {chart}
 </head>
 <body class="bg-zinc-950 text-zinc-200">
+    {lang_selector}
     <div id="report-content" class="p-4 md:p-8">
         {slides}
     </div>
+    {lang_scripts}
 </body>
 </html>"#,
         company = data.company_name,
@@ -190,6 +196,8 @@ pub fn generate_full_report_html(
         tailwind = tailwind_script,
         font_family = font_family,
         chart = chart_script,
+        lang_selector = lang_selector_ui,
+        lang_scripts = lang_scripts,
     )
 }
 
