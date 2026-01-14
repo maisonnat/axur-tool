@@ -4,6 +4,7 @@
 
 pub mod db;
 pub mod error;
+pub mod firebase;
 pub mod github_storage;
 pub mod google_services;
 pub mod injector;
