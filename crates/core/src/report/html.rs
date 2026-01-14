@@ -542,18 +542,18 @@ fn render_narrative_slide(title: String, pain: String, solution: String, icon_ty
 
 fn render_cover_full(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     let partner_html = data.partner_name.as_ref().map(|p| format!(
-        r#"<div class="mt-4"><p class="text-orange-500 font-semibold">{}</p><p class="text-2xl">{}</p></div>"#, 
+        r#"<div class="mt-4"><p class="text-orange-500 font-semibold" data-i18n="label_partner">{}</p><p class="text-2xl">{}</p></div>"#, 
         dict.label_partner(), p
     )).unwrap_or_default();
 
-    let title_line2 = if data.is_dynamic_window {
-        dict.cover_title_dynamic()
+    let (title_line2, title_i18n_key) = if data.is_dynamic_window {
+        (dict.cover_title_dynamic(), "cover_title_dynamic")
     } else {
-        dict.cover_title_static()
+        (dict.cover_title_static(), "cover_title_static")
     };
 
     format!(
-        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white p-0"><div class="flex-grow h-full overflow-hidden"><div class="relative h-full w-full flex"><div class="w-5/12 h-full flex flex-col p-14 relative z-10 bg-zinc-950"><div><div class="inline-block bg-black p-1"><div class="inline-flex items-center gap-2 px-4 py-1 bg-orange-600 text-white"><span class="font-bold text-lg">{tlp_lbl}{tlp}</span></div></div><p class="mt-2 text-xs max-w-xs">{tlp_desc}</p></div><div class="flex-grow flex flex-col justify-center"><div><h1 class="text-6xl font-black leading-tight">{title}</h1><div class="mt-8"><div><p class="text-orange-500 font-semibold">{company_lbl}</p><p class="text-2xl">{company}</p></div>{partner}</div></div></div>{logo}</div><div class="w-7/12 h-full relative"><div class="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"></div><div class="absolute inset-0 bg-black/30"></div>{pattern}</div></div></div></div></div>"#,
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white p-0"><div class="flex-grow h-full overflow-hidden"><div class="relative h-full w-full flex"><div class="w-5/12 h-full flex flex-col p-14 relative z-10 bg-zinc-950"><div><div class="inline-block bg-black p-1"><div class="inline-flex items-center gap-2 px-4 py-1 bg-orange-600 text-white"><span class="font-bold text-lg" data-i18n="label_tlp">{tlp_lbl}</span><span class="font-bold text-lg">{tlp}</span></div></div><p class="mt-2 text-xs max-w-xs" data-i18n="label_tlp_desc">{tlp_desc}</p></div><div class="flex-grow flex flex-col justify-center"><div><h1 class="text-6xl font-black leading-tight" data-i18n="{title_key}">{title}</h1><div class="mt-8"><div><p class="text-orange-500 font-semibold" data-i18n="label_company">{company_lbl}</p><p class="text-2xl">{company}</p></div>{partner}</div></div></div>{logo}</div><div class="w-7/12 h-full relative"><div class="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"></div><div class="absolute inset-0 bg-black/30"></div>{pattern}</div></div></div></div></div>"#,
         tlp_lbl = dict.label_tlp(),
         tlp = data.tlp_level,
         tlp_desc = dict.label_tlp_desc(),
@@ -563,20 +563,22 @@ fn render_cover_full(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String
         logo = axur_logo(),
         pattern = geometric_pattern(),
         title = title_line2,
+        title_key = title_i18n_key,
     )
 }
 
 fn render_intro_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
-    let text = if data.is_dynamic_window {
-        dict.intro_text_dynamic()
+    let (text, text_key) = if data.is_dynamic_window {
+        (dict.intro_text_dynamic(), "intro_text_dynamic")
     } else {
-        dict.intro_text_static()
+        (dict.intro_text_static(), "intro_text_static")
     };
 
     format!(
-        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500">{title}</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p>{text}</p><p>{closing}</p></div></div></div></div>{footer}</div></div>"#,
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500" data-i18n="intro_title">{title}</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p data-i18n="{text_key}">{text}</p><p data-i18n="intro_text_closing">{closing}</p></div></div></div></div>{footer}</div></div>"#,
         title = dict.intro_title(),
         text = text,
+        text_key = text_key,
         closing = dict.intro_text_closing(),
         footer = footer_dark(2, dict),
     )
@@ -658,7 +660,7 @@ fn render_general_metrics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>
     let analysts_saved = (hours_saved as f64) / 160.0;
 
     format!(
-        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">{title_metrics}</h2><div class="grid grid-cols-2 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-6xl font-bold mb-4">{tickets}</p><p class="text-2xl font-semibold text-zinc-900 mb-4">{title_tickets}</p><div class="text-zinc-600 text-lg space-y-2">{desc_tickets}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200 border-l-8 border-l-orange-500"><div class="flex-grow"><h3 class="text-2xl font-bold text-zinc-900 mb-4">{eff_title}</h3><p class="text-zinc-700 text-lg mb-6">{eff_hours}</p><div class="p-4 bg-orange-50 rounded-lg border border-orange-100"><p class="text-zinc-800 font-medium">{eff_speed}</p></div></div></div></div></div></div>{footer}</div></div>"#,
+        r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold" data-i18n="metrics_results_title">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8" data-i18n="metrics_title">{title_metrics}</h2><div class="grid grid-cols-2 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-6xl font-bold mb-4">{tickets}</p><p class="text-2xl font-semibold text-zinc-900 mb-4" data-i18n="metrics_total_tickets">{title_tickets}</p><div class="text-zinc-600 text-lg space-y-2" data-i18n="metrics_desc_tickets">{desc_tickets}</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200 border-l-8 border-l-orange-500"><div class="flex-grow"><h3 class="text-2xl font-bold text-zinc-900 mb-4" data-i18n="eff_title">{eff_title}</h3><p class="text-zinc-700 text-lg mb-6">{eff_hours}</p><div class="p-4 bg-orange-50 rounded-lg border border-orange-100"><p class="text-zinc-800 font-medium">{eff_speed}</p></div></div></div></div></div></div>{footer}</div></div>"#,
         title_metrics = dict.metrics_title(),
         tickets = format_number(data.total_tickets),
         title_tickets = dict.metrics_total_tickets(),
@@ -2628,10 +2630,10 @@ fn render_closing_full(
         <!-- Right Side: Content -->
         <div class="w-7/12 h-full flex flex-col justify-center px-16 relative bg-[#0a0a0a]">
             <div class="mb-12">
-                 <h2 class="text-5xl font-bold text-white leading-tight mb-6">
+                 <h2 class="text-5xl font-bold text-white leading-tight mb-6" data-i18n="closing_value_title">
                     {title}
                  </h2>
-                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-xl">
+                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-xl" data-i18n="closing_value_intro">
                     {intro}
                  </p>
             </div>
@@ -2643,8 +2645,8 @@ fn render_closing_full(
                         <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-lg mb-1">{item1_title}</h4>
-                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item1_desc}</p>
+                        <h4 class="text-white font-bold text-lg mb-1" data-i18n="closing_value_item_1_title">{item1_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed" data-i18n="closing_value_item_1_desc">{item1_desc}</p>
                     </div>
                 </div>
                 
@@ -2654,8 +2656,8 @@ fn render_closing_full(
                         <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-lg mb-1">{item2_title}</h4>
-                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item2_desc}</p>
+                        <h4 class="text-white font-bold text-lg mb-1" data-i18n="closing_value_item_2_title">{item2_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed" data-i18n="closing_value_item_2_desc">{item2_desc}</p>
                     </div>
                 </div>
 
@@ -2665,8 +2667,8 @@ fn render_closing_full(
                         <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-lg mb-1">{item3_title}</h4>
-                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">{item3_desc}</p>
+                        <h4 class="text-white font-bold text-lg mb-1" data-i18n="closing_value_item_3_title">{item3_title}</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed" data-i18n="closing_value_item_3_desc">{item3_desc}</p>
                     </div>
                 </div>
             </div>
