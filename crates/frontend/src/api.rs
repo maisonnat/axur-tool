@@ -224,6 +224,32 @@ pub async fn logout() -> Result<(), String> {
     Ok(())
 }
 
+/// Health check response
+#[derive(Debug, Deserialize)]
+pub struct HealthCheckResponse {
+    pub status: String,
+}
+
+/// Health check - used to detect cold starts
+/// Returns elapsed time in milliseconds
+pub async fn health_check() -> Result<f64, String> {
+    // Use JS Date for timing (WASM compatible)
+    let start = js_sys::Date::now();
+
+    let resp = Request::get(&format!("{}/api/health", API_BASE))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let elapsed = js_sys::Date::now() - start;
+
+    if resp.ok() {
+        Ok(elapsed)
+    } else {
+        Err(format!("Health check failed: {}", resp.status()))
+    }
+}
+
 /// List available tenants
 pub async fn list_tenants() -> Result<Vec<Tenant>, String> {
     let resp = Request::get(&format!("{}/api/tenants", API_BASE))

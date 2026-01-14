@@ -72,6 +72,7 @@ pub fn create_router(state: AppState) -> Router {
     // Public routes (Auth, Health, Status) - Note: finalize needs state
     let public_routes: Router<AppState> = Router::new()
         .route("/health", get(health_check))
+        .route("/api/health", get(status::health)) // Lightweight health for cold start detection
         .route("/api/status", get(status::full_status))
         .route("/api/public/beta-request", post(beta::submit_beta_request))
         .route("/api/public/beta-status", get(beta::check_beta_status))

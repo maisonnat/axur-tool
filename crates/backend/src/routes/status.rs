@@ -6,6 +6,15 @@ use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::Serialize;
 use std::env;
 
+/// Simple health endpoint for cold start detection
+/// GET /api/health - Returns immediately with minimal response
+pub async fn health() -> impl IntoResponse {
+    Json(serde_json::json!({
+        "status": "ok",
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }))
+}
+
 /// Service check result
 #[derive(Debug, Serialize)]
 pub struct ServiceCheck {

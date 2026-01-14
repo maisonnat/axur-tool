@@ -31,9 +31,10 @@ impl GitHubStorageConfig {
     }
 }
 
-/// Cache entry with TTL
+/// Cache entry with ETag for smart invalidation
 struct CacheEntry {
     data: String,
+    etag: Option<String>, // GitHub ETag for conditional requests
     expires_at: Instant,
 }
 
@@ -118,34 +119,70 @@ impl GitHubStorage {
         }
     }
 
-    /// Load data from GitHub (with cache)
+    /// Load data from GitHub (with ETag-based smart caching)
     pub async fn load(&self, path: &str) -> Result<String, String> {
-        // Check cache first
-        if let Ok(cache) = self.cache.read() {
-            if let Some(entry) = cache.get(path) {
-                if entry.expires_at > Instant::now() {
-                    return Ok(entry.data.clone());
-                }
+        self.load_with_ttl(path, Duration::from_secs(3600)).await
+    }
+
+    /// Load with custom TTL (0 = always check ETag)
+    pub async fn load_with_ttl(&self, path: &str, ttl: Duration) -> Result<String, String> {
+        // Check cache - get both data and etag for conditional request
+        let cached = {
+            if let Ok(cache) = self.cache.read() {
+                cache
+                    .get(path)
+                    .map(|e| (e.data.clone(), e.etag.clone(), e.expires_at))
+            } else {
+                None
+            }
+        };
+
+        // If cache is fresh (not expired), return it
+        if let Some((data, _, expires_at)) = &cached {
+            if *expires_at > Instant::now() && ttl.as_secs() > 0 {
+                return Ok(data.clone());
             }
         }
 
-        // Fetch from GitHub
+        // Build request with conditional headers
         let url = format!(
             "https://api.github.com/repos/{}/{}/contents/{}",
             self.config.owner, self.config.repo, path
         );
 
-        let resp = self
+        let mut req = self
             .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.config.token))
             .header("Accept", "application/vnd.github.v3+json")
-            .header("User-Agent", "axur-backend")
+            .header("User-Agent", "axur-backend");
+
+        // Add If-None-Match header if we have a cached etag
+        if let Some((_, Some(etag), _)) = &cached {
+            req = req.header("If-None-Match", etag);
+        }
+
+        let resp = req
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
 
+        // Handle 304 Not Modified - return cached data
+        if resp.status() == reqwest::StatusCode::NOT_MODIFIED {
+            if let Some((data, _, _)) = cached {
+                tracing::debug!("ETag match for {}, using cached data", path);
+                return Ok(data);
+            }
+        }
+
         if resp.status().is_success() {
+            // Extract ETag from response headers
+            let new_etag = resp
+                .headers()
+                .get("etag")
+                .and_then(|v| v.to_str().ok())
+                .map(|s| s.to_string());
+
             let file: GitHubFile = resp
                 .json()
                 .await
@@ -157,19 +194,20 @@ impl GitHubStorage {
 
             let data = String::from_utf8(content).map_err(|e| format!("UTF8 failed: {}", e))?;
 
-            // Cache for 1 hour
+            // Update cache with new data and ETag
             if let Ok(mut cache) = self.cache.write() {
                 cache.insert(
                     path.to_string(),
                     CacheEntry {
                         data: data.clone(),
-                        expires_at: Instant::now() + Duration::from_secs(3600),
+                        etag: new_etag,
+                        expires_at: Instant::now() + ttl,
                     },
                 );
             }
 
             Ok(data)
-        } else if resp.status() == 404 {
+        } else if resp.status() == reqwest::StatusCode::NOT_FOUND {
             Err("File not found".to_string())
         } else {
             Err(format!("GitHub load failed: {}", resp.status()))
@@ -316,6 +354,49 @@ impl GitHubStorage {
         self.delete(&path, &format!("Delete template: {}", template_name))
             .await
     }
+
+    // =========== Permission Operations (always fresh, 0 TTL) ===========
+
+    /// Check if user is allowed (beta tester or admin)
+    pub async fn is_user_allowed(&self, email: &str) -> Result<bool, String> {
+        // Use 0 TTL to always check ETag for permissions
+        let data = self
+            .load_with_ttl("system/allowed_users.json", Duration::ZERO)
+            .await?;
+        let users: Vec<AllowedUser> =
+            serde_json::from_str(&data).map_err(|e| format!("Parse failed: {}", e))?;
+        Ok(users.iter().any(|u| u.email.eq_ignore_ascii_case(email)))
+    }
+
+    /// Get user role (admin, beta_tester, etc.)
+    pub async fn get_user_role(&self, email: &str) -> Result<Option<String>, String> {
+        let data = self
+            .load_with_ttl("system/allowed_users.json", Duration::ZERO)
+            .await?;
+        let users: Vec<AllowedUser> =
+            serde_json::from_str(&data).map_err(|e| format!("Parse failed: {}", e))?;
+        Ok(users
+            .iter()
+            .find(|u| u.email.eq_ignore_ascii_case(email))
+            .map(|u| u.role.clone()))
+    }
+
+    /// Check if user is admin
+    pub async fn is_admin(&self, email: &str) -> Result<bool, String> {
+        match self.get_user_role(email).await? {
+            Some(role) => Ok(role == "admin"),
+            None => Ok(false),
+        }
+    }
+}
+
+/// Allowed user entry in system/allowed_users.json
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AllowedUser {
+    pub email: String,
+    pub role: String,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 /// GitHub file response

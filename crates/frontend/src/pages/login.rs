@@ -133,15 +133,25 @@ pub fn LoginPage() -> impl IntoView {
                                     // Store email in state
                                     state.user_email.set(Some(email_val.clone()));
 
-                                    // Check log access asynchronously
-                                    let email_for_check = email_val.clone();
-                                    spawn_local(async move {
-                                        if let Ok(has_access) =
-                                            api::check_log_access(&email_for_check).await
-                                        {
-                                            state.has_log_access.set(has_access);
+                                    // FIXED: Fetch permissions BEFORE navigating
+                                    // This ensures is_admin and has_log_access are set on first load
+                                    match api::validate_session().await {
+                                        Ok(perms) => {
+                                            state.is_admin.set(perms.is_admin);
+                                            state.has_log_access.set(perms.has_log_access);
+                                            leptos::logging::log!(
+                                                "Permissions loaded: is_admin={}, has_log_access={}",
+                                                perms.is_admin,
+                                                perms.has_log_access
+                                            );
                                         }
-                                    });
+                                        Err(e) => {
+                                            leptos::logging::error!(
+                                                "Failed to fetch permissions: {}",
+                                                e
+                                            );
+                                        }
+                                    }
 
                                     is_authenticated.set(true);
                                     current_page.set(Page::Dashboard);

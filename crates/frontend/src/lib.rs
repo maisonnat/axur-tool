@@ -78,12 +78,44 @@ pub fn App() -> impl IntoView {
     let state = AppState::default();
     provide_context(state.clone());
 
+    // Cold start detection signals
+    let is_warming = create_rw_signal(true);
+    let is_ready = create_rw_signal(false);
+
     // Auto-save UI language when it changes
     {
         let ui_lang = state.ui_language;
         create_effect(move |_| {
             let lang = ui_lang.get();
             storage::save_ui_language(lang.code());
+        });
+    }
+
+    // Check server health and detect cold starts
+    {
+        let is_warming = is_warming.clone();
+        let is_ready = is_ready.clone();
+        spawn_local(async move {
+            match api::health_check().await {
+                Ok(elapsed_ms) => {
+                    if elapsed_ms > 2000.0 {
+                        leptos::logging::log!("Cold start detected: {}ms", elapsed_ms);
+                    }
+                    // Transition: warming -> ready
+                    is_warming.set(false);
+                    // Small delay for visual transition
+                    gloo_timers::callback::Timeout::new(100, move || {
+                        is_ready.set(true);
+                    })
+                    .forget();
+                }
+                Err(e) => {
+                    leptos::logging::error!("Health check failed: {}", e);
+                    // Still show as ready to not block UI
+                    is_warming.set(false);
+                    is_ready.set(true);
+                }
+            }
         });
     }
 
@@ -100,6 +132,12 @@ pub fn App() -> impl IntoView {
     });
 
     view! {
+        // Cold Start Overlay (Freeze → Thaw effect)
+        <components::ColdStartOverlay
+            is_warming=is_warming.read_only()
+            is_ready=is_ready.read_only()
+        />
+
         <div class="min-h-screen bg-zinc-950 text-zinc-100 font-sans">
             {move || match state.current_page.get() {
                 Page::Login => view! { <LoginPage/> }.into_view(),

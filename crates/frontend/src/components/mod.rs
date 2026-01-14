@@ -14,6 +14,7 @@ mod progress_checklist;
 pub mod queue_status;
 mod sandbox_banner;
 mod step_highlight;
+mod sync_overlay;
 mod tutorial_orchestrator;
 mod tutorial_welcome;
 
@@ -30,5 +31,6 @@ pub use progress_checklist::*;
 pub use queue_status::*;
 pub use sandbox_banner::*;
 pub use step_highlight::*;
+pub use sync_overlay::*;
 pub use tutorial_orchestrator::*;
 pub use tutorial_welcome::*;
