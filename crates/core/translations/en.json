@@ -193,5 +193,21 @@
     "ctx_leak_title": "The Danger of Exposed Secrets",
     "ctx_leak_text": "Developers sometimes inadvertently commit sensitive keys, tokens, or credentials to public repositories. These 'secrets' can grant attackers access to cloud infrastructure, databases, or internal services. Continuous monitoring of public code repositories is crucial to detect and revoke these keys immediately.",
     "ctx_takedown_title": "The Takedown Process",
-    "ctx_takedown_text": "Takedown is the process of removing malicious or infringing content from the internet. When a threat is confirmed, our automated systems and legal team interact with hosting providers, registrars, and social media platforms to enforce removal, neutralizing the threat at its source."
+    "ctx_takedown_text": "Takedown is the process of removing malicious or infringing content from the internet. When a threat is confirmed, our automated systems and legal team interact with hosting providers, registrars, and social media platforms to enforce removal, neutralizing the threat at its source.",
+    "timeline_title": "Attack Timeline",
+    "ti_title": "Threat Intelligence",
+    "ti_dark_web": "Dark Web Mentions",
+    "ti_mentions": "Total Mentions",
+    "ti_credentials": "Exposed Credentials",
+    "ti_sources": "Data Sources",
+    "ti_quality": "Intelligence Quality",
+    "virality_title": "Virality Analysis",
+    "virality_chat": "Chat Channels",
+    "virality_social": "Social Media",
+    "virality_dark": "Dark Web",
+    "geo_map_placeholder": "Interactive map showing global attack origins",
+    "metrics_results_title": "RESULTS",
+    "metrics_lbl_total": "Total Detections",
+    "metrics_lbl_threats": "Confirmed Threats",
+    "metrics_lbl_time": "Time Saved"
 }

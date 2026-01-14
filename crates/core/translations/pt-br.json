@@ -193,5 +193,21 @@
     "ctx_leak_title": "O Perigo de Segredos Expostos",
     "ctx_leak_text": "Desenvolvedores às vezes publicam inadvertidamente chaves, tokens ou credenciais sensíveis em repositórios públicos. Esses 'segredos' podem dar aos atacantes acesso à infraestrutura em nuvem, banco de dados ou serviços internos. O monitoramento contínuo de repositórios de código público é crucial para detectar e revogar essas chaves imediatamente.",
     "ctx_takedown_title": "O Processo de Takedown",
-    "ctx_takedown_text": "Takedown é o processo de remoção de conteúdo malicioso ou infrator da internet. Quando uma ameaça é confirmada, nossos sistemas automatizados e equipe jurídica interagem com provedores de hospedagem, registradores e plataformas de redes sociais para forçar a remoção, neutralizando a ameaça em sua origem."
+    "ctx_takedown_text": "Takedown é o processo de remoção de conteúdo malicioso ou infrator da internet. Quando uma ameaça é confirmada, nossos sistemas automatizados e equipe jurídica interagem com provedores de hospedagem, registradores e plataformas de redes sociais para forçar a remoção, neutralizando a ameaça em sua origem.",
+    "timeline_title": "Linha do Tempo de Ataques",
+    "ti_title": "Inteligência de Ameaças",
+    "ti_dark_web": "Menções Dark Web",
+    "ti_mentions": "Menções Totais",
+    "ti_credentials": "Credenciais Expostas",
+    "ti_sources": "Fontes de Dados",
+    "ti_quality": "Qualidade da Inteligência",
+    "virality_title": "Análise de Viralidade",
+    "virality_chat": "Canais de Chat",
+    "virality_social": "Redes Sociais",
+    "virality_dark": "Dark Web",
+    "geo_map_placeholder": "Mapa interativo mostrando origens globais de ataques",
+    "metrics_results_title": "RESULTADOS",
+    "metrics_lbl_total": "Detecções Totais",
+    "metrics_lbl_threats": "Ameaças Confirmadas",
+    "metrics_lbl_time": "Tempo Economizado"
 }
