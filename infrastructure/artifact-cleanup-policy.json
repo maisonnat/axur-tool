@@ -1,0 +1,32 @@
+[
+    {
+        "name": "delete-old-images",
+        "action": {
+            "type": "Delete"
+        },
+        "condition": {
+            "olderThan": "7d"
+        }
+    },
+    {
+        "name": "keep-latest-tag",
+        "action": {
+            "type": "Keep"
+        },
+        "condition": {
+            "tagState": "tagged",
+            "tagPrefixes": [
+                "latest"
+            ]
+        }
+    },
+    {
+        "name": "keep-minimum-versions",
+        "action": {
+            "type": "Keep"
+        },
+        "mostRecentVersions": {
+            "keepCount": 3
+        }
+    }
+]
