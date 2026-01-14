@@ -143,10 +143,16 @@ pub async fn check_beta_status(
 pub async fn get_pending_count(
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
+    let pool = match state.pool.as_ref() {
+        Some(p) => p,
+        None => {
+            // Database unavailable - return 0 count silently
+            tracing::warn!("Database not available for pending_count, returning 0");
+            return Ok(Json(
+                serde_json::json!({ "count": 0, "db_available": false }),
+            ));
+        }
+    };
 
     let count: (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM beta_requests WHERE status = 'pending'")

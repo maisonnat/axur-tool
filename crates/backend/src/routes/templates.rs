@@ -329,10 +329,18 @@ pub async fn list_templates(
     let pool = match &state.pool {
         Some(p) => p,
         None => {
+            // Database unavailable - return empty list instead of error
+            // This allows the app to work with mock templates even when DB is down
+            tracing::warn!("Database not available for list_templates, returning empty list");
             return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "success": false, "error": "Database not available" })),
-            )
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "success": true,
+                    "templates": [],
+                    "total": 0,
+                    "db_available": false
+                })),
+            );
         }
     };
     let limit = params.limit.unwrap_or(50).min(100) as i64;
