@@ -2,7 +2,6 @@
 //!
 //! Checks admin access against the database.
 
-use crate::db::get_db;
 use serde::{Deserialize, Serialize};
 
 /// Admin configuration structure (kept for compatibility)
@@ -15,40 +14,37 @@ pub struct AdminConfig {
 
 /// Check if an email has admin access to logs
 pub async fn has_log_access(email: &str) -> bool {
-    let pool = match get_db() {
-        Some(p) => p,
-        None => {
-            tracing::warn!("DB not initialized, defaulting to deny access");
-            return false;
-        }
-    };
-
     let email_lower = email.to_lowercase();
+    let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
 
-    // Check if email exists in admin_users table
-    let res = sqlx::query("SELECT 1 FROM admin_users WHERE LOWER(email) = $1")
-        .bind(&email_lower)
-        .fetch_optional(pool)
-        .await;
-
-    match res {
-        Ok(Some(_)) => true,
-        Ok(None) => {
-            // BACKWARD COMPATIBILITY / FALLBACK
-            // If table is empty, maybe allow hardcoded admins or check env var?
-            // For now, let's allow a specific env var admin for bootstrapping
-            if let Ok(admin_env) = std::env::var("AXUR_ADMIN_EMAIL") {
-                if admin_env.to_lowercase() == email_lower {
-                    return true;
+    // Check Firestore "allowed_users"
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        match firestore
+            .get_doc::<serde_json::Value>("allowed_users", &doc_id)
+            .await
+        {
+            Ok(Some(doc)) => {
+                if let Some(role) = doc.get("role").and_then(|v| v.as_str()) {
+                    return role == "admin";
                 }
             }
-            false
-        }
-        Err(e) => {
-            tracing::error!("Failed to check admin status: {}", e);
-            false
+            Ok(None) => {}
+            Err(e) => {
+                tracing::error!("Firestore error checking admin status: {}", e);
+            }
         }
     }
+
+    // Fallback? GitHub Storage?
+    // admin.rs uses GitHub storage. We should probably use that too if configured.
+    if let Some(storage) = crate::github_storage::get_github_storage() {
+        match storage.is_admin(email).await {
+            Ok(true) => return true,
+            _ => {}
+        }
+    }
+
+    false
 }
 
 /// Invalidate the admin config cache (No-op as we check DB directly now)

@@ -30,14 +30,9 @@ pub struct BetaRequestResponse {
 
 /// Submit a new beta access request
 pub async fn submit_beta_request(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Json(payload): Json<BetaRequestPayload>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
-
     // Validate inputs
     if payload.email.trim().is_empty() || payload.company.trim().is_empty() {
         return Err(ApiError::BadRequest(
@@ -50,58 +45,71 @@ pub async fn submit_beta_request(
     }
 
     let email_lower = payload.email.to_lowercase();
+    let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
 
-    // 1. Check if already active
-    let exists_active: Option<(String,)> =
-        sqlx::query_as("SELECT email FROM allowed_users WHERE LOWER(email) = $1")
-            .bind(&email_lower)
-            .fetch_optional(pool)
+    // Try Firestore
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        // 1. Check if already in allowed_users
+        match firestore
+            .get_doc::<serde_json::Value>("allowed_users", &doc_id)
             .await
-            .map_err(|e| ApiError::Internal(e.to_string()))?;
+        {
+            Ok(Some(_)) => {
+                return Ok(Json(BetaRequestResponse {
+                    success: true,
+                    message: "You are already a registered beta user! Please log in.".into(),
+                }));
+            }
+            _ => {}
+        }
 
-    if exists_active.is_some() {
-        return Ok(Json(BetaRequestResponse {
-            success: true,
-            message: "You are already a registered beta user! Please log in.".into(),
-        }));
+        // 2. Check if already requested
+        match firestore
+            .get_doc::<BetaRequestDoc>("beta_requests", &doc_id)
+            .await
+        {
+            Ok(Some(req)) if req.status == "pending" => {
+                return Ok(Json(BetaRequestResponse {
+                    success: true,
+                    message: "We already have your request! We'll allow access shortly.".into(),
+                }));
+            }
+            _ => {}
+        }
+
+        // 3. Create new beta request
+        let request_doc = serde_json::json!({
+            "email": email_lower,
+            "company": payload.company,
+            "status": "pending",
+            "requested_at": chrono::Utc::now().to_rfc3339()
+        });
+
+        match firestore
+            .set_doc("beta_requests", &doc_id, &request_doc)
+            .await
+        {
+            Ok(()) => {
+                tracing::info!(email = %email_lower, company = %payload.company, "New beta request submitted to Firestore");
+                return Ok(Json(BetaRequestResponse {
+                    success: true,
+                    message: "Request received! We will notify you when your access is ready."
+                        .into(),
+                }));
+            }
+            Err(e) => {
+                tracing::error!("Failed to save beta request to Firestore: {}", e);
+                return Err(ApiError::Internal(format!("Failed to save request: {}", e)));
+            }
+        }
     }
 
-    // 2. Check if already requested (prevent duplicates)
-    // We treat "pending" or "rejected" as "received". If rejected, we might want to let them apply again?
-    // for now, just say "received".
-    let exists_request: Option<(String,)> = sqlx::query_as(
-        "SELECT status FROM beta_requests WHERE LOWER(email) = $1 AND status = 'pending'",
-    )
-    .bind(&email_lower)
-    .fetch_optional(pool)
-    .await
-    .map_err(|e| ApiError::Internal(e.to_string()))?;
-
-    if exists_request.is_some() {
-        return Ok(Json(BetaRequestResponse {
-            success: true,
-            message: "We already have your request! We'll allow access shortly.".into(),
-        }));
-    }
-
-    // 3. Insert new request
-    sqlx::query("INSERT INTO beta_requests (email, company, status) VALUES ($1, $2, 'pending')")
-        .bind(&email_lower)
-        .bind(&payload.company)
-        .execute(pool)
-        .await
-        .map_err(|e| ApiError::Internal(format!("Failed to save request: {}", e)))?;
-
-    tracing::info!(email = %email_lower, company = %payload.company, "New beta request submitted");
-
-    Ok(Json(BetaRequestResponse {
-        success: true,
-        message: "Request received! We will notify you when your access is ready.".into(),
-    }))
+    // Fallback error if Firestore not configured
+    Err(ApiError::Internal("Storage not available".into()))
 }
 
 pub async fn check_beta_status(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Result<String, ApiError> {
     let email = params
@@ -109,34 +117,33 @@ pub async fn check_beta_status(
         .ok_or(ApiError::BadRequest("Email required".into()))?;
 
     let email_lower = email.to_lowercase();
+    let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
 
-    // Check allowed_users first (Approved)
-    if let Some(pool) = &state.pool {
-        let allowed: Option<(String,)> =
-            sqlx::query_as("SELECT email FROM allowed_users WHERE LOWER(email) = $1")
-                .bind(&email_lower)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| ApiError::Internal(e.to_string()))?;
-
-        if allowed.is_some() {
-            return Ok("approved".to_string());
+    // Try Firestore
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        // 1. Check allowed_users (Approved)
+        match firestore
+            .get_doc::<serde_json::Value>("allowed_users", &doc_id)
+            .await
+        {
+            Ok(Some(_)) => return Ok("approved".to_string()),
+            Err(e) => tracing::warn!("Firestore error checking allowed_users: {}", e),
+            _ => {}
         }
 
-        // Check beta_requests (Pending)
-        let request: Option<(String,)> =
-            sqlx::query_as("SELECT status FROM beta_requests WHERE LOWER(email) = $1")
-                .bind(&email_lower)
-                .fetch_optional(pool)
-                .await
-                .map_err(|e| ApiError::Internal(e.to_string()))?;
-
-        if let Some((status,)) = request {
-            return Ok(status); // "pending", "rejected", etc.
+        // 2. Check beta_requests (Pending/Rejected)
+        match firestore
+            .get_doc::<BetaRequestDoc>("beta_requests", &doc_id)
+            .await
+        {
+            Ok(Some(req)) => return Ok(req.status),
+            Err(e) => tracing::warn!("Firestore error checking beta_requests: {}", e),
+            _ => {}
         }
     }
 
-    Ok("not_found".to_string())
+    // Fallback or Unknown
+    Ok("unknown".to_string())
 }
 
 /// Get count of pending beta requests (for admin notification badge)

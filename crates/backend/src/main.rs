@@ -17,16 +17,6 @@ async fn main() {
 
     // Backend initialization
 
-    // Initialize database
-    if let Err(e) = axur_backend::db::init_db_pool().await {
-        let err_msg = e.to_string();
-        tracing::error!("Failed to initialize database: {}", err_msg);
-        let _ = axur_backend::db::DB_INIT_ERROR.set(err_msg);
-        // We continue even if DB fails, but logs won't be saved to DB
-    } else {
-        tracing::info!("Database connection established");
-    }
-
     // Start background queue worker
     axur_backend::queue::start_worker();
     tracing::info!("Queue worker started");
@@ -69,11 +59,7 @@ async fn main() {
         }
     };
 
-    let pool = axur_backend::db::get_db().cloned();
-    let app_state = axur_backend::routes::AppState {
-        google_services,
-        pool,
-    };
+    let app_state = axur_backend::routes::AppState { google_services };
 
     // Build router (from routes module)
     let app = create_router(app_state);

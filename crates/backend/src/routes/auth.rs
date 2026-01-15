@@ -225,29 +225,61 @@ pub async fn finalize(
     }
 
     // ========================================
-    // BETA ACCESS CONTROL: Check allowed_users
+    // BETA ACCESS CONTROL: Check allowed_users in Firestore
     // ========================================
-    if let Some(pool) = &state.pool {
-        let email_lower = payload.email.to_lowercase();
-        let allowed: Option<(String,)> =
-            sqlx::query_as("SELECT role FROM allowed_users WHERE LOWER(email) = $1")
-                .bind(&email_lower)
-                .fetch_optional(pool)
-                .await
-                .unwrap_or(None);
+    let email_lower = payload.email.to_lowercase();
+    let mut is_allowed = false;
 
-        if allowed.is_none() {
-            tracing::warn!(
-                email = %payload.email,
-                "Login denied: user not in allowed_users whitelist"
-            );
-            return Err(ApiError::Forbidden(
-                "Access denied. You are not part of the beta program. Contact admin to request access.".into()
-            ));
+    // Try Firestore first
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        // Check allowed_users/{email} document
+        let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
+        match firestore
+            .get_doc::<serde_json::Value>("allowed_users", &doc_id)
+            .await
+        {
+            Ok(Some(_)) => {
+                is_allowed = true;
+                tracing::info!(email = %payload.email, "User authorized via Firestore allowed_users");
+            }
+            Ok(None) => {
+                tracing::debug!(email = %payload.email, "User not found in Firestore allowed_users");
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Firestore allowed_users check failed: {} - trying GitHub storage",
+                    e
+                );
+            }
         }
-        tracing::info!(email = %payload.email, "User authorized via allowed_users");
-    } else {
-        tracing::warn!("DB pool not available, skipping beta access check");
+    }
+
+    // Fallback to GitHub storage if not found in Firestore
+    if !is_allowed {
+        if let Some(storage) = crate::github_storage::get_github_storage() {
+            match storage.is_user_allowed(&email_lower).await {
+                Ok(allowed) => {
+                    is_allowed = allowed;
+                    if allowed {
+                        tracing::info!(email = %payload.email, "User authorized via GitHub storage");
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("GitHub storage check failed: {}", e);
+                }
+            }
+        }
+    }
+
+    if !is_allowed {
+        tracing::warn!(
+            email = %payload.email,
+            "Login denied: user not in allowed_users"
+        );
+        return Err(ApiError::Forbidden(
+            "Access denied. You are not part of the beta program. Contact admin to request access."
+                .into(),
+        ));
     }
     // ========================================
 

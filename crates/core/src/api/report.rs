@@ -1321,34 +1321,30 @@ pub async fn fetch_full_report(
     let auth = format!("Bearer {}", token);
 
     // Phase 1: Fetch customer info and stats in parallel
-    let (
-        customer_data,
-        total_open,
-        total_incident,
-        total_closed,
-        threats_by_type,
-        credentials_total,
-        code_leaks_total,
-        takedown_stats,
-        story_tickets_res,
-        risk_metrics, // NEW
-        credential_exposures_res,
-    ) = tokio::join!(
+    // Phase 1: Fetch customer info and stats in batches to avoid rate limiting
+    // Batch 1 (4 reqs): Base Counts
+    let (customer_data, total_open, total_incident, total_closed) = tokio::join!(
         fetch_customer_data(&client, &auth, tenant_id),
         fetch_ticket_count(&client, &auth, from, to, "open", tenant_id),
         fetch_ticket_count(&client, &auth, from, to, "incident", tenant_id),
         fetch_ticket_count(&client, &auth, from, to, "closed", tenant_id),
+    );
+
+    // Batch 2 (3 reqs): Detailed Stats
+    let (threats_by_type, credentials_total, code_leaks_total) = tokio::join!(
         fetch_threats_by_type_map(&client, &auth, from, to, tenant_id),
         fetch_credentials_total_all(&client, &auth, from, to, tenant_id),
         fetch_code_leaks_count(&client, &auth, from, to, tenant_id),
+    );
+
+    // Batch 3 (4 reqs): Advanced & Risk
+    let (takedown_stats, story_tickets_res, risk_metrics, credential_exposures_res) = tokio::join!(
         fetch_takedown_stats_full(&client, &auth, from, to, tenant_id),
         fetch_tagged_tickets(&client, &auth, tenant_id, story_tag.as_deref()),
-        // RISK SCORE V3 FETCH
         fetch_risk_score_metrics(&client, &auth, tenant_id, from, to),
         async {
             if let Some(tag) = story_tag.as_deref() {
                 if !tag.is_empty() {
-                    // Use the same customer logic as in preview if needed, but here we enforce tenant_id
                     return fetch_tagged_credentials(&client, &auth, tenant_id, tag).await;
                 }
             }
@@ -4790,10 +4786,15 @@ async fn fetch_risk_score_metrics(
         API_URL, start_date, end_date
     );
 
-    let (threats, benchmark, leaks, takedown, complaints) = tokio::join!(
+    // Batch 1: Threats, Benchmark, Leaks (3 concurrent)
+    let (threats, benchmark, leaks) = tokio::join!(
         fetch_json_metric::<IncidentStats>(client, auth_header, &threats_url),
         fetch_json_metric::<MarketSegmentStats>(client, auth_header, &benchmark_url),
         fetch_json_metric::<CredentialCount>(client, auth_header, &leaks_url),
+    );
+
+    // Batch 2: Takedown, Complaints (2 concurrent)
+    let (takedown, complaints) = tokio::join!(
         fetch_json_metric::<TakedownStatsRaw>(client, auth_header, &takedown_url),
         fetch_json_metric::<WebComplaintsResponse>(client, auth_header, &complaints_url)
     );

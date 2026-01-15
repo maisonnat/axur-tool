@@ -1,7 +1,7 @@
-//! Logs API - Fetch and list logs from database (Hybrid)
+//! Logs API - Fetch and list logs from Firestore (Hybrid)
 //!
-//! Provides endpoints to browse and search logs.
-//! Fetches metadata from PostgreSQL and content from GitHub if truncated.
+//! - Provides endpoints to browse and search logs.
+//! - Fetches metadata from Firestore (Daily sharding) and content from GitHub if truncated.
 
 use axum::{
     extract::{Path, Query},
@@ -13,9 +13,10 @@ use serde::{Deserialize, Serialize};
 
 use super::admin_config;
 use super::remote_log::RemoteLogConfig;
-use crate::db::get_db;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use chrono::{DateTime, Duration, TimeZone, Utc};
+
+use crate::firebase::Firestore;
 
 /// Query parameters for listing logs
 #[derive(Debug, Deserialize)]
@@ -31,15 +32,15 @@ pub struct ListLogsQuery {
 }
 
 /// Log file entry in the list
-#[derive(Debug, Serialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LogEntry {
-    pub id: uuid::Uuid,
-    pub timestamp: DateTime<Utc>,
+    pub id: String,
+    pub timestamp: String,
     pub category: String,
     pub message: String,
-    #[sqlx(default)]
+    #[serde(default)]
     pub content: String,
-    #[sqlx(default)]
+    #[serde(default)]
     pub github_path: Option<String>,
 }
 
@@ -92,8 +93,8 @@ pub struct StatsResponse {
 /// List available log files
 /// GET /api/logs
 pub async fn list_logs(Query(params): Query<ListLogsQuery>) -> impl IntoResponse {
-    let pool = match get_db() {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -101,84 +102,57 @@ pub async fn list_logs(Query(params): Query<ListLogsQuery>) -> impl IntoResponse
                     success: false,
                     files: vec![],
                     total: 0,
-                    message: "Database not available".to_string(),
+                    message: "Firestore not available".to_string(),
                 }),
             )
         }
     };
 
-    let limit = params.limit.unwrap_or(50);
-    let offset = params.offset.unwrap_or(0);
+    let limit = params.limit.unwrap_or(50) as usize;
+    let offset = params.offset.unwrap_or(0) as usize;
 
     // Build date range
     let date_str = params
         .date
         .unwrap_or_else(|| Utc::now().format("%Y-%m-%d").to_string());
 
-    // Parse date safely
-    let start_date = match chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-        .or_else(|_| chrono::NaiveDate::parse_from_str(&date_str, "%Y/%m/%d"))
-    {
-        Ok(d) => Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap()),
-        Err(_) => Utc::now(), // Fallback
-    };
-    let end_date = start_date + Duration::days(1);
+    // Sharding path: system_logs/{date}/entries
+    let path = format!("system_logs/{}/entries", date_str);
 
-    let category_filter = params.category.as_deref();
+    // Fetch logs from Firestore
+    let logs_res = firestore.list_docs::<LogEntry>(&path).await;
 
-    // Query logs
-    // Optimization: Don't select 'content' for listing, it's heavy
-    let logs = if let Some(cat) = category_filter {
-        sqlx::query_as::<_, LogEntry>(
-            r#"
-            SELECT id, timestamp, category, message, '' as content, github_path
-            FROM system_logs 
-            WHERE timestamp >= $1 AND timestamp < $2 AND category = $3
-            ORDER BY timestamp DESC
-            LIMIT $4 OFFSET $5
-            "#,
-        )
-        .bind(start_date)
-        .bind(end_date)
-        .bind(cat)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-    } else {
-        sqlx::query_as::<_, LogEntry>(
-            r#"
-            SELECT id, timestamp, category, message, '' as content, github_path
-            FROM system_logs 
-            WHERE timestamp >= $1 AND timestamp < $2
-            ORDER BY timestamp DESC
-            LIMIT $3 OFFSET $4
-            "#,
-        )
-        .bind(start_date)
-        .bind(end_date)
-        .bind(limit)
-        .bind(offset)
-        .fetch_all(pool)
-        .await
-    };
+    match logs_res {
+        Ok(mut logs) => {
+            // Filter by category if needed
+            if let Some(cat) = &params.category {
+                logs.retain(|l| &l.category == cat);
+            }
 
-    match logs {
-        Ok(rows) => {
-            let files: Vec<LogEntryInternal> = rows
+            // Sort by timestamp DESC
+            logs.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+
+            let total = logs.len() as i64;
+
+            // Pagination
+            let logs_page: Vec<LogEntry> = logs.into_iter().skip(offset).take(limit).collect();
+
+            let files: Vec<LogEntryInternal> = logs_page
                 .into_iter()
                 .map(|row| {
+                    let ts = DateTime::parse_from_rfc3339(&row.timestamp)
+                        .map(|dt| dt.format("%H:%M:%S").to_string())
+                        .unwrap_or_else(|_| row.timestamp.clone());
+
                     LogEntryInternal {
-                        name: format!("{} - {}", row.timestamp.format("%H:%M:%S"), row.message),
-                        path: row.id.to_string(),
+                        name: format!("{} - {}", ts, row.message),
+                        path: row.id.clone(),
                         size: 0, // Unknown size without content
-                        sha: row.id.to_string(),
+                        sha: row.id.clone(),
                         download_url: None,
                     }
                 })
                 .collect();
-
-            let total: i64 = files.len() as i64;
 
             (
                 StatusCode::OK,
@@ -196,7 +170,7 @@ pub async fn list_logs(Query(params): Query<ListLogsQuery>) -> impl IntoResponse
                 success: false,
                 files: vec![],
                 total: 0,
-                message: format!("Database error: {}", e),
+                message: format!("Firestore error: {}", e),
             }),
         ),
     }
@@ -238,39 +212,38 @@ async fn fetch_from_github(path: &str) -> Option<String> {
 /// Get specific log file content
 /// GET /api/logs/content/*path
 pub async fn get_log_content(Path(id_str): Path<String>) -> impl IntoResponse {
-    let pool = match get_db() {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(LogContentResponse {
                     success: false,
                     filename: String::new(),
-                    content: "Database not available".to_string(),
+                    content: "Firestore not available".to_string(),
                     size: 0,
                 }),
             )
         }
     };
 
-    let Ok(id) = uuid::Uuid::parse_str(&id_str) else {
+    // Extract date from ID: YYYY-MM-DD_UUID
+    let parts: Vec<&str> = id_str.splitn(2, '_').collect();
+    if parts.len() != 2 {
         return (
             StatusCode::BAD_REQUEST,
             Json(LogContentResponse {
                 success: false,
                 filename: String::new(),
-                content: "Invalid ID format".to_string(),
+                content: "Invalid ID format (missing date prefix)".to_string(),
                 size: 0,
             }),
         );
-    };
+    }
+    let date_str = parts[0];
+    let path = format!("system_logs/{}/entries", date_str);
 
-    let res = sqlx::query_as::<_, LogEntry>(
-        "SELECT id, timestamp, category, message, content, github_path FROM system_logs WHERE id = $1"
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await;
+    let res = firestore.get_doc::<LogEntry>(&path, &id_str).await;
 
     match res {
         Ok(Some(mut row)) => {
@@ -309,7 +282,7 @@ pub async fn get_log_content(Path(id_str): Path<String>) -> impl IntoResponse {
             Json(LogContentResponse {
                 success: false,
                 filename: String::new(),
-                content: format!("Database error: {}", e),
+                content: format!("Firestore error: {}", e),
                 size: 0,
             }),
         ),
@@ -335,15 +308,15 @@ pub async fn list_log_dates() -> impl IntoResponse {
 /// List categories for a specific date
 /// GET /api/logs/categories?date=YYYY/MM/DD
 pub async fn list_log_categories(Query(params): Query<ListLogsQuery>) -> impl IntoResponse {
-    let pool = match get_db() {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(serde_json::json!({
                     "success": false,
                     "categories": [],
-                    "message": "Database not available"
+                    "message": "Firestore not available"
                 })),
             )
         }
@@ -352,31 +325,17 @@ pub async fn list_log_categories(Query(params): Query<ListLogsQuery>) -> impl In
     let date_str = params
         .date
         .unwrap_or_else(|| Utc::now().format("%Y-%m-%d").to_string());
-    // Parse date
-    let start_date = match chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d")
-        .or_else(|_| chrono::NaiveDate::parse_from_str(&date_str, "%Y/%m/%d"))
-    {
-        Ok(d) => Utc.from_utc_datetime(&d.and_hms_opt(0, 0, 0).unwrap()),
-        Err(_) => Utc::now(), // Fallback
-    };
-    let end_date = start_date + Duration::days(1);
 
-    #[derive(sqlx::FromRow)]
-    struct CatRow {
-        category: String,
-    }
+    let path = format!("system_logs/{}/entries", date_str);
 
-    let res = sqlx::query_as::<_, CatRow>(
-        "SELECT DISTINCT category FROM system_logs WHERE timestamp >= $1 AND timestamp < $2",
-    )
-    .bind(start_date)
-    .bind(end_date)
-    .fetch_all(pool)
-    .await;
+    // Efficiently, we should just list and collect distinct categories.
+    // Since we fetch all metadata for a day anyway (usually < 100 logs?), this is fine.
+    match firestore.list_docs::<LogEntry>(&path).await {
+        Ok(logs) => {
+            let mut categories: Vec<String> = logs.into_iter().map(|l| l.category).collect();
+            categories.sort();
+            categories.dedup();
 
-    match res {
-        Ok(rows) => {
-            let categories: Vec<String> = rows.into_iter().map(|r| r.category).collect();
             (
                 StatusCode::OK,
                 Json(serde_json::json!({
@@ -392,7 +351,7 @@ pub async fn list_log_categories(Query(params): Query<ListLogsQuery>) -> impl In
             Json(serde_json::json!({
                 "success": false,
                 "categories": [],
-                "message": format!("Database error: {}", e)
+                "message": format!("Firestore error: {}", e)
             })),
         ),
     }
@@ -438,8 +397,8 @@ pub struct StatsQuery {
 
 pub async fn get_log_stats(Query(params): Query<StatsQuery>) -> impl IntoResponse {
     let days = params.days.unwrap_or(7);
-    let pool = match get_db() {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
@@ -449,107 +408,61 @@ pub async fn get_log_stats(Query(params): Query<StatsQuery>) -> impl IntoRespons
                     total_reports: 0,
                     total_errors: 0,
                     daily_stats: vec![],
-                    message: "Database not available".to_string(),
+                    message: "Firestore not available".to_string(),
                 }),
             )
         }
     };
 
-    let start_date = Utc::now() - Duration::days(days);
+    use std::collections::HashMap;
+    let mut daily_stats = Vec::new();
+    let mut total_reports = 0;
+    let mut total_errors = 0;
 
-    #[derive(sqlx::FromRow)]
-    struct StatRow {
-        day: Option<chrono::NaiveDate>, // date_trunc returns timestamp, we cast to date
-        category: String,
-        count: Option<i64>,
-    }
+    // Parallel fetch for last N days? Or sequential to be nice to rate limit?
+    // Sequential for safety. 7 days = 7 writes/reads. 2000 reads/hour limit.
+    // 7 reads is fine.
 
-    // Efficient aggregation query
-    let res = sqlx::query_as::<_, StatRow>(
-        r#"
-        SELECT 
-            DATE(timestamp) as day, 
-            category, 
-            COUNT(*) as count 
-        FROM system_logs 
-        WHERE timestamp >= $1 
-        GROUP BY 1, 2
-        ORDER BY 1 ASC
-        "#,
-    )
-    .bind(start_date)
-    .fetch_all(pool)
-    .await;
+    for i in (0..days).rev() {
+        let d = Utc::now() - Duration::days(i);
+        let date_str = d.format("%Y-%m-%d").to_string();
+        let path = format!("system_logs/{}/entries", date_str);
 
-    match res {
-        Ok(rows) => {
-            // Process rows in memory to group by day struct
-            use std::collections::HashMap;
-            let mut day_map: HashMap<String, DailyStats> = HashMap::new();
-            let mut total_reports = 0;
-            let mut total_errors = 0;
+        let mut stats = DailyStats {
+            date: date_str.clone(),
+            reports: 0,
+            errors: 0,
+            th_queries: 0,
+            total: 0,
+        };
 
-            // Pre-fill days
-            for i in 0..days {
-                let d = Utc::now() - Duration::days(i);
-                let date_str = d.format("%Y-%m-%d").to_string();
-                day_map.insert(
-                    date_str.clone(),
-                    DailyStats {
-                        date: date_str,
-                        reports: 0,
-                        errors: 0,
-                        th_queries: 0,
-                        total: 0,
-                    },
-                );
-            }
-
-            for row in rows {
-                if let Some(day) = row.day {
-                    let date_str = day.format("%Y-%m-%d").to_string();
-                    let count = row.count.unwrap_or(0);
-
-                    if let Some(stats) = day_map.get_mut(&date_str) {
-                        stats.total += count;
-                        if row.category.contains("report") {
-                            stats.reports += count;
-                            total_reports += count;
-                        } else if row.category.contains("error") {
-                            stats.errors += count;
-                            total_errors += count;
-                        } else if row.category.contains("threat") {
-                            stats.th_queries += count;
-                        }
-                    }
+        if let Ok(logs) = firestore.list_docs::<LogEntry>(&path).await {
+            stats.total = logs.len() as i64;
+            for log in logs {
+                if log.category.contains("report") {
+                    stats.reports += 1;
+                    total_reports += 1;
+                } else if log.category.contains("error") {
+                    stats.errors += 1;
+                    total_errors += 1;
+                } else if log.category.contains("threat") {
+                    stats.th_queries += 1;
                 }
             }
-
-            let mut daily_stats: Vec<DailyStats> = day_map.into_values().collect();
-            daily_stats.sort_by(|a, b| a.date.cmp(&b.date));
-
-            (
-                StatusCode::OK,
-                Json(StatsResponse {
-                    success: true,
-                    period: format!("{}d", days),
-                    total_reports,
-                    total_errors,
-                    daily_stats,
-                    message: "OK".to_string(),
-                }),
-            )
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(StatsResponse {
-                success: false,
-                period: format!("{}d", days),
-                total_reports: 0,
-                total_errors: 0,
-                daily_stats: vec![],
-                message: format!("Database error: {}", e),
-            }),
-        ),
+
+        daily_stats.push(stats);
     }
+
+    (
+        StatusCode::OK,
+        Json(StatsResponse {
+            success: true,
+            period: format!("{}d", days),
+            total_reports,
+            total_errors,
+            daily_stats,
+            message: "OK".to_string(),
+        }),
+    )
 }

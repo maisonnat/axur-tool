@@ -1,13 +1,15 @@
-//! Remote logging module - Hybrid (PostgreSQL + GitHub)
+//! Remote logging module - Hybrid (Firestore + GitHub)
 //!
 //! - Writes full log content to GitHub (Unlimited storage)
-//! - Writes metadata and indexed fields to PostgreSQL (Fast queries)
-//! - Respects 100MB limit on free Postgres tier by truncating content in DB
+//! - Writes metadata and indexed fields to Firestore (Fast queries)
+//! - Uses daily sharding for Firestore collections to optimize cost/performance.
 
-use crate::db::get_db;
 use axum::http::StatusCode;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde_json::json;
+use uuid::Uuid;
+
+use crate::firebase::Firestore;
 
 /// Configuration for remote logging (GitHub)
 pub struct RemoteLogConfig {
@@ -141,7 +143,7 @@ async fn upload_to_github(
     Err(format!("GitHub upload failed: {}", res.status()))
 }
 
-/// Upload a log entry (Hybrid: GitHub + DB)
+/// Upload a log entry (Hybrid: GitHub + Firestore)
 pub async fn upload_log(category: &str, filename: &str, content: &str) -> Result<String, String> {
     let now = chrono::Utc::now();
     let message = format!("Log: {} - {}", category, filename);
@@ -160,9 +162,10 @@ pub async fn upload_log(category: &str, filename: &str, content: &str) -> Result
         }
     }
 
-    let pool = match get_db() {
-        Some(p) => p,
-        None => return Err("Database pool not initialized".to_string()),
+    // 2. Insert into Firestore
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
+        None => return Err("Firestore not available".to_string()),
     };
 
     let level = if category.contains("error") {
@@ -173,8 +176,8 @@ pub async fn upload_log(category: &str, filename: &str, content: &str) -> Result
         "info"
     };
 
-    // 2. Insert into DB (Truncate content if large)
-    let max_db_content_size = 2000; // 2KB preview
+    // Truncate content for DB
+    let max_db_content_size = 2000;
     let db_content = if content.len() > max_db_content_size {
         format!(
             "{}... (truncated, see GitHub)",
@@ -184,32 +187,43 @@ pub async fn upload_log(category: &str, filename: &str, content: &str) -> Result
         content.to_string()
     };
 
-    let metadata = serde_json::from_str::<serde_json::Value>(content).ok();
+    let metadata = serde_json::from_str::<serde_json::Value>(content).unwrap_or(json!({}));
 
-    let res = sqlx::query(
-        r#"
-        INSERT INTO system_logs (category, message, level, content, metadata, github_path, github_html_url)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id
-        "#,
-    )
-    .bind(category)
-    .bind(message)
-    .bind(level)
-    .bind(db_content)
-    .bind(metadata)
-    .bind(&github_path)
-    .bind(&github_url)
-    .fetch_one(pool)
-    .await;
+    // Sharding by Date: system_logs/{YYYY-MM-DD}/entries/{ID}
+    let date_key = now.format("%Y-%m-%d").to_string();
+    let uuid_val = Uuid::new_v4();
+    let id = format!("{}_{}", date_key, uuid_val); // Prefix with date for easier lookup if needed
 
-    match res {
-        Ok(row) => {
-            use sqlx::Row;
-            let id: uuid::Uuid = row.get("id");
-            Ok(id.to_string())
+    let log_entry = json!({
+        "id": id,
+        "timestamp": now.to_rfc3339(),
+        "category": category,
+        "message": message,
+        "level": level,
+        "content": db_content,
+        "metadata": metadata,
+        "github_path": github_path,
+        "github_html_url": github_url
+    });
+
+    // Ensure the daily document exists (creating it is cheap/idempotent with set)
+    // Actually, we don't strictly need the parent doc to exist to add to subcollection in Firestore Native?
+    // In Datastore mode yes, in Native mode usually yes for listing.
+    // We'll create a dummy doc for the date to enable listing dates.
+    // Optimistic: Assume it exists or we create it once per day.
+    // For now we just write to subcollection. If we want to list dates, we should write a date doc.
+    // Let's write the log first.
+
+    let path = format!("system_logs/{}/entries", date_key);
+    match firestore.set_doc(&path, &id, &log_entry).await {
+        Ok(_) => {
+            // Also ensure date doc exists? - optimization: do this only on distinct dates?
+            // Too expensive to check every time.
+            // We'll assume the client 'list dates' will list root collection `system_logs`.
+            // Depending on Firestore, empty docs (only having subcollections) might show up or not.
+            Ok(id)
         }
-        Err(e) => Err(format!("Database error: {}", e)),
+        Err(e) => Err(format!("Firestore error: {}", e)),
     }
 }
 
@@ -228,12 +242,11 @@ pub fn upload_log_async(category: &str, filename: &str, content: String) {
 
 /// Upload a generated report (Hybrid)
 pub fn upload_report_async(tenant: &str, filename: &str, content: String) {
-    let _tenant = tenant.to_string(); // Reserved for future tenant-based organization
+    let _tenant = tenant.to_string();
     let filename = filename.to_string();
     let category = "reports".to_string();
 
     tokio::spawn(async move {
-        // We reuse upload_log which handles both GitHub and DB
         if let Err(e) = upload_log(&category, &filename, &content).await {
             tracing::warn!("Failed to archive report: {}", e);
         }
@@ -254,23 +267,31 @@ pub fn upload_debug_json(category: &str, data: &serde_json::Value) {
 
 /// Log API request with metadata
 pub fn log_request<T: serde::Serialize>(operation: &str, payload: &T, tenant_id: Option<&str>) {
-    if let Some(pool) = get_db() {
+    // Firestore Analytics
+    if let Some(firestore) = crate::firebase::get_firestore() {
         let op = operation.to_string();
         let tid = tenant_id.map(|s| s.to_string());
         let props = serde_json::to_value(payload).unwrap_or(json!({}));
 
         tokio::spawn(async move {
-            let _ = sqlx::query(
-                r#"
-                INSERT INTO analytics_events (event_type, tenant_id, properties)
-                VALUES ($1, $2, $3)
-                "#,
-            )
-            .bind("api_request")
-            .bind(tid)
-            .bind(json!({ "operation": op, "payload": props }))
-            .execute(pool)
-            .await;
+            let now = chrono::Utc::now();
+            let date_key = now.format("%Y-%m-%d").to_string();
+            let id = Uuid::new_v4().to_string();
+
+            let event = json!({
+                "event_type": "api_request",
+                "tenant_id": tid,
+                "timestamp": now.to_rfc3339(),
+                "properties": { "operation": op, "payload": props }
+            });
+
+            let _ = firestore
+                .set_doc(
+                    &format!("analytics_events/{}/events", date_key),
+                    &id,
+                    &event,
+                )
+                .await;
         });
     }
 
@@ -293,26 +314,35 @@ pub fn log_response<T: serde::Serialize>(
     tenant_id: Option<&str>,
     success: bool,
 ) {
-    if let Some(pool) = get_db() {
+    if let Some(firestore) = crate::firebase::get_firestore() {
         let op = operation.to_string();
         let tid = tenant_id.map(|s| s.to_string());
+        // Avoid cloning large response if not needed? Properties can be simplified.
+        let props = json!({
+            "operation": op,
+            "duration_ms": duration_ms as i64,
+            "success": success
+        });
 
         tokio::spawn(async move {
-            let _ = sqlx::query(
-                r#"
-                INSERT INTO analytics_events (event_type, tenant_id, properties)
-                VALUES ($1, $2, $3)
-                "#,
-            )
-            .bind("api_response")
-            .bind(tid)
-            .bind(json!({
-                "operation": op,
-                "duration_ms": duration_ms as i64,
-                "success": success
-            }))
-            .execute(pool)
-            .await;
+            let now = chrono::Utc::now();
+            let date_key = now.format("%Y-%m-%d").to_string();
+            let id = Uuid::new_v4().to_string();
+
+            let event = json!({
+                "event_type": "api_response",
+                "tenant_id": tid,
+                "timestamp": now.to_rfc3339(),
+                "properties": props
+            });
+
+            let _ = firestore
+                .set_doc(
+                    &format!("analytics_events/{}/events", date_key),
+                    &id,
+                    &event,
+                )
+                .await;
         });
     }
 
@@ -337,7 +367,7 @@ pub fn log_error(
     tenant_id: Option<&str>,
     context: serde_json::Value,
 ) {
-    if let Some(pool) = get_db() {
+    if let Some(firestore) = crate::firebase::get_firestore() {
         let op = operation.to_string();
         let code = error_code.to_string();
         let msg = error_message.to_string();
@@ -345,22 +375,29 @@ pub fn log_error(
         let ctx = context.clone();
 
         tokio::spawn(async move {
-            let _ = sqlx::query(
-                r#"
-                INSERT INTO analytics_events (event_type, tenant_id, properties)
-                VALUES ($1, $2, $3)
-                "#,
-            )
-            .bind("error")
-            .bind(tid)
-            .bind(json!({
-                "operation": op,
-                "error_code": code,
-                "error_message": msg,
-                "context": ctx
-            }))
-            .execute(pool)
-            .await;
+            let now = chrono::Utc::now();
+            let date_key = now.format("%Y-%m-%d").to_string();
+            let id = Uuid::new_v4().to_string();
+
+            let event = json!({
+                "event_type": "error",
+                "tenant_id": tid,
+                "timestamp": now.to_rfc3339(),
+                "properties": {
+                   "operation": op,
+                   "error_code": code,
+                   "error_message": msg,
+                   "context": ctx
+                }
+            });
+
+            let _ = firestore
+                .set_doc(
+                    &format!("analytics_events/{}/events", date_key),
+                    &id,
+                    &event,
+                )
+                .await;
         });
     }
 
@@ -403,27 +440,34 @@ pub fn log_feature_usage(
     success: bool,
     metadata: Option<serde_json::Value>,
 ) {
-    if let Some(pool) = get_db() {
+    if let Some(firestore) = crate::firebase::get_firestore() {
         let feat = feature.to_string();
         let tid = tenant_id.map(|s| s.to_string());
         let meta = metadata.clone().unwrap_or(json!({}));
 
         tokio::spawn(async move {
-            let _ = sqlx::query(
-                r#"
-                INSERT INTO analytics_events (event_type, tenant_id, properties)
-                VALUES ($1, $2, $3)
-                "#,
-            )
-            .bind("feature_usage")
-            .bind(tid)
-            .bind(json!({
-                "feature": feat,
-                "success": success,
-                "metadata": meta
-            }))
-            .execute(pool)
-            .await;
+            let now = chrono::Utc::now();
+            let date_key = now.format("%Y-%m-%d").to_string();
+            let id = Uuid::new_v4().to_string();
+
+            let event = json!({
+                "event_type": "feature_usage",
+                "tenant_id": tid,
+                "timestamp": now.to_rfc3339(),
+                "properties": {
+                   "feature": feat,
+                   "success": success,
+                   "metadata": meta
+                }
+            });
+
+            let _ = firestore
+                .set_doc(
+                    &format!("analytics_events/{}/events", date_key),
+                    &id,
+                    &event,
+                )
+                .await;
         });
     }
 

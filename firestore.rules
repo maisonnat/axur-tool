@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // SECURITY NOTE:
+    // The Backend uses a Service Account which bypasses these rules.
+    // These rules apply to direct access from Web/Mobile clients.
+    // Since all traffic is proxied through our Backend, we block all direct access by default.
+    
+    // Default Deny All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

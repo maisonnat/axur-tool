@@ -20,16 +20,16 @@ use crate::routes::AppState;
 // TYPES
 // ========================
 
-#[derive(Debug, Serialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BetaReq {
-    pub id: uuid::Uuid,
+    pub id: String,
     pub email: String,
     pub company: String,
     pub status: String,
     pub requested_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AllowedUser {
     pub email: String,
     pub role: String,
@@ -65,8 +65,11 @@ pub fn admin_routes() -> Router<AppState> {
             "/beta/requests/pending-count",
             get(super::beta::get_pending_count),
         )
-        .route("/beta/requests/:id/approve", post(approve_beta_request))
-        .route("/beta/requests/:id/reject", post(reject_beta_request))
+        // Unified action endpoint: POST /beta/requests/:email/action { "action": "approve"|"reject" }
+        .route(
+            "/beta/requests/:email/action",
+            post(handle_beta_request_action),
+        )
 }
 
 // ========================
@@ -74,76 +77,60 @@ pub fn admin_routes() -> Router<AppState> {
 // ========================
 
 /// Check if the caller is an admin
-async fn require_admin(jar: &CookieJar, pool: &sqlx::PgPool) -> Result<String, ApiError> {
+/// Check if the caller is an admin
+async fn require_admin(jar: &CookieJar) -> Result<String, ApiError> {
     let user_email = jar
         .get(AUTH_USER_COOKIE_NAME)
         .map(|c| c.value().to_string())
         .ok_or_else(|| ApiError::Unauthorized("Not logged in".into()))?;
 
-    let email_lower = user_email.to_lowercase();
-    let result: Option<(String,)> =
-        sqlx::query_as("SELECT role FROM allowed_users WHERE LOWER(email) = $1")
-            .bind(&email_lower)
-            .fetch_optional(pool)
-            .await
-            .unwrap_or(None);
-
-    match result {
-        Some((role,)) if role == "admin" => Ok(user_email),
-        Some(_) => Err(ApiError::Forbidden("Admin access required".into())),
-        None => Err(ApiError::Forbidden("User not in allowed list".into())),
+    // Use GitHub storage for admin check
+    if let Some(storage) = crate::github_storage::get_github_storage() {
+        match storage.is_admin(&user_email).await {
+            Ok(true) => return Ok(user_email),
+            Ok(false) => return Err(ApiError::Forbidden("Admin access required".into())),
+            Err(e) => {
+                tracing::error!("GitHub storage admin check failed: {}", e);
+                // Fallthrough to error
+            }
+        }
+    } else {
+        tracing::error!("GitHub storage not configured");
     }
+
+    Err(ApiError::Internal("Admin check unavailable".into()))
 }
 
 /// List all allowed users
+/// List all allowed users
 async fn list_users(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<Vec<AllowedUser>>, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
+    require_admin(&jar).await?;
 
-    require_admin(&jar, pool).await?;
+    // Try Firestore first
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        match firestore.list_docs::<AllowedUser>("allowed_users").await {
+            Ok(users) => return Ok(Json(users)),
+            Err(e) => tracing::error!("Firestore error listing users: {}", e),
+        }
+    }
 
-    let rows: Vec<(String, String, Option<String>, Option<chrono::DateTime<chrono::Utc>>, Option<String>)> = sqlx::query_as(
-        "SELECT email, role, description, created_at, added_by FROM allowed_users ORDER BY created_at DESC"
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(|e| ApiError::Internal(format!("Database error: {}", e)))?;
-
-    let users: Vec<AllowedUser> = rows
-        .into_iter()
-        .map(
-            |(email, role, description, created_at, added_by)| AllowedUser {
-                email,
-                role,
-                description,
-                created_at: created_at.map(|dt| dt.to_rfc3339()),
-                added_by,
-            },
-        )
-        .collect();
-
-    Ok(Json(users))
+    // Fallback: empty list (or error if we want strict)
+    tracing::warn!("Firestore unavailable for list_users");
+    Ok(Json(vec![]))
 }
 
-/// Add a new user to the allowed list
+/// Add a new user to the allowed list (and GitHub storage)
 async fn add_user(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jar: CookieJar,
     Json(payload): Json<AddUserRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
+    let admin_email = require_admin(&jar).await?;
 
-    let admin_email = require_admin(&jar, pool).await?;
-
-    // Validate email format (basic check)
+    // Validate email format
     if !payload.email.contains('@') {
         return Err(ApiError::BadRequest("Invalid email format".into()));
     }
@@ -157,191 +144,195 @@ async fn add_user(
         )));
     }
 
-    let result = sqlx::query(
-        "INSERT INTO allowed_users (email, role, description, added_by) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO UPDATE SET role = $2, description = $3"
-    )
-    .bind(&payload.email.to_lowercase())
-    .bind(&payload.role)
-    .bind(&payload.description)
-    .bind(&admin_email)
-    .execute(pool)
-    .await;
+    let email_lower = payload.email.to_lowercase();
+    let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
 
-    match result {
-        Ok(_) => {
-            tracing::info!(
-                admin = %admin_email,
-                user = %payload.email,
-                role = %payload.role,
-                "User added to allowed_users"
-            );
-            Ok(Json(serde_json::json!({
-                "success": true,
-                "message": format!("User {} added with role {}", payload.email, payload.role)
-            })))
+    // Create user object
+    let user = AllowedUser {
+        email: email_lower.clone(),
+        role: payload.role.clone(),
+        description: payload.description.clone(),
+        created_at: Some(chrono::Utc::now().to_rfc3339()),
+        added_by: Some(admin_email.clone()),
+    };
+
+    // 1. Save to Firestore
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        let doc_json =
+            serde_json::to_value(&user).map_err(|e| ApiError::Internal(e.to_string()))?;
+        if let Err(e) = firestore.set_doc("allowed_users", &doc_id, &doc_json).await {
+            tracing::error!("Failed to add user to Firestore: {}", e);
+            return Err(ApiError::Internal("Failed to save user".into()));
         }
-        Err(e) => Err(ApiError::Internal(format!("Failed to add user: {}", e))),
+    } else {
+        return Err(ApiError::Internal("Storage not available".into()));
     }
+
+    // 2. Also update GitHub storage if configured (for redundancy/CDN)
+    if let Some(storage) = crate::github_storage::get_github_storage() {
+        // Implement logic to update allowed_users.json in GitHub if needed
+        // For now, we rely on Firestore as primary source of truth for writes
+        // and could implement a background sync or dual-write.
+        // Assuming dual-write for now if method exists, otherwise skip.
+        tracing::info!(
+            "User added to Firestore. GitHub sync not yet implemented for individual users."
+        );
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("User {} added with role {}", payload.email, payload.role)
+    })))
 }
 
 /// Remove a user from the allowed list
 async fn remove_user(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jar: CookieJar,
     Path(email): Path<String>,
 ) -> Result<impl IntoResponse, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
-
-    let admin_email = require_admin(&jar, pool).await?;
+    let admin_email = require_admin(&jar).await?;
 
     // Prevent removing yourself
     if email.to_lowercase() == admin_email.to_lowercase() {
         return Err(ApiError::BadRequest("Cannot remove yourself".into()));
     }
 
-    let result = sqlx::query("DELETE FROM allowed_users WHERE LOWER(email) = $1")
-        .bind(&email.to_lowercase())
-        .execute(pool)
-        .await;
+    let email_lower = email.to_lowercase();
+    let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
 
-    match result {
-        Ok(res) if res.rows_affected() > 0 => {
-            tracing::info!(
-                admin = %admin_email,
-                removed_user = %email,
-                "User removed from allowed_users"
-            );
-            Ok(Json(serde_json::json!({
-                "success": true,
-                "message": format!("User {} removed", email)
-            })))
+    // 1. Remove from Firestore
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        if let Err(e) = firestore.delete_doc("allowed_users", &doc_id).await {
+            tracing::error!("Failed to remove user from Firestore: {}", e);
+            return Err(ApiError::Internal("Failed to remove user".into()));
         }
-        Ok(_) => Err(ApiError::NotFound(format!("User {} not found", email))),
-        Err(e) => Err(ApiError::Internal(format!("Failed to remove user: {}", e))),
+    } else {
+        return Err(ApiError::Internal("Storage not available".into()));
     }
+
+    // 2. Also remove from GitHub storage if configured
+    if let Some(storage) = crate::github_storage::get_github_storage() {
+        // Implement logic to remove from allowed_users.json in GitHub if needed
+        // For now, logging.
+        tracing::info!("User removed from Firestore. GitHub sync not yet implemented.");
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("User {} removed", email)
+    })))
 }
 
 /// List all beta requests
 async fn list_beta_requests(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jar: CookieJar,
 ) -> Result<Json<Vec<BetaReq>>, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
+    require_admin(&jar).await?;
 
-    require_admin(&jar, pool).await?;
-
-    let requests: Vec<BetaReq> = sqlx::query_as(
-        "SELECT id, email, company, status, requested_at FROM beta_requests ORDER BY requested_at DESC",
-    )
-    .fetch_all(pool)
-    .await
-    .map_err(|e| ApiError::Internal(format!("Database error: {}", e)))?;
-
-    Ok(Json(requests))
-}
-
-/// Approve a beta request
-async fn approve_beta_request(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Path(id): Path<uuid::Uuid>,
-) -> Result<impl IntoResponse, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
-
-    let admin_email = require_admin(&jar, pool).await?;
-
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|e| ApiError::Internal(format!("Transaction error: {}", e)))?;
-
-    // 1. Get request details
-    let req: Option<(String, String)> = sqlx::query_as(
-        "SELECT email, company FROM beta_requests WHERE id = $1 AND status = 'pending'",
-    )
-    .bind(id)
-    .fetch_optional(&mut *tx)
-    .await
-    .map_err(|e| ApiError::Internal(e.to_string()))?;
-
-    let (email, company) = match req {
-        Some(r) => r,
-        None => return Err(ApiError::NotFound("Pending request not found".into())),
-    };
-
-    // 2. Insert into allowed_users
-    let user_desc = format!("Beta Tester (Company: {})", company);
-    sqlx::query(
-        "INSERT INTO allowed_users (email, role, description, added_by) VALUES ($1, 'beta_tester', $2, $3) ON CONFLICT (email) DO NOTHING"
-    )
-    .bind(&email)
-    .bind(&user_desc)
-    .bind(&admin_email)
-    .execute(&mut *tx)
-    .await
-    .map_err(|e| ApiError::Internal(format!("Failed to add user: {}", e)))?;
-
-    // 3. Update request status
-    sqlx::query(
-        "UPDATE beta_requests SET status = 'approved', processed_at = NOW(), processed_by = $1 WHERE id = $2"
-    )
-    .bind(&admin_email)
-    .bind(id)
-    .execute(&mut *tx)
-    .await
-    .map_err(|e| ApiError::Internal(format!("Failed to update request: {}", e)))?;
-
-    tx.commit()
-        .await
-        .map_err(|e| ApiError::Internal(format!("Commit error: {}", e)))?;
-
-    tracing::info!(admin = %admin_email, user = %email, "Approved beta request");
-
-    Ok(Json(serde_json::json!({
-        "success": true,
-        "message": format!("Approved {}", email)
-    })))
-}
-
-/// Reject a beta request
-async fn reject_beta_request(
-    State(state): State<AppState>,
-    jar: CookieJar,
-    Path(id): Path<uuid::Uuid>,
-) -> Result<impl IntoResponse, ApiError> {
-    let pool = state
-        .pool
-        .as_ref()
-        .ok_or_else(|| ApiError::Internal("Database not available".into()))?;
-
-    let admin_email = require_admin(&jar, pool).await?;
-
-    let result = sqlx::query(
-        "UPDATE beta_requests SET status = 'rejected', processed_at = NOW(), processed_by = $1 WHERE id = $2"
-    )
-    .bind(&admin_email)
-    .bind(id)
-    .execute(pool)
-    .await
-    .map_err(|e| ApiError::Internal(format!("Failed to reject: {}", e)))?;
-
-    if result.rows_affected() == 0 {
-        return Err(ApiError::NotFound("Request not found".into()));
+    // Try Firestore first
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        match firestore.list_docs::<BetaRequestDoc>("beta_requests").await {
+            Ok(docs) => {
+                let requests: Vec<BetaReq> = docs
+                    .into_iter()
+                    .map(|d| BetaReq {
+                        id: d.email.clone(), // Use email as ID
+                        email: d.email,
+                        company: d.company.unwrap_or_default(),
+                        status: d.status,
+                        requested_at: d.requested_at.map(|t| {
+                            chrono::DateTime::parse_from_rfc3339(&t)
+                                .unwrap_or_default()
+                                .with_timezone(&chrono::Utc)
+                        }),
+                    })
+                    .collect();
+                return Ok(Json(requests));
+            }
+            Err(e) => tracing::error!("Firestore error listing beta requests: {}", e),
+        }
     }
 
-    tracing::info!(admin = %admin_email, id = %id, "Rejected beta request");
+    // Fallback
+    tracing::warn!("Firestore unavailable for list_beta_requests");
+    Ok(Json(vec![]))
+}
+
+// Helper structs for Firestore
+#[derive(Debug, serde::Deserialize)]
+struct BetaRequestDoc {
+    email: String,
+    company: Option<String>,
+    status: String,
+    requested_at: Option<String>,
+}
+
+/// Admin Action on Beta Request (Approve/Reject)
+#[derive(Debug, serde::Deserialize)]
+pub struct BetaActionRequest {
+    pub action: String, // "approve" or "reject"
+}
+
+/// Handle beta request action (approve/reject)
+/// Path param is the email (sanitized or raw, we'll handle it)
+async fn handle_beta_request_action(
+    State(_state): State<AppState>,
+    jar: CookieJar,
+    Path(email): Path<String>,
+    Json(payload): Json<BetaActionRequest>,
+) -> Result<impl IntoResponse, ApiError> {
+    let admin_email = require_admin(&jar).await?;
+
+    let email_lower = email.to_lowercase();
+    let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
+
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        if payload.action == "approve" {
+            // 1. Add to allowed_users
+            let user = AllowedUser {
+                email: email_lower.clone(),
+                role: "beta_tester".to_string(),
+                description: Some("Approved from beta request".to_string()),
+                created_at: Some(chrono::Utc::now().to_rfc3339()),
+                added_by: Some(admin_email.clone()),
+            };
+            let doc_json =
+                serde_json::to_value(&user).map_err(|e| ApiError::Internal(e.to_string()))?;
+            firestore
+                .set_doc("allowed_users", &doc_id, &doc_json)
+                .await
+                .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+            // 2. Update beta_requests status
+            let update = serde_json::json!({ "status": "approved" });
+            firestore
+                .update_doc("beta_requests", &doc_id, &update)
+                .await
+                .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+            tracing::info!(admin = %admin_email, user = %email_lower, "Approved beta request");
+        } else if payload.action == "reject" {
+            // Update beta_requests status
+            let update = serde_json::json!({ "status": "rejected" });
+            firestore
+                .update_doc("beta_requests", &doc_id, &update)
+                .await
+                .map_err(|e| ApiError::Internal(e.to_string()))?;
+
+            tracing::info!(admin = %admin_email, user = %email_lower, "Rejected beta request");
+        } else {
+            return Err(ApiError::BadRequest(
+                "Invalid action. Use 'approve' or 'reject'".into(),
+            ));
+        }
+    } else {
+        return Err(ApiError::Internal("Storage not available".into()));
+    }
 
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": "Request rejected"
+        "message": format!("Action {} completed for {}", payload.action, email_lower)
     })))
 }

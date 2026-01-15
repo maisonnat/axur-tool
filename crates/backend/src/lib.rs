@@ -2,7 +2,6 @@
 //!
 //! Auth proxy and report generation API for Axur Web.
 
-pub mod db;
 pub mod error;
 pub mod firebase;
 pub mod github_storage;

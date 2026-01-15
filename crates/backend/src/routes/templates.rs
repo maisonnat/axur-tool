@@ -10,7 +10,6 @@ use axum::{
 };
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::routes::AppState;
@@ -374,24 +373,56 @@ pub async fn list_templates(
 /// POST /api/templates - Create a new template (Multipart)
 /// POST /api/templates - Create a new template (Multipart)
 pub async fn create_template(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Extension(user_id): Extension<String>,
     mut multipart: axum::extract::Multipart,
 ) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
+    // 1. Parse Multipart Data
+    let mut req: Option<CreateTemplateRequest> = None;
+    let mut file_data: Option<Vec<u8>> = None;
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.name().unwrap_or("").to_string();
+        if name == "metadata" {
+            let data = field.text().await.unwrap_or_default();
+            if let Ok(parsed) = serde_json::from_str::<CreateTemplateRequest>(&data) {
+                req = Some(parsed);
+            }
+        } else if name == "file" {
+            if let Ok(bytes) = field.bytes().await {
+                file_data = Some(bytes.to_vec());
+            }
+        }
+    }
+
+    let req = match req {
+        Some(r) => r,
         None => {
             return (
-                StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::BAD_REQUEST,
                 Json(TemplateResponse {
                     success: false,
                     id: None,
-                    message: "Database not available".to_string(),
+                    message: "Metadata field required".to_string(),
                     template: None,
                 }),
             )
         }
     };
+
+    if req.name.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(TemplateResponse {
+                success: false,
+                id: None,
+                message: "Name is required".to_string(),
+                template: None,
+            }),
+        );
+    }
+
+    // 2. Setup GitHub & Firestore
     let config = match GitHubConfig::from_env() {
         Some(c) => c,
         None => {
@@ -407,73 +438,32 @@ pub async fn create_template(
         }
     };
 
-    let user_uuid = match ensure_user_exists(pool, &user_id).await {
-        Some(id) => id,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(TemplateResponse {
                     success: false,
                     id: None,
-                    message: "User creation failed".to_string(),
+                    message: "Storage not available".to_string(),
                     template: None,
                 }),
             );
         }
     };
 
-    // Parse Multipart
-    let mut req: Option<CreateTemplateRequest> = None;
-    let mut file_data: Option<Vec<u8>> = None;
-
-    while let Ok(Some(field)) = multipart.next_field().await {
-        let name = field.name().unwrap_or("").to_string();
-        tracing::debug!("Received multipart field: {}", name);
-        if name == "data" {
-            if let Ok(text) = field.text().await {
-                tracing::debug!("Received data JSON: {}", text);
-                match serde_json::from_str::<CreateTemplateRequest>(&text) {
-                    Ok(parsed) => req = Some(parsed),
-                    Err(e) => tracing::error!("Failed to parse data JSON: {}", e),
-                }
-            } else {
-                tracing::error!("Failed to read text from data field");
-            }
-        } else if name == "file" {
-            if let Ok(bytes) = field.bytes().await {
-                file_data = Some(bytes.to_vec());
-                tracing::debug!(
-                    "Received file with {} bytes",
-                    file_data.as_ref().unwrap().len()
-                );
-            }
-        }
-    }
-
-    let Some(req) = req else {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(TemplateResponse {
-                success: false,
-                id: None,
-                message: "Missing 'data' JSON field".to_string(),
-                template: None,
-            }),
-        );
-    };
-
     let template_id = Uuid::new_v4();
-    // Path structure: templates/{user_id}/{template_id}/metadata.json
-    // We store the folder path effectively. get_user_template_path usually returns a single file path ?
-    // Let's redefine path usage.
-    // get_user_template_path returned "templates/{user_id}_{template_id}.json".
-    // We will now use "templates/{user_id}/{template_id}/metadata.json"
+    // GitHub Path: templates/{user_id}/{template_id}/metadata.json
+    let metadata_path = format!("templates/{}/{}/metadata.json", user_id, template_id);
+    let pptx_path = format!("templates/{}/{}/base.pptx", user_id, template_id);
 
-    let base_folder = format!("templates/{}/{}", user_id, template_id);
-    let metadata_path = format!("{}/metadata.json", base_folder);
-    let pptx_path = format!("{}/base.pptx", base_folder);
-
-    // Convert RawSlides to PresentationTemplate
+    // 3. Create Template Object
+    // Parse slides if available (indirectly via CreateTemplateRequest having slides)
+    // We reuse the slide parsing from previous implementation or assume simplified object for metadata
+    // The previous implementation for GitHub upload had logic to convert RawSlide to SlideDefinition.
+    // If we want to support full editor templates, we need that logic.
+    // For now, minimal object to satisfy types:
     let slides: Vec<axur_core::editor::SlideDefinition> = req
         .slides
         .iter()
@@ -500,7 +490,7 @@ pub async fn create_template(
         version: "1.0.0".to_string(),
     };
 
-    // Upload Metadata to GitHub
+    // 4. Upload Metadata to GitHub
     if let Err(e) = upload_template_to_github(&config, &metadata_path, &template_obj).await {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -513,7 +503,7 @@ pub async fn create_template(
         );
     }
 
-    // Upload Base PPTX if provided
+    // 5. Upload Base PPTX if provided
     if let Some(bytes) = file_data {
         if let Err(e) = upload_file_to_github(
             &config,
@@ -523,7 +513,6 @@ pub async fn create_template(
         )
         .await
         {
-            // Log error but stick with success? No, this is critical now.
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(TemplateResponse {
@@ -534,27 +523,28 @@ pub async fn create_template(
                 }),
             );
         }
-    } else {
-        // Warn: No base file?
-        // For MVP we might accept it, but it breaks generation.
     }
 
-    // Save metadata to DB
-    // Note: 'github_path' in DB should probably point to the metadata file or the folder.
-    // Existing logic used full path. Let's use metadata_path.
-    let result = sqlx::query(
-        "INSERT INTO user_templates (id, user_id, name, description, github_path) VALUES ($1, $2, $3, $4, $5)",
-    )
-    .bind(template_id)
-    .bind(user_uuid)
-    .bind(&req.name)
-    .bind(&req.description)
-    .bind(&metadata_path)
-    .bind(&metadata_path)
-    .execute(pool)
-    .await;
+    // 6. Save metadata to Firestore
+    // Path: user_templates/{user_id}/items/{template_id}
+    let created_at = chrono::Utc::now().to_rfc3339();
+    let template_doc = serde_json::json!({
+        "id": template_id.to_string(),
+        "name": req.name,
+        "description": req.description,
+        "github_path": metadata_path,
+        "created_at": created_at,
+        "updated_at": created_at
+    });
 
-    match result {
+    match firestore
+        .set_doc(
+            &format!("user_templates/{}/items", user_id),
+            &template_id.to_string(),
+            &template_doc,
+        )
+        .await
+    {
         Ok(_) => (
             StatusCode::CREATED,
             Json(TemplateResponse {
@@ -569,7 +559,7 @@ pub async fn create_template(
             Json(TemplateResponse {
                 success: false,
                 id: None,
-                message: e.to_string(),
+                message: format!("Failed to save metadata: {}", e),
                 template: None,
             }),
         ),
@@ -773,25 +763,11 @@ pub async fn get_template(Path(template_id): Path<String>) -> impl IntoResponse 
 
 /// PUT /api/templates/:id
 pub async fn update_template(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Extension(user_id): Extension<String>,
     Path(template_id): Path<String>,
     Json(req): Json<UpdateTemplateRequest>,
 ) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
-        None => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(TemplateResponse {
-                    success: false,
-                    id: None,
-                    message: "Database not available".to_string(),
-                    template: None,
-                }),
-            )
-        }
-    };
     let config = match GitHubConfig::from_env() {
         Some(c) => c,
         None => {
@@ -807,36 +783,28 @@ pub async fn update_template(
         }
     };
 
-    let template_uuid = match Uuid::parse_str(&template_id) {
-        Ok(id) => id,
-        Err(_) => {
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
+        None => {
             return (
-                StatusCode::BAD_REQUEST,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(TemplateResponse {
                     success: false,
                     id: None,
-                    message: "Invalid ID".to_string(),
+                    message: "Storage not available".to_string(),
                     template: None,
                 }),
             );
         }
     };
 
-    // Get current template
-    let current = sqlx::query(
-        r#"
-        SELECT ut.github_path, ut.name, ut.description
-        FROM user_templates ut JOIN users u ON ut.user_id = u.id
-        WHERE ut.id = $1 AND u.axur_tenant_id = $2
-        "#,
-    )
-    .bind(template_uuid)
-    .bind(&user_id)
-    .fetch_optional(pool)
-    .await;
-
-    let current = match current {
-        Ok(Some(row)) => row,
+    // Get current template metadata from Firestore
+    // Path: user_templates/{user_id}/items/{template_id}
+    let current_meta: serde_json::Value = match firestore
+        .get_doc(&format!("user_templates/{}/items", user_id), &template_id)
+        .await
+    {
+        Ok(Some(doc)) => doc,
         Ok(None) => {
             return (
                 StatusCode::NOT_FOUND,
@@ -861,113 +829,73 @@ pub async fn update_template(
         }
     };
 
-    let github_path: String = current.get("github_path");
+    let github_path = current_meta
+        .get("github_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
 
     // Update GitHub if content changed
     if let Some(ref template) = req.template {
-        if let Err(e) = upload_template_to_github(&config, &github_path, template).await {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(TemplateResponse {
-                    success: false,
-                    id: None,
-                    message: e,
-                    template: None,
-                }),
-            );
+        if !github_path.is_empty() {
+            if let Err(e) = upload_template_to_github(&config, &github_path, template).await {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(TemplateResponse {
+                        success: false,
+                        id: None,
+                        message: e,
+                        template: None,
+                    }),
+                );
+            }
         }
     }
 
     // Update metadata
-    let current_name: String = current.get("name");
-    let current_desc: Option<String> = current.get("description");
-    let new_name = req.name.as_ref().unwrap_or(&current_name);
-    let new_desc = req.description.as_ref().or(current_desc.as_ref());
+    let current_name = current_meta
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let current_desc = current_meta.get("description").and_then(|v| v.as_str());
 
-    let _ = sqlx::query(
-        "UPDATE user_templates SET name = $1, description = $2, updated_at = NOW() WHERE id = $3",
-    )
-    .bind(new_name)
-    .bind(new_desc)
-    .bind(template_uuid)
-    .execute(pool)
-    .await;
+    let new_name = req
+        .name
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or(current_name);
+    let new_desc = req
+        .description
+        .as_ref()
+        .map(|s| s.as_str())
+        .or(current_desc);
 
-    (
-        StatusCode::OK,
-        Json(TemplateResponse {
-            success: true,
-            id: Some(template_id),
-            message: "Updated".to_string(),
-            template: None,
-        }),
-    )
-}
+    // Merge updates
+    let mut update = current_meta.clone();
+    if let Some(obj) = update.as_object_mut() {
+        obj.insert("name".to_string(), serde_json::json!(new_name));
+        obj.insert("description".to_string(), serde_json::json!(new_desc));
+        obj.insert(
+            "updated_at".to_string(),
+            serde_json::json!(chrono::Utc::now().to_rfc3339()),
+        );
+    }
 
-/// DELETE /api/templates/:id
-pub async fn delete_template(
-    State(state): State<AppState>,
-    Extension(user_id): Extension<String>,
-    Path(template_id): Path<String>,
-) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
-        None => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(TemplateResponse {
-                    success: false,
-                    id: None,
-                    message: "Database not available".to_string(),
-                    template: None,
-                }),
-            )
-        }
-    };
-    let template_uuid = match Uuid::parse_str(&template_id) {
-        Ok(id) => id,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(TemplateResponse {
-                    success: false,
-                    id: None,
-                    message: "Invalid ID".to_string(),
-                    template: None,
-                }),
-            );
-        }
-    };
-
-    // Verify ownership and delete
-    let result = sqlx::query(
-        r#"
-        DELETE FROM user_templates ut
-        USING users u
-        WHERE ut.user_id = u.id AND ut.id = $1 AND u.axur_tenant_id = $2
-        "#,
-    )
-    .bind(template_uuid)
-    .bind(&user_id)
-    .execute(pool)
-    .await;
-
-    match result {
-        Ok(r) if r.rows_affected() > 0 => (
+    // Save back to Firestore
+    match firestore
+        .update_doc(
+            &format!("user_templates/{}/items", user_id),
+            &template_id,
+            &update,
+        )
+        .await
+    {
+        Ok(_) => (
             StatusCode::OK,
             Json(TemplateResponse {
                 success: true,
                 id: Some(template_id),
-                message: "Deleted".to_string(),
-                template: None,
-            }),
-        ),
-        Ok(_) => (
-            StatusCode::NOT_FOUND,
-            Json(TemplateResponse {
-                success: false,
-                id: None,
-                message: "Not found".to_string(),
+                message: "Updated".to_string(),
                 template: None,
             }),
         ),
@@ -983,45 +911,74 @@ pub async fn delete_template(
     }
 }
 
-// ==================== HELPERS ====================
-
-async fn ensure_user_exists(pool: &PgPool, axur_tenant_id: &str) -> Option<Uuid> {
-    // Try to find existing
-    let result = sqlx::query("SELECT id FROM users WHERE axur_tenant_id = $1")
-        .bind(axur_tenant_id)
-        .fetch_optional(pool)
-        .await
-        .ok()?;
-
-    if let Some(row) = result {
-        return Some(row.get("id"));
-    }
-
-    // Create new
-    let result = sqlx::query(
-        "INSERT INTO users (axur_tenant_id) VALUES ($1) ON CONFLICT (axur_tenant_id) DO UPDATE SET axur_tenant_id = $1 RETURNING id",
-    )
-    .bind(axur_tenant_id)
-    .fetch_one(pool)
-    .await
-    .ok()?;
-
-    Some(result.get("id"))
-}
-
-/// GET /api/templates/:id/pptx - Get the base PPTX file of a template
-pub async fn get_template_pptx(
-    State(state): State<AppState>,
+/// DELETE /api/templates/:id
+pub async fn delete_template(
+    State(_state): State<AppState>,
     Extension(user_id): Extension<String>,
     Path(template_id): Path<String>,
 ) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "success": false, "error": "Database not available" })),
+                Json(TemplateResponse {
+                    success: false,
+                    id: None,
+                    message: "Storage not available".to_string(),
+                    template: None,
+                }),
+            );
+        }
+    };
+
+    // Delete from Firestore
+    // Path: user_templates/{user_id}/items/{template_id}
+    match firestore
+        .delete_doc(&format!("user_templates/{}/items", user_id), &template_id)
+        .await
+    {
+        Ok(_) => {
+            // TODO: Delete from GitHub as well.
+            // For now, metadata is gone so it won't show up.
+            (
+                StatusCode::OK,
+                Json(TemplateResponse {
+                    success: true,
+                    id: Some(template_id),
+                    message: "Deleted".to_string(),
+                    template: None,
+                }),
             )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR, // Or not found?
+            Json(TemplateResponse {
+                success: false,
+                id: None,
+                message: e.to_string(),
+                template: None,
+            }),
+        ),
+    }
+}
+
+// ==================== HELPERS ====================
+// ensure_user_exists removed as it was only for SQL users table management
+
+/// GET /api/templates/:id/pptx - Get the base PPTX file of a template
+pub async fn get_template_pptx(
+    State(_state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Path(template_id): Path<String>,
+) -> impl IntoResponse {
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
+        None => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "success": false, "error": "Storage not available" })),
+            );
         }
     };
 
@@ -1031,48 +988,43 @@ pub async fn get_template_pptx(
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "success": false, "error": "GitHub not configured" })),
-            )
+            );
         }
     };
 
-    let template_uuid = match Uuid::parse_str(&template_id) {
-        Ok(id) => id,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "success": false, "error": "Invalid template ID" })),
-            )
-        }
-    };
-
-    // Get template info to verify ownership and get path
-    let result = sqlx::query(
-        r#"
-        SELECT ut.github_path
-        FROM user_templates ut JOIN users u ON ut.user_id = u.id
-        WHERE ut.id = $1 AND u.axur_tenant_id = $2
-        "#,
-    )
-    .bind(template_uuid)
-    .bind(&user_id)
-    .fetch_optional(pool)
-    .await;
-
-    let github_path: String = match result {
-        Ok(Some(row)) => row.get("github_path"),
+    // Get template info
+    // Path: user_templates/{user_id}/items/{template_id}
+    let meta: serde_json::Value = match firestore
+        .get_doc(&format!("user_templates/{}/items", user_id), &template_id)
+        .await
+    {
+        Ok(Some(doc)) => doc,
         Ok(None) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(serde_json::json!({ "success": false, "error": "Template not found" })),
-            )
+            );
         }
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({ "success": false, "error": e.to_string() })),
-            )
+            );
         }
     };
+
+    let github_path = meta
+        .get("github_path")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+
+    if github_path.is_empty() {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "success": false, "error": "No GitHub path for template" })),
+        );
+    }
 
     // Construct PPTX path from metadata path
     // metadata is at: templates/{user_id}/{template_id}/metadata.json
@@ -1104,7 +1056,7 @@ pub async fn get_template_pptx(
     }
 }
 
-// ==================== AUTO-SAVE ENDPOINTS (DB-only, no GitHub) ====================
+// ==================== AUTO-SAVE ENDPOINTS (Firestore-only, no GitHub) ====================
 
 /// Request for quick save (auto-save feature)
 #[derive(Debug, Deserialize)]
@@ -1126,94 +1078,113 @@ pub struct QuickSaveResponse {
     pub saved_at: String,
 }
 
-/// POST /api/templates/quick-save - Create or update template in DB (not GitHub)
+/// POST /api/templates/quick-save - Create or update template in Firestore (draft)
 /// This is the fast path for auto-save functionality
 pub async fn quick_save_template(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Extension(user_id): Extension<String>,
     Json(req): Json<QuickSaveRequest>,
 ) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(QuickSaveResponse {
                     success: false,
                     id: String::new(),
-                    message: "Database not available".to_string(),
+                    message: "Storage not available".to_string(),
                     saved_at: String::new(),
                 }),
             )
         }
     };
 
-    let user_uuid = match ensure_user_exists(pool, &user_id).await {
-        Some(id) => id,
-        None => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(QuickSaveResponse {
-                    success: false,
-                    id: String::new(),
-                    message: "User creation failed".to_string(),
-                    saved_at: String::new(),
-                }),
-            )
+    // For quick save, we might need an ID. If specific ID not provided in request (not here yet),
+    // we assume it's a new one or based on name?
+    // Wait, the original code checked if name exists to update or insert.
+    // Firestore scanning for name is expensive.
+    // Ideally quick-save should take an ID if it's an update.
+    // The request struct doesn't have ID.
+    // So we search by name?
+    // Firestore `list_docs` can be filtered? No, REST API basic list.
+    // We can list all docs and find by name (inefficient) or assume client provides ID.
+    // Original implementation: `SELECT id FROM user_templates WHERE user_id = $1 AND name = $2`
+
+    // Compromise: We check if there's a param 'id' or we search.
+    // Since we don't have search index easily without extra cost/setup maybe,
+    // we will implement a suboptimal "List and Find" for now since user templates count is small per user.
+    // Or we rely on client sending ID next time.
+    // But the signature is `QuickSaveRequest` without ID.
+
+    let path = format!("user_templates/{}/items", user_id);
+    let mut template_id = Uuid::new_v4().to_string();
+    let mut is_update = false;
+
+    if let Ok(docs) = firestore.list_docs::<serde_json::Value>(&path).await {
+        // Find by name
+        for doc in docs {
+            if let Some(name) = doc.get("name").and_then(|n| n.as_str()) {
+                if name == req.name {
+                    if let Some(id) = doc.get("id").and_then(|i| i.as_str()) {
+                        template_id = id.to_string();
+                        is_update = true;
+                        break;
+                    }
+                }
+            }
         }
-    };
+    }
 
-    // Check if template with same name exists for this user
-    let existing = sqlx::query("SELECT id FROM user_templates WHERE user_id = $1 AND name = $2")
-        .bind(user_uuid)
-        .bind(&req.name)
-        .fetch_optional(pool)
-        .await;
+    let saved_at = chrono::Utc::now().to_rfc3339();
 
-    let (template_id, is_update) = match existing {
-        Ok(Some(row)) => {
-            let id: Uuid = row.get("id");
-            (id, true)
-        }
-        _ => (Uuid::new_v4(), false),
-    };
-
-    // Build content JSON
-    let content = serde_json::json!({
-        "slides": req.slides,
-        "version": 1,
-        "saved_at": chrono::Utc::now().to_rfc3339()
+    // We store content directly in Firestore.
+    // NOTE: Max 1MB. Large templates might fail.
+    // If it fails, we should return error.
+    let template_doc = serde_json::json!({
+        "id": template_id,
+        "name": req.name,
+        "description": req.description,
+        "content": {
+            "slides": req.slides,
+            "version": 1,
+            "saved_at": saved_at.clone()
+        },
+        // We set github_path empty or "local" to indicate it's not on GitHub yet?
+        // Or we reserve github_path for when it is synced.
+        "updated_at": saved_at.clone(),
+        // Only set created_at if new
     });
 
-    let result = if is_update {
-        // Update existing
-        sqlx::query(
-            r#"
-            UPDATE user_templates 
-            SET content = $1, description = $2, updated_at = NOW()
-            WHERE id = $3
-            "#,
-        )
-        .bind(&content)
-        .bind(&req.description)
-        .bind(template_id)
-        .execute(pool)
-        .await
+    // We need to merge with existing if update to preserve created_at and github_path
+    let final_doc = if is_update {
+        // We would ideally merge. `set_doc` overwrites?
+        // Firestore REST update (patch) merges if mask present or separate method.
+        // `update_doc` in our client uses PATCH.
+        template_doc // We use this as partial update payload? `content` field + `updated_at`.
+                     // But we want to set `content` field.
+                     // Let's use `set_doc` which overwrites, effectively replacing the draft.
+                     // BUT if github_path existed, we lose it?
+                     // Let's first try to `update_doc` (PATCH).
     } else {
-        // Insert new
-        sqlx::query(
-            r#"
-            INSERT INTO user_templates (id, user_id, name, description, content)
-            VALUES ($1, $2, $3, $4, $5)
-            "#,
-        )
-        .bind(template_id)
-        .bind(user_uuid)
-        .bind(&req.name)
-        .bind(&req.description)
-        .bind(&content)
-        .execute(pool)
-        .await
+        template_doc
+    };
+
+    let result = if is_update {
+        firestore.update_doc(&path, &template_id, &final_doc).await
+    } else {
+        // Add created_at
+        let mut full_doc = final_doc;
+        if let Some(obj) = full_doc.as_object_mut() {
+            obj.insert(
+                "created_at".to_string(),
+                serde_json::json!(saved_at.clone()),
+            );
+            if !is_update {
+                obj.insert("github_path".to_string(), serde_json::json!("")); // Explicit empty
+            }
+        }
+        firestore.set_doc(&path, &template_id, &full_doc).await
     };
 
     match result {
@@ -1228,14 +1199,14 @@ pub async fn quick_save_template(
                 StatusCode::OK,
                 Json(QuickSaveResponse {
                     success: true,
-                    id: template_id.to_string(),
+                    id: template_id,
                     message: if is_update {
                         "Template updated"
                     } else {
                         "Template created"
                     }
                     .to_string(),
-                    saved_at: chrono::Utc::now().to_rfc3339(),
+                    saved_at,
                 }),
             )
         }
@@ -1251,64 +1222,47 @@ pub async fn quick_save_template(
     }
 }
 
-/// GET /api/templates/quick-load/:id - Load template content from DB
+/// GET /api/templates/quick-load/:id - Load template content from Firestore
 pub async fn quick_load_template(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Extension(user_id): Extension<String>,
     Path(template_id): Path<String>,
 ) -> impl IntoResponse {
-    let pool = match &state.pool {
-        Some(p) => p,
+    let firestore = match crate::firebase::get_firestore() {
+        Some(fs) => fs,
         None => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "success": false, "error": "Database not available" })),
+                Json(serde_json::json!({ "success": false, "error": "Storage not available" })),
             )
         }
     };
 
-    let template_uuid = match Uuid::parse_str(&template_id) {
-        Ok(id) => id,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({ "success": false, "error": "Invalid template ID" })),
-            )
-        }
-    };
-
-    // Verify ownership and get template
-    let result = sqlx::query(
-        r#"
-        SELECT ut.id::text, ut.name, ut.description, ut.content, ut.updated_at::text
-        FROM user_templates ut
-        JOIN users u ON ut.user_id = u.id
-        WHERE ut.id = $1 AND u.axur_tenant_id = $2
-        "#,
-    )
-    .bind(template_uuid)
-    .bind(&user_id)
-    .fetch_optional(pool)
-    .await;
-
-    match result {
-        Ok(Some(row)) => {
-            let content: Option<serde_json::Value> = row.get("content");
+    match firestore
+        .get_doc(&format!("user_templates/{}/items", user_id), &template_id)
+        .await
+    {
+        Ok(Some(doc)) => {
+            let content = doc.get("content").cloned();
             (
                 StatusCode::OK,
                 Json(serde_json::json!({
                     "success": true,
-                    "id": row.get::<String, _>("id"),
-                    "name": row.get::<String, _>("name"),
-                    "description": row.get::<Option<String>, _>("description"),
-                    "content": content,
-                    "updated_at": row.get::<String, _>("updated_at")
+                    "template": {
+                         // We reconstruct structure expected by frontend if needed or just return content
+                         // Original returned: id, name, description, content, updated_at
+                         "id": doc.get("id"),
+                         "name": doc.get("name"),
+                         "description": doc.get("description"),
+                         "content": content,
+                         "updated_at": doc.get("updated_at")
+                    }
                 })),
             )
         }
         Ok(None) => (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "success": false, "error": "Template not found" })),
+            Json(serde_json::json!({ "success": false, "error": "Not found" })),
         ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

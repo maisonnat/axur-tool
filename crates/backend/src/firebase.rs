@@ -378,7 +378,72 @@ impl FirestoreClient {
 
         Ok(())
     }
+
+    /// Update a document (partial update)
+    pub async fn update_doc<T: Serialize>(
+        &self,
+        collection: &str,
+        doc_id: &str,
+        data: &T,
+    ) -> Result<(), FirestoreError> {
+        if !RATE_LIMITER.write().unwrap().can_write() {
+            return Err(FirestoreError::RateLimited);
+        }
+
+        let base_url = format!("{}/{}/{}", self.base_url(), collection, doc_id);
+        let fields_map = value_to_firestore(&serde_json::to_value(data).unwrap())?;
+
+        let body = serde_json::json!({ "fields": fields_map });
+
+        // Construct updateMask query params
+        // We need to list all field paths from the data
+        let mut url = base_url;
+
+        // fields_map is HashMap<String, FirestoreValue>
+        if !fields_map.is_empty() {
+            let mut first = true;
+            for key in fields_map.keys() {
+                if first {
+                    url.push_str("?");
+                    first = false;
+                } else {
+                    url.push_str("&");
+                }
+                url.push_str(&format!("updateMask.fieldPaths={}", key));
+            }
+        }
+
+        let res = self
+            .http
+            .patch(&url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| FirestoreError::NetworkError(e.to_string()))?;
+
+        if !res.status().is_success() {
+            return Err(FirestoreError::ApiError(format!(
+                "Status: {}",
+                res.status()
+            )));
+        }
+
+        // Invalidate cache
+        CACHE
+            .write()
+            .unwrap()
+            .invalidate(&format!("{}/{}", collection, doc_id));
+        CACHE
+            .write()
+            .unwrap()
+            .invalidate_prefix(&format!("list:{}", collection));
+
+        Ok(())
+    }
 }
+
+// Type alias for convenience (if needed by other modules)
+pub type Firestore = FirestoreClient;
 
 // ========================
 // FIRESTORE TYPES

@@ -5,11 +5,10 @@
 
 use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::Json;
+use axum::{Extension, Json};
 use axum_extra::extract::CookieJar;
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
-use sqlx::Row;
 use std::convert::Infallible;
 use uuid::Uuid;
 
@@ -119,7 +118,8 @@ pub async fn list_tenants(jar: CookieJar) -> Result<Json<Vec<TenantResponse>>, A
 
 /// Generate HTML report for a tenant with structured error handling
 pub async fn generate_report(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
+    Extension(user_id): Extension<String>,
     jar: CookieJar,
     Json(payload): Json<GenerateReportRequest>,
 ) -> Result<Json<GenerateReportResponse>, ApiError> {
@@ -239,54 +239,64 @@ pub async fn generate_report(
                 );
             }
         }
-        // Fetch from DB if not a mock template
+        // Fetch from Firestore if not a mock template
         if custom_template_slides.is_none() {
             if let Ok(uuid) = Uuid::parse_str(tid) {
-                // Fetch template by UUID (no tenant check - user templates are personal)
-                let row = if let Some(pool) = &state.pool {
-                    sqlx::query("SELECT github_path FROM user_templates WHERE id = $1")
-                        .bind(uuid)
-                        .fetch_optional(pool)
-                        .await
-                } else {
-                    tracing::warn!("Database pool missing, skipping custom template fetch");
-                    Ok(None)
-                };
+                // Fetch template by UUID from Firestore
+                // Path: user_templates/{user_id}/items/{template_id}
+                if let Some(firestore) = crate::firebase::get_firestore() {
+                    let doc_path = format!("user_templates/{}/items", user_id);
+                    let doc_id = uuid.to_string();
 
-                match row {
-                    Ok(Some(row)) => {
-                        let path: String = row.get("github_path");
-                        if let Some(config) = GitHubConfig::from_env() {
-                            match templates::fetch_template_from_github(&config, &path).await {
-                                Ok(tmpl) => {
-                                    let slides: Vec<String> = tmpl
-                                        .slides
-                                        .iter()
-                                        .filter_map(|s| s.canvas_json.clone())
-                                        .collect();
-                                    if !slides.is_empty() {
-                                        custom_template_slides = Some(slides);
-                                        tracing::info!(
-                                            "Using custom private template: {}",
-                                            tmpl.name
-                                        );
-                                    } else {
-                                        tracing::warn!("Custom template {} has no slides", tid);
+                    match firestore
+                        .get_doc::<serde_json::Value>(&doc_path, &doc_id)
+                        .await
+                    {
+                        Ok(Some(doc)) => {
+                            if let Some(path) = doc.get("github_path").and_then(|s| s.as_str()) {
+                                if let Some(config) = GitHubConfig::from_env() {
+                                    match templates::fetch_template_from_github(&config, path).await
+                                    {
+                                        Ok(tmpl) => {
+                                            let slides: Vec<String> = tmpl
+                                                .slides
+                                                .iter()
+                                                .filter_map(|s| s.canvas_json.clone())
+                                                .collect();
+                                            if !slides.is_empty() {
+                                                custom_template_slides = Some(slides);
+                                                tracing::info!(
+                                                    "Using custom private template: {}",
+                                                    tmpl.name
+                                                );
+                                            } else {
+                                                tracing::warn!(
+                                                    "Custom template {} has no slides",
+                                                    tid
+                                                );
+                                            }
+                                        }
+                                        Err(e) => tracing::error!(
+                                            "Failed to fetch custom template from GitHub: {}",
+                                            e
+                                        ),
                                     }
+                                } else {
+                                    tracing::error!(
+                                        "GitHub config missing for custom template fetch"
+                                    );
                                 }
-                                Err(e) => tracing::error!(
-                                    "Failed to fetch custom template from GitHub: {}",
-                                    e
-                                ),
+                            } else {
+                                tracing::warn!("Template {} has no github_path", tid);
                             }
-                        } else {
-                            tracing::error!("GitHub config missing for custom template fetch");
                         }
+                        Ok(None) => {
+                            tracing::warn!("Custom template {} not found in Firestore", tid)
+                        }
+                        Err(e) => tracing::error!("Firestore error fetching template: {}", e),
                     }
-                    Ok(None) => {
-                        tracing::warn!("Custom template {} not found", tid)
-                    }
-                    Err(e) => tracing::error!("Database error fetching template: {}", e),
+                } else {
+                    tracing::warn!("Firestore not available, skipping custom template fetch");
                 }
             }
         }

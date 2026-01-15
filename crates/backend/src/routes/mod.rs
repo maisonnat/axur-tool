@@ -27,7 +27,6 @@ use tower_http::trace::TraceLayer;
 #[derive(Clone)]
 pub struct AppState {
     pub google_services: Option<std::sync::Arc<crate::google_services::GoogleServices>>,
-    pub pool: Option<sqlx::PgPool>,
 }
 
 /// Create the main router with all routes and middleware

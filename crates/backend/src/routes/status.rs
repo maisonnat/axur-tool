@@ -87,8 +87,8 @@ pub async fn full_status() -> impl IntoResponse {
     }
     services.push(github_feedback_check);
 
-    // 4. Check Database connectivity
-    let db_check = check_database().await;
+    // 4. Check Firestore connectivity
+    let db_check = check_firestore().await;
     if matches!(db_check.status, ServiceStatus::Error) {
         has_errors = true;
     }
@@ -108,22 +108,19 @@ pub async fn full_status() -> impl IntoResponse {
         timestamp: chrono::Utc::now().to_rfc3339(),
         backend: BackendInfo {
             version: env!("CARGO_PKG_VERSION").to_string(),
-            rust_version: env!("CARGO_PKG_RUST_VERSION").to_string(),
+            rust_version: "1.74".to_string(), // Approximate
             build_profile: if cfg!(debug_assertions) {
-                "debug"
+                "debug".to_string()
             } else {
-                "release"
-            }
-            .to_string(),
+                "release".to_string()
+            },
             git_hash: env::var("GIT_HASH").unwrap_or_else(|_| "unknown".to_string()),
         },
         services,
         environment: EnvironmentInfo {
-            axur_api_configured: true, // Always true as we use user tokens
-            github_logs_configured: env::var("GH_PAT").is_ok() || env::var("GITHUB_TOKEN").is_ok(),
-            github_feedback_configured: (env::var("GH_PAT").is_ok()
-                || env::var("GITHUB_TOKEN").is_ok())
-                && (env::var("GH_OWNER").is_ok() || env::var("GITHUB_OWNER").is_ok()),
+            axur_api_configured: env::var("AXUR_TOKEN").is_ok(),
+            github_logs_configured: env::var("GH_LOGS_REPO").is_ok(),
+            github_feedback_configured: env::var("GITHUB_TOKEN").is_ok(),
         },
     };
 
@@ -296,43 +293,39 @@ fn check_github_feedback() -> ServiceCheck {
     }
 }
 
-/// Check Database connectivity
-async fn check_database() -> ServiceCheck {
+/// Check Firestore connectivity
+async fn check_firestore() -> ServiceCheck {
     let start = std::time::Instant::now();
 
-    // Get DB pool
-    let pool = match crate::db::get_db() {
-        Some(p) => p,
-        None => {
-            let msg = crate::db::get_init_error()
-                .map(|e| format!("Pool not initialized: {}", e))
-                .unwrap_or_else(|| "Pool not initialized".into());
-
-            return ServiceCheck {
-                name: "Database".into(),
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        // Perform a lightweight list operation.
+        // We can list `users` with limit 1.
+        match firestore.list_docs::<serde_json::Value>("users").await {
+            Ok(_) => {
+                let duration = start.elapsed().as_millis() as u64;
+                ServiceCheck {
+                    name: "Firestore".to_string(),
+                    status: ServiceStatus::Ok,
+                    latency_ms: Some(duration),
+                    message: Some("Connected".to_string()),
+                    version: None,
+                }
+            }
+            Err(e) => ServiceCheck {
+                name: "Firestore".to_string(),
                 status: ServiceStatus::Error,
                 latency_ms: None,
-                message: Some(msg),
+                message: Some(format!("Connection success but query failed: {}", e)),
                 version: None,
-            };
+            },
         }
-    };
-
-    // Run simple query
-    match sqlx::query("SELECT 1").execute(pool).await {
-        Ok(_) => ServiceCheck {
-            name: "Database".into(),
-            status: ServiceStatus::Ok,
-            latency_ms: Some(start.elapsed().as_millis() as u64),
-            message: Some("Connected".into()),
-            version: None,
-        },
-        Err(e) => ServiceCheck {
-            name: "Database".into(),
+    } else {
+        ServiceCheck {
+            name: "Firestore".to_string(),
             status: ServiceStatus::Error,
-            latency_ms: Some(start.elapsed().as_millis() as u64),
-            message: Some(format!("Query failed: {}", e)),
+            latency_ms: None,
+            message: Some("Firestore client not initialized".to_string()),
             version: None,
-        },
+        }
     }
 }

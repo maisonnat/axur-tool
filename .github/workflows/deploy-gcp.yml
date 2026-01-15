@@ -75,7 +75,6 @@ jobs:
           flags: '--allow-unauthenticated --memory=512Mi --cpu=1 --max-instances=1' # LIMITS FOR FREE TIER SAFETY
           env_vars: |
             RUST_LOG=info
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
             AXUR_API_TOKEN=${{ secrets.AXUR_API_TOKEN }}
             GIT_HASH=${{ github.sha }}
             FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
