@@ -1026,20 +1026,16 @@ pub async fn generate_report_stream(
                     // Or, if the User is logged in (we have `token`), we *could* try to use the *current* user's ID as the owner?
                     // In `generate_report_stream`, we decode the session cookie to `token`. We can validate it to get `user_id`.
 
-                    // Let's decode the session to get the `user_id`.
-                    // We need `validate_session`.
-                    let user_id_opt = if let Some(uid) = crate::github_storage::validate_session(&token).await {
-                         Some(uid)
-                    } else {
-                         // Fallback to checking allowed_users in Firestore?
-                         // Actually `validate_session` checks GitHub/Firestore.
-                         None
-                    };
+                    // Let's get the user_id from the cookie
+                    let user_id_opt = jar
+                        .get(crate::middleware::AUTH_USER_COOKIE_NAME)
+                        .map(|c| c.value().to_string())
+                        .map(|email| crate::github_storage::GitHubStorage::hash_user_id(&email));
 
                     if let Some(uid) = user_id_opt {
                          // Try fetching from THIS user's templates
                          let path = format!("user_templates/{}/items", uid);
-                         if let Ok(doc) = firestore.get_doc::<serde_json::Value>(&path, tid).await {
+                         if let Ok(Some(doc)) = firestore.get_doc::<serde_json::Value>(&path, tid).await {
                               if let Some(content) = doc.get("content").and_then(|c| c.as_array()) {
                                   let slides: Vec<String> = content
                                       .iter()
