@@ -180,12 +180,8 @@ pub fn create_router(state: AppState) -> Router {
 
     let app_with_state = app.with_state(state);
 
-    if let Some(pool) = crate::db::get_db() {
-        app_with_state.layer(axum::Extension(pool.clone()))
-    } else {
-        tracing::warn!("Database pool not initialized - some routes may fail");
-        app_with_state
-    }
+    // Firestore is lazy-loaded via firebase::get_firestore(), no global pool needed
+    app_with_state
 }
 
 /// Health check endpoint

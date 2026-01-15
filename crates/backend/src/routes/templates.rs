@@ -1239,7 +1239,7 @@ pub async fn quick_load_template(
     };
 
     match firestore
-        .get_doc(&format!("user_templates/{}/items", user_id), &template_id)
+        .get_doc::<serde_json::Value>(&format!("user_templates/{}/items", user_id), &template_id)
         .await
     {
         Ok(Some(doc)) => {

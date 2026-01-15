@@ -885,7 +885,7 @@ pub async fn generate_report_stream(
         .disabled_slides
         .as_ref()
         .map(|s| s.split(',').map(|x| x.trim().to_string()).collect());
-    let pool = state.pool.clone();
+    // let pool = state.pool.clone(); // Removed: No longer using SQL pool
 
     let stream = async_stream::stream! {
         // Define stages
@@ -999,28 +999,59 @@ pub async fn generate_report_stream(
                     custom_template_slides = Some(slides);
                 }
             }
-            // Try DB templates
+            // Try DB templates (Firestore)
             if custom_template_slides.is_none() {
-                if let Ok(uuid) = Uuid::parse_str(tid) {
-                    if let Some(ref pool) = pool {
-                        if let Ok(Some(row)) = sqlx::query("SELECT content FROM user_templates WHERE id = $1")
-                            .bind(uuid)
-                            .fetch_optional(pool)
-                            .await
-                        {
-                            use sqlx::Row;
-                            if let Ok(content) = row.try_get::<serde_json::Value, _>("content") {
-                                if let Some(slides_arr) = content.as_array() {
-                                    let slides: Vec<String> = slides_arr
-                                        .iter()
-                                        .filter_map(|s| s.get("canvas_json").and_then(|c| c.as_str()).map(|s| s.to_string()))
-                                        .collect();
-                                    if !slides.is_empty() {
-                                        custom_template_slides = Some(slides);
-                                    }
-                                }
-                            }
-                        }
+                if let Some(firestore) = crate::firebase::get_firestore() {
+                    // Try to finding user_id? We don't have user_id easily here in this context unless we lookup the template globally or search all users?
+                    // The original SQL looked up by template ID without user ID?
+                    // Wait, original SQL was: `SELECT content FROM user_templates WHERE id = $1`
+                    // In Firestore, our schema is `user_templates/{user_id}/items/{template_id}`.
+                    // We CANNOT efficienty get a document by ID if we don't know the parent collection path (the user_id).
+                    // This is a schema mismatch.
+
+                    // HOWEVER, `user_templates` table in Postgres likely had `id` as primary key global.
+                    // In Firestore, we sharded by user.
+                    // If we want to support "public" or "shared" templates by ID without knowing user, we need a global index or a "lookup" collection.
+
+                    // For now, let's assume `template_id` might be a "system" template or we have to search.
+                    // BUT, `marketplace.rs` has `marketplace_templates`.
+
+                    // Workaround: Since we don't have the user_id of the template owner here (we only have `params`),
+                    // we might fail to find private user templates here unless we change the API to pass owner_id.
+                    // But `list_docs` on group collection `items`? No, `items` is subcollection.
+                    // Firestore Group Query: `firestore.collectionGroup('items').where('id', '==', tid)`
+                    // My `firebase.rs` client handles simple paths. It doesn't support collectionGroup queries easily yet.
+
+                    // Quick fix: For now, we only support MOCK templates or we logging a warning that DB template loading is temporarily limited by ID only.
+                    // Or, if the User is logged in (we have `token`), we *could* try to use the *current* user's ID as the owner?
+                    // In `generate_report_stream`, we decode the session cookie to `token`. We can validate it to get `user_id`.
+
+                    // Let's decode the session to get the `user_id`.
+                    // We need `validate_session`.
+                    let user_id_opt = if let Some(uid) = crate::github_storage::validate_session(&token).await {
+                         Some(uid)
+                    } else {
+                         // Fallback to checking allowed_users in Firestore?
+                         // Actually `validate_session` checks GitHub/Firestore.
+                         None
+                    };
+
+                    if let Some(uid) = user_id_opt {
+                         // Try fetching from THIS user's templates
+                         let path = format!("user_templates/{}/items", uid);
+                         if let Ok(doc) = firestore.get_doc::<serde_json::Value>(&path, tid).await {
+                              if let Some(content) = doc.get("content").and_then(|c| c.as_array()) {
+                                  let slides: Vec<String> = content
+                                      .iter()
+                                      .filter_map(|s| s.get("canvas_json").and_then(|c| c.as_str()).map(|s| s.to_string()))
+                                      .collect();
+                                   if !slides.is_empty() {
+                                       custom_template_slides = Some(slides);
+                                   }
+                              }
+                         }
+                    } else {
+                        // User not found or invalid session, can't look up private template
                     }
                 }
             }
