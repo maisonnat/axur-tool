@@ -3,7 +3,7 @@
 //! Uses dynamic queries to avoid compile-time database checks
 
 use axum::{
-    extract::{Multipart, Path, Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     Extension, Json,
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::routes::AppState;
-use axur_core::editor::{get_user_template_path, PresentationTemplate};
+use axur_core::editor::PresentationTemplate;
 
 // ==================== TYPES ====================
 

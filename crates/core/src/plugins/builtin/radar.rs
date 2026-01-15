@@ -98,7 +98,7 @@ impl RadarSlidePlugin {
 
 /// Threat dimension with score and metadata
 struct ThreatDimension {
-    id: &'static str,
+    _id: &'static str,
     label: &'static str,
     score: u32,      // 0-100
     icon: &'static str,
@@ -149,7 +149,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
 
     vec![
         ThreatDimension {
-            id: "phishing",
+            _id: "phishing",
             label: "Phishing",
             score: phishing_score,
             icon: "🎣",
@@ -157,7 +157,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             detail: format!("{} detecciones", phishing_count),
         },
         ThreatDimension {
-            id: "credentials",
+            _id: "credentials",
             label: "Credenciales",
             score: creds_score,
             icon: "🔑",
@@ -165,7 +165,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             detail: format!("{} expuestas", data.credentials_total),
         },
         ThreatDimension {
-            id: "leaks",
+            _id: "leaks",
             label: "Filtraciones",
             score: leaks_score,
             icon: "📦",
@@ -173,7 +173,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             detail: format!("{} secretos", data.secrets_total),
         },
         ThreatDimension {
-            id: "social",
+            _id: "social",
             label: "Redes Sociales",
             score: social_score,
             icon: "👤",
@@ -181,7 +181,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             detail: format!("{} perfiles falsos", social_count),
         },
         ThreatDimension {
-            id: "brand",
+            _id: "brand",
             label: "Marca",
             score: brand_score,
             icon: "🏷️",
@@ -189,7 +189,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             detail: format!("{} abusos", brand_count),
         },
         ThreatDimension {
-            id: "exposure",
+            _id: "exposure",
             label: "Exposición",
             score: efficiency_score,
             icon: "⚠️",

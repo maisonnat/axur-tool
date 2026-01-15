@@ -855,7 +855,7 @@ pub async fn threat_hunting_preview_stream(
 /// SSE endpoint for streaming report generation with progress events
 /// Uses GET with query params for EventSource compatibility
 pub async fn generate_report_stream(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     jar: CookieJar,
     axum::extract::Query(params): axum::extract::Query<GenerateReportStreamParams>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, ApiError> {
@@ -880,8 +880,8 @@ pub async fn generate_report_stream(
     let include_threat_intel = params.include_threat_intel;
     let template_id = params.template_id.clone();
     let use_plugins = params.use_plugins;
-    let plugin_theme = params.plugin_theme.clone();
-    let disabled_slides: Option<Vec<String>> = params
+    let _plugin_theme = params.plugin_theme.clone();
+    let _disabled_slides: Option<Vec<String>> = params
         .disabled_slides
         .as_ref()
         .map(|s| s.split(',').map(|x| x.trim().to_string()).collect());

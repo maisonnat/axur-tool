@@ -215,7 +215,7 @@ pub async fn verify_2fa(
 
 /// Step 3: Finalize login and set httpOnly cookie
 pub async fn finalize(
-    State(state): State<crate::routes::AppState>,
+    State(_state): State<crate::routes::AppState>,
     jar: CookieJar,
     Json(payload): Json<FinalizeRequest>,
 ) -> Result<impl IntoResponse, ApiError> {

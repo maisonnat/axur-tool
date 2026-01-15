@@ -9,9 +9,8 @@ use axum::{
     Extension, Json,
 };
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
-use crate::{firebase::Firestore, routes::AppState};
+use crate::routes::AppState;
 
 // ==================== TYPES ====================
 

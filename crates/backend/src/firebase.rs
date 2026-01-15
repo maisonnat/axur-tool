@@ -158,7 +158,6 @@ const CACHE_TTL: u64 = 300;
 pub struct FirestoreClient {
     config: FirebaseConfig,
     http: reqwest::Client,
-    access_token: Option<String>,
 }
 
 impl FirestoreClient {
@@ -166,7 +165,6 @@ impl FirestoreClient {
         Self {
             config,
             http: reqwest::Client::new(),
-            access_token: None,
         }
     }
 

@@ -169,7 +169,7 @@ async fn add_user(
     }
 
     // 2. Also update GitHub storage if configured (for redundancy/CDN)
-    if let Some(storage) = crate::github_storage::get_github_storage() {
+    if let Some(_storage) = crate::github_storage::get_github_storage() {
         // Implement logic to update allowed_users.json in GitHub if needed
         // For now, we rely on Firestore as primary source of truth for writes
         // and could implement a background sync or dual-write.
@@ -212,7 +212,7 @@ async fn remove_user(
     }
 
     // 2. Also remove from GitHub storage if configured
-    if let Some(storage) = crate::github_storage::get_github_storage() {
+    if let Some(_storage) = crate::github_storage::get_github_storage() {
         // Implement logic to remove from allowed_users.json in GitHub if needed
         // For now, logging.
         tracing::info!("User removed from Firestore. GitHub sync not yet implemented.");

@@ -14,9 +14,7 @@ use serde::{Deserialize, Serialize};
 use super::admin_config;
 use super::remote_log::RemoteLogConfig;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use chrono::{DateTime, Duration, TimeZone, Utc};
-
-use crate::firebase::Firestore;
+use chrono::{DateTime, Duration, Utc};
 
 /// Query parameters for listing logs
 #[derive(Debug, Deserialize)]
@@ -414,7 +412,6 @@ pub async fn get_log_stats(Query(params): Query<StatsQuery>) -> impl IntoRespons
         }
     };
 
-    use std::collections::HashMap;
     let mut daily_stats = Vec::new();
     let mut total_reports = 0;
     let mut total_errors = 0;

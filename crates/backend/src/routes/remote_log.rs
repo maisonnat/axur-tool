@@ -9,8 +9,6 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::firebase::Firestore;
-
 /// Configuration for remote logging (GitHub)
 pub struct RemoteLogConfig {
     pub token: String,
