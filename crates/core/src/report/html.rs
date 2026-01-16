@@ -3552,6 +3552,10 @@ mod tests {
                     ip: None,
                     isp: None,
                     reported_date: None,
+                    risk_score: Some(0.78),
+                    brand_confidence: Some(0.65),
+                    detection_minutes: Some(4),
+                    has_login_form: Some(true),
                 }
             ],
             

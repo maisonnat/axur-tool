@@ -506,6 +506,11 @@ pub struct PocEvidence {
     pub domain: Option<String>,
     pub screenshot_url: Option<String>,
     pub reported_date: Option<String>,
+    // NEW: Risk scoring and timing
+    pub risk_score: Option<f64>,        // 0.0-1.0 from prediction.risk
+    pub brand_confidence: Option<f64>,  // 0.0-1.0 from prediction.brand-logo
+    pub detection_minutes: Option<i64>, // Minutes from creation to detection
+    pub has_login_form: Option<bool>,   // From prediction.has-authentication-form
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -1182,6 +1187,8 @@ struct CurrentInfo {
     prediction_brand_logo: Option<String>,
     #[serde(rename = "prediction.brand-name")]
     prediction_brand_name: Option<String>,
+    #[serde(rename = "prediction.has-authentication-form")]
+    prediction_has_auth_form: Option<String>, // "true" or "false" as string
 
     // Takedown fields
     #[serde(rename = "takedown")]
@@ -2167,6 +2174,11 @@ async fn fetch_evidence_samples(
                                 .or_else(|| current.and_then(|c| c.host.clone())),
                             screenshot_url: screenshot,
                             reported_date: None,
+                            // Risk scoring (not available in legacy endpoint)
+                            risk_score: None,
+                            brand_confidence: None,
+                            detection_minutes: None,
+                            has_login_form: None,
                         });
                     }
                 }
@@ -2269,6 +2281,17 @@ async fn fetch_smart_evidence(
                                     .or_else(|| current.and_then(|c| c.host.clone())),
                                 screenshot_url: screenshot_base64, // Now contains base64 data URI
                                 reported_date: current.and_then(|c| c.open_date()),
+                                // Risk scoring from prediction fields (parse string to f64)
+                                risk_score: current
+                                    .and_then(|c| c.prediction_risk.as_ref())
+                                    .and_then(|s| s.parse::<f64>().ok()),
+                                brand_confidence: current
+                                    .and_then(|c| c.prediction_brand_logo.as_ref())
+                                    .and_then(|s| s.parse::<f64>().ok()),
+                                detection_minutes: None, // Would need time diff calculation
+                                has_login_form: current.and_then(|c| {
+                                    c.prediction_has_auth_form.as_ref().map(|s| s == "true")
+                                }),
                             });
                         }
                     }

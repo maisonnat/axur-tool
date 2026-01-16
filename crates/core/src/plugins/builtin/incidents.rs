@@ -26,7 +26,8 @@ impl SlidePlugin for IncidentsSlidePlugin {
         let data = ctx.data;
         let t = ctx.translations;
 
-        let total_incidents: u64 = data.incidents_by_type.iter().map(|i| i.incidents).sum();
+        // Use detections as the primary count since incidents often come as 0 from API
+        let total_detections: u64 = data.incidents_by_type.iter().map(|i| i.detections).sum();
 
         // Prepare chart data
         let labels: Vec<String> = data
@@ -70,7 +71,10 @@ impl SlidePlugin for IncidentsSlidePlugin {
     if (document.readyState === 'complete') {{ initIncidentsChart(); }} else {{ window.addEventListener('load', initIncidentsChart); }}
 }})();</script></div></div>"#,
             title = t.get("incidents_title"),
-            desc = t.format("incidents_desc", &[("total", &total_incidents.to_string())]),
+            desc = t.format(
+                "incidents_desc",
+                &[("total", &total_detections.to_string())]
+            ),
             labels = labels_json,
             detections = det_json,
             incidents = inc_json,

@@ -75,7 +75,7 @@
     "code_leak_box_prod": "Segredos de Produção",
     "code_leak_action": "Ação Imediata: Rotacionar chaves de 'Produção' e chaves de API imediatamente. Implementar scanner de segredos no pipeline CI/CD.",
     "incidents_title": "Incidentes por Tipo",
-    "incidents_desc": "Foram criados um total de <strong>{total}</strong> incidentes. Este gráfico detalha a relação entre detecções brutas e incidentes confirmados.",
+    "incidents_desc": "Foram processadas um total de <strong>{total}</strong> detecções. Este gráfico detalha a relação entre detecções brutas e incidentes confirmados.",
     "takedowns_title": "Takedowns",
     "takedowns_requested": "takedowns solicitados",
     "takedowns_success_rate": "taxa de sucesso",
@@ -181,6 +181,7 @@
     "intent_cat_chat": "Chat Intelligence",
     "intent_cat_compromised": "Dispositivos Comprometidos",
     "intent_cat_data_leak": "Fuga de Dados e Acessos",
+    "intent_cat_other": "Outros",
     "intent_cat_vip": "Proteção VIP",
     "intent_cat_dark_web": "Deep & Dark Web",
     "geo_title": "Origens Globais de Ataque",
@@ -209,5 +210,14 @@
     "metrics_results_title": "RESULTADOS",
     "metrics_lbl_total": "Detecções Totais",
     "metrics_lbl_threats": "Ameaças Confirmadas",
-    "metrics_lbl_time": "Tempo Economizado"
+    "metrics_lbl_time": "Tempo Economizado",
+    "evidence_context_title": "Para o Decisor",
+    "evidence_context_desc": "Capturas <strong class=\"text-white\">reais</strong> de ameaças detectadas. Os badges mostram nível de risco e tempo de detecção.",
+    "evidence_risk_high": "ALTO",
+    "evidence_risk_medium": "MÉDIO",
+    "evidence_risk_low": "BAIXO",
+    "evidence_stats_shown": "detectadas",
+    "evidence_stats_high_risk": "alto risco",
+    "evidence_stats_detection": "min detecção",
+    "evidence_credential_capture": "Captura credenciais"
 }

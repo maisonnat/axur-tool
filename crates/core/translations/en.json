@@ -75,7 +75,7 @@
     "code_leak_box_prod": "Production Secrets",
     "code_leak_action": "Immediate Action: Rotate Production keys and API Keys immediately. Implement secret scanning in CI/CD pipeline.",
     "incidents_title": "Incidents by Type",
-    "incidents_desc": "A total of <strong>{total}</strong> incidents were created. This chart details the relationship between raw detections and confirmed incidents.",
+    "incidents_desc": "A total of <strong>{total}</strong> detections were processed. This chart details the relationship between raw detections and confirmed incidents.",
     "takedowns_title": "Takedowns",
     "takedowns_requested": "takedowns requested",
     "takedowns_success_rate": "success rate",
@@ -181,6 +181,7 @@
     "intent_cat_chat": "Chat Intelligence",
     "intent_cat_compromised": "Compromised Devices",
     "intent_cat_data_leak": "Data Leakage",
+    "intent_cat_other": "Other",
     "intent_cat_vip": "VIP Protection",
     "intent_cat_dark_web": "Deep & Dark Web",
     "geo_title": "Global Attack Origins",
@@ -209,5 +210,14 @@
     "metrics_results_title": "RESULTS",
     "metrics_lbl_total": "Total Detections",
     "metrics_lbl_threats": "Confirmed Threats",
-    "metrics_lbl_time": "Time Saved"
+    "metrics_lbl_time": "Time Saved",
+    "evidence_context_title": "Executive Context",
+    "evidence_context_desc": "<strong class=\"text-white\">Real</strong> snapshots of detected threats. Badges show risk level and detection time.",
+    "evidence_risk_high": "HIGH",
+    "evidence_risk_medium": "MEDIUM",
+    "evidence_risk_low": "LOW",
+    "evidence_stats_shown": "detected",
+    "evidence_stats_high_risk": "high risk",
+    "evidence_stats_detection": "min detection",
+    "evidence_credential_capture": "Credential Capture"
 }

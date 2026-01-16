@@ -126,7 +126,7 @@ impl SlidePlugin for HeatmapSlidePlugin {
         </div>
         
         <!-- Heatmap Grid -->
-        <div class="grid grid-cols-24 gap-0.5 flex-grow">
+        <div class="grid gap-0.5 flex-grow" style="grid-template-columns: repeat(24, minmax(0, 1fr));">
           {cells}
         </div>
       </div>
