@@ -21,6 +21,10 @@ async fn main() {
     axur_backend::queue::start_worker();
     tracing::info!("Queue worker started");
 
+    // Initialize Firestore (Auth)
+    axur_backend::firebase::init_global().await;
+    tracing::info!("Firestore initialized");
+
     // Initialize Google Services
     // Priority: 1) Environment variables (production), 2) Local files (development)
     let google_services = if std::env::var("GOOGLE_CLIENT_ID").is_ok() {

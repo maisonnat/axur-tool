@@ -13,6 +13,15 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
+use tokio::sync::OnceCell;
+
+// Google Auth dependencies
+use base64::Engine;
+use google_drive3::{hyper_rustls, hyper_util, yup_oauth2};
+
+type HttpsConnector =
+    hyper_rustls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>;
+type Authenticator = yup_oauth2::authenticator::Authenticator<HttpsConnector>;
 
 // ========================
 // CONFIGURATION
@@ -158,19 +167,30 @@ const CACHE_TTL: u64 = 300;
 pub struct FirestoreClient {
     config: FirebaseConfig,
     http: reqwest::Client,
+    auth: Option<Authenticator>,
 }
 
 impl FirestoreClient {
-    pub fn new(config: FirebaseConfig) -> Self {
+    pub fn new(config: FirebaseConfig, auth: Option<Authenticator>) -> Self {
         Self {
             config,
             http: reqwest::Client::new(),
+            auth,
         }
     }
 
-    /// Initialize from environment
-    pub fn from_env() -> Option<Self> {
-        FirebaseConfig::from_env().map(Self::new)
+    /// Helper to get access token if auth is configured
+    async fn get_token(&self) -> Result<Option<String>, FirestoreError> {
+        if let Some(auth) = &self.auth {
+            let scopes = &["https://www.googleapis.com/auth/datastore"];
+            let token = auth
+                .token(scopes)
+                .await
+                .map_err(|e| FirestoreError::NetworkError(format!("Auth error: {}", e)))?;
+            Ok(token.token().map(|s| s.to_string()))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Get Firestore base URL
@@ -201,10 +221,17 @@ impl FirestoreClient {
             return Err(FirestoreError::RateLimited);
         }
 
+        // Get token
+        let token = self.get_token().await?;
+
         let url = format!("{}/{}/{}", self.base_url(), collection, doc_id);
-        let res = self
-            .http
-            .get(&url)
+        let mut req = self.http.get(&url);
+
+        if let Some(t) = token {
+            req = req.bearer_auth(t);
+        }
+
+        let res = req
             .send()
             .await
             .map_err(|e| FirestoreError::NetworkError(e.to_string()))?;
@@ -258,10 +285,17 @@ impl FirestoreClient {
             return Err(FirestoreError::RateLimited);
         }
 
+        // Get token
+        let token = self.get_token().await?;
+
         let url = format!("{}/{}", self.base_url(), collection);
-        let res = self
-            .http
-            .get(&url)
+        let mut req = self.http.get(&url);
+
+        if let Some(t) = token {
+            req = req.bearer_auth(t);
+        }
+
+        let res = req
             .send()
             .await
             .map_err(|e| FirestoreError::NetworkError(e.to_string()))?;
@@ -316,9 +350,16 @@ impl FirestoreClient {
         let fields = value_to_firestore(&serde_json::to_value(data).unwrap())?;
         let body = serde_json::json!({ "fields": fields });
 
-        let res = self
-            .http
-            .patch(&url)
+        // Get token
+        let token = self.get_token().await?;
+
+        let mut req = self.http.patch(&url);
+
+        if let Some(t) = token {
+            req = req.bearer_auth(t);
+        }
+
+        let res = req
             .json(&body)
             .send()
             .await
@@ -351,9 +392,17 @@ impl FirestoreClient {
         }
 
         let url = format!("{}/{}/{}", self.base_url(), collection, doc_id);
-        let res = self
-            .http
-            .delete(&url)
+
+        // Get token
+        let token = self.get_token().await?;
+
+        let mut req = self.http.delete(&url);
+
+        if let Some(t) = token {
+            req = req.bearer_auth(t);
+        }
+
+        let res = req
             .send()
             .await
             .map_err(|e| FirestoreError::NetworkError(e.to_string()))?;
@@ -411,9 +460,16 @@ impl FirestoreClient {
             }
         }
 
-        let res = self
-            .http
-            .patch(&url)
+        // Get token
+        let token = self.get_token().await?;
+
+        let mut req = self.http.patch(&url);
+
+        if let Some(t) = token {
+            req = req.bearer_auth(t);
+        }
+
+        let res = req
             .json(&body)
             .send()
             .await
@@ -581,11 +637,59 @@ impl std::error::Error for FirestoreError {}
 // GLOBAL CLIENT
 // ========================
 
-static FIRESTORE_CLIENT: Lazy<Option<FirestoreClient>> = Lazy::new(|| FirestoreClient::from_env());
+static FIRESTORE_CLIENT: OnceCell<Option<FirestoreClient>> = OnceCell::const_new();
+
+/// Initialize the global Firestore client (async)
+pub async fn init_global() {
+    let client = if let Some(config) = FirebaseConfig::from_env() {
+        let mut auth = None;
+
+        // Try to initialize auth if service account is present
+        if let Some(b64) = &config.service_account_json {
+            match base64::engine::general_purpose::STANDARD.decode(b64) {
+                Ok(json_bytes) => {
+                    // Similar implementation to google_services.rs
+                    match yup_oauth2::parse_service_account_key(&json_bytes) {
+                        Ok(key) => {
+                            match yup_oauth2::ServiceAccountAuthenticator::builder(key)
+                                .build()
+                                .await
+                            {
+                                Ok(authenticator) => {
+                                    tracing::info!(
+                                        "Firestore Auth initialized with Service Account"
+                                    );
+                                    auth = Some(authenticator);
+                                }
+                                Err(e) => tracing::error!(
+                                    "Failed to build Firestore authenticator: {}",
+                                    e
+                                ),
+                            }
+                        }
+                        Err(e) => tracing::error!("Failed to parse service account key: {}", e),
+                    }
+                }
+                Err(e) => tracing::error!("Failed to decode service account base64: {}", e),
+            }
+        } else {
+            tracing::warn!("No service account JSON found for Firestore. Writes might fail (403).");
+        }
+
+        Some(FirestoreClient::new(config, auth))
+    } else {
+        tracing::warn!("Firebase not configured (missing FIREBASE_PROJECT_ID)");
+        None
+    };
+
+    if FIRESTORE_CLIENT.set(client).is_err() {
+        tracing::warn!("Firestore client already initialized");
+    }
+}
 
 /// Get the global Firestore client
 pub fn get_firestore() -> Option<&'static FirestoreClient> {
-    FIRESTORE_CLIENT.as_ref()
+    FIRESTORE_CLIENT.get().and_then(|opt| opt.as_ref())
 }
 
 // ========================
