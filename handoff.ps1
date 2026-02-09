@@ -37,17 +37,12 @@ $content | Set-Content $dashboardPath -NoNewline
 Write-Host "`n📦 CONTEXT GENERATION:" -ForegroundColor Yellow
 $c2p = Get-Command code2prompt -ErrorAction SilentlyContinue
 if ($c2p) {
-    $templatePath = "$PSScriptRoot\.agent\templates\xml_packet.hbs"
-    $outputPath = "$PSScriptRoot\.agent\memory\context_packet.xml"
-    if (Test-Path $templatePath) {
-        code2prompt . --template $templatePath --output $outputPath 2>$null
-        if ($?) {
-            Write-Host "  ✅ Context packet updated: $outputPath" -ForegroundColor Green
-        } else {
-            Write-Host "  ⚠️  Context generation failed" -ForegroundColor Yellow
-        }
+    $outputPath = "$PSScriptRoot\.agent\memory\context_packet.txt"
+    code2prompt "$PSScriptRoot\crates" --include "**/*.rs" --exclude "**/test*" --output-file $outputPath 2>$null
+    if ($?) {
+        Write-Host "  ✅ Context packet updated: $outputPath" -ForegroundColor Green
     } else {
-        Write-Host "  ⏭️  Template not found, skipping" -ForegroundColor DarkGray
+        Write-Host "  ⚠️  Context generation failed" -ForegroundColor Yellow
     }
 } else {
     Write-Host "  ⏭️  code2prompt not installed, skipping" -ForegroundColor DarkGray
