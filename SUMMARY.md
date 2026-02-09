@@ -43,7 +43,7 @@
 
 The Backend is live on Google Cloud, but the Frontend (Cloudflare Pages) likely still points to the old Leapcell URL or localhost.
 
-**Instructions for Next Agent:**
+**Instructions for Developer:**
 1.  **Locate Frontend Config:** Check `crates/frontend/.env`, `.env.production`, or `Trunk.toml` for `API_BASE_URL`.
 2.  **Update URL:** Change the API base URL to: `https://axur-backend-844146909418.us-central1.run.app`
 3.  **Deploy Frontend:** Run the deployment workflow for Cloudflare Pages (or guide user to trigger it).
@@ -298,7 +298,7 @@ Supabase (DB) + Axur API
 - `crates/frontend/src/storage.rs` - LocalStorage utilities
 - `crates/frontend/index.html` - Fabric.js and JS functions
 - `crates/backend/src/routes/*` - API routes
-- `.agent/workflows/` - Automation workflows
+- `config/` - Backend configuration
 
 ### Important Signals (Leptos)
 - `slides: RwSignal<Vec<EditorSlide>>` - All slides in editor
@@ -313,7 +313,7 @@ Supabase (DB) + Axur API
 2. **Check Supabase free tier** limits before implementing cloud storage
 3. **Beta tester list** should be simple - email whitelist in DB
 4. **Tutorial library** - intro.js is recommended (small, no deps)
-5. **Rate limits** - Remember Axur API has 60 req/min limit (see `.agent/memory/api-rate-limit.md`)
+5. **Rate limits** - Remember Axur API has 60 req/min limit (see `docs/api-rate-limit.md`)
 
 ---
 

@@ -14,7 +14,7 @@ if ($backend) {
 }
 else {
     Write-Host "📦 Starting Backend on http://localhost:3001..." -ForegroundColor Green
-    Start-Process -NoNewWindow -FilePath "cargo" -ArgumentList "run", "-p", "axur-backend" -WorkingDirectory $PSScriptRoot
+    Start-Process -NoNewWindow -FilePath "cargo" -ArgumentList "run", "-p", "axur-backend", "--bin", "axur-backend" -WorkingDirectory $PSScriptRoot
     Start-Sleep -Seconds 2
 }
 

@@ -60,7 +60,9 @@ target-wasm/
 .shuttle/
 
 # Agent artifacts (keep workflows)
+.agent/
 .gemini/
+*.gemini*
 
 # WASM build intermediates
 crates/frontend/target/
@@ -74,6 +76,7 @@ story_debug.log
 
 # Private API documentation
 axur-api-doc/
+knowledge/
 
 # Other
 *.pptx

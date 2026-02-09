@@ -3,7 +3,7 @@
 //! Shows examples of detected threats and resolved takedowns.
 
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
-use super::helpers::{footer_dark, footer_light};
+use super::helpers::{footer_dark};
 
 pub struct TakedownExamplesSlidePlugin;
 
@@ -22,21 +22,39 @@ impl SlidePlugin for TakedownExamplesSlidePlugin {
         
         // Take up to 4 examples
         let examples_html: String = data.takedown_examples.iter().take(4).map(|ex| {
+            let status_color = match ex.status.to_lowercase().as_str() {
+                s if s.contains("solv") || s.contains("remov") || s.contains("success") => "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+                s if s.contains("pending") || s.contains("progr") => "text-amber-400 bg-amber-400/10 border-amber-400/20",
+                _ => "text-red-400 bg-red-400/10 border-red-400/20",
+            };
+
             format!(
-                r#"<div class="bg-white p-4 rounded-lg shadow border border-zinc-200"><p class="font-semibold text-zinc-900 truncate">{}</p><p class="text-xs text-zinc-500 mt-1">{} {}</p><p class="text-xs text-zinc-400 truncate">{} {}</p></div>"#,
-                ex.name,
-                t.get("example_label_type"),
-                ex.ticket_type,
-                t.get("example_label_url"),
-                ex.url
+                r#"<div class="bg-zinc-900 rounded-lg border border-zinc-800 p-5 flex flex-col gap-3 hover:border-[#FF4B00]/40 transition-colors">
+                    <div class="flex items-start justify-between">
+                        <span class="text-xs font-bold px-2 py-1 rounded bg-zinc-800 text-zinc-400 uppercase tracking-wider">{type_}</span>
+                        <span class="text-xs font-bold px-2 py-1 rounded border {status_class}">{status}</span>
+                    </div>
+                    <div class="flex-grow">
+                         <p class="text-sm font-mono text-zinc-300 break-all line-clamp-2" title="{url}">{url}</p>
+                    </div>
+                    {date_html}
+                </div>"#,
+                type_ = ex.ticket_type,
+                status_class = status_color,
+                status = ex.status,
+                url = ex.url,
+                date_html = ex.request_date.as_ref().map(|d| format!(r#"<div class="pt-3 border-t border-zinc-800 flex items-center gap-2">
+                    <svg class="w-3 h-3 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    <span class="text-xs text-zinc-500">{}</span>
+                </div>"#, d)).unwrap_or_default()
             )
         }).collect();
         
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-green-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">{title}</h2><div class="grid grid-cols-2 gap-6 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 80% 80%, #FF4B00 0%, transparent 40%);"></div><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RESULTADOS</span></div><h2 class="text-4xl font-black mb-8 uppercase tracking-tight">{title}</h2><div class="grid grid-cols-2 gap-6 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
             title = t.get("examples_takedowns_title"),
             examples = examples_html,
-            footer = footer_light(13, &t.get("footer_text")),
+            footer = footer_dark(13, &t.get("footer_text")),
         );
         
         vec![SlideOutput { id: "takedown_examples".into(), html }]

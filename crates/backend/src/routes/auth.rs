@@ -366,24 +366,52 @@ pub async fn validate(
         }
     };
 
-    // Check admin status from GitHub storage (replaces Leapcell DB)
+    // Check admin status from Firestore (primary) or GitHub storage (fallback)
     let mut is_admin = false;
     if let Some(user_cookie) = jar.get(AUTH_USER_COOKIE_NAME) {
         let email = user_cookie.value();
+        let email_lower = email.to_lowercase();
 
-        // Use GitHub storage with ETag caching (0 TTL = always fresh)
-        if let Some(storage) = crate::github_storage::get_github_storage() {
-            match storage.is_admin(email).await {
-                Ok(admin) => {
-                    is_admin = admin;
-                    tracing::debug!("GitHub storage: {} is_admin={}", email, admin);
+        // 1. Check Firestore
+        if let Some(firestore) = crate::firebase::get_firestore() {
+            let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
+            match firestore
+                .get_doc::<serde_json::Value>("allowed_users", &doc_id)
+                .await
+            {
+                Ok(Some(doc)) => {
+                    if let Some(role) = doc.get("role").and_then(|v| v.as_str()) {
+                        if role == "admin" {
+                            is_admin = true;
+                            tracing::debug!("Firestore: {} is_admin=true", email);
+                        }
+                    }
                 }
-                Err(e) => {
-                    tracing::warn!("GitHub storage check failed: {} - falling back to false", e);
-                }
+                Ok(None) => {}
+                Err(e) => tracing::warn!("Firestore admin check failed: {}", e),
             }
-        } else {
-            tracing::warn!("GitHub storage not configured - admin check skipped");
+        }
+
+        // 2. Fallback to GitHub storage if not confirmed yet
+        if !is_admin {
+            if let Some(storage) = crate::github_storage::get_github_storage() {
+                match storage.is_admin(email).await {
+                    Ok(admin) => {
+                        if admin {
+                            is_admin = true;
+                            tracing::debug!("GitHub storage: {} is_admin=true", email);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "GitHub storage check failed: {} - falling back to false",
+                            e
+                        );
+                    }
+                }
+            } else {
+                tracing::warn!("GitHub storage not configured - admin check skipped");
+            }
         }
     }
 

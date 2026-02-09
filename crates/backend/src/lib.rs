@@ -10,6 +10,7 @@ pub mod injector;
 pub mod middleware;
 pub mod queue;
 pub mod routes;
+pub mod services;
 pub mod utils;
 
 // Re-export the router creator

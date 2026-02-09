@@ -21,17 +21,35 @@ impl SlidePlugin for GeospatialSlidePlugin {
 
     fn is_enabled(&self, ctx: &PluginContext) -> bool {
         !ctx.data.deep_investigations.is_empty()
+            || !ctx.data.latest_incidents.is_empty()
+            || !ctx.data.resolved_takedowns.is_empty()
     }
 
     fn generate_slides(&self, ctx: &PluginContext) -> Vec<SlideOutput> {
         let data = ctx.data;
         let t = ctx.translations;
 
-        // Aggregate countries from investigations
+        // Aggregate countries from investigations, incidents, and takedowns
         let mut countries: HashMap<String, u32> = HashMap::new();
+
+        // 1. Deep Investigations (Signal Lake)
         for inv in &data.deep_investigations {
             if let Some(country) = &inv.infrastructure.country {
                 *countries.entry(country.clone()).or_insert(0) += 1;
+            }
+        }
+
+        // 2. Latest Incidents
+        for inc in &data.latest_incidents {
+            if !inc.country.is_empty() {
+                *countries.entry(inc.country.clone()).or_insert(0) += 1;
+            }
+        }
+
+        // 3. Resolved Takedowns
+        for td in &data.resolved_takedowns {
+            if !td.country.is_empty() {
+                *countries.entry(td.country.clone()).or_insert(0) += 1;
             }
         }
 

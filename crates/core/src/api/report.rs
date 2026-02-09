@@ -1473,6 +1473,26 @@ pub async fn fetch_full_report(
         deep_analytics.has_takedown_insights = true;
     }
 
+    // FIXED: Prefer summary count which uses the detailed endpoint used for the slide
+    let final_creds_count = if cred_summary.total_credentials > 0 {
+        cred_summary.total_credentials
+    } else {
+        creds_count
+    };
+
+    // FIXED: Ensure total_tickets is not 0 if we have resolved items (historical reporting fix)
+    let final_total_tickets = if total_tickets == 0 {
+        // Sum up explicitly found items if stats return 0
+        let manual_sum = (resolved_td.len() as u64) + (incidents.len() as u64);
+        if manual_sum > 0 {
+            manual_sum
+        } else {
+            0
+        }
+    } else {
+        total_tickets
+    };
+
     let report = PocReportData {
         company_name: customer.name,
         partner_name: customer.partner,
@@ -1487,11 +1507,12 @@ pub async fn fetch_full_report(
         domains_count: customer.domains_count,
         threat_hunting_credits: 0,
         threat_intelligence_assets: 0,
-        total_tickets,
+        total_tickets: final_total_tickets,
         total_threats,
+
         validation_hours,
         threats_by_type: threats_vec,
-        credentials_total: creds_count,
+        credentials_total: final_creds_count,
         unique_hosts: 0,
         high_risk_users: 0,
         malware_breakdown: vec![],
@@ -2557,8 +2578,8 @@ async fn fetch_resolved_takedowns(
     customer: &str,
 ) -> Result<Vec<ResolvedTakedown>> {
     let url = format!(
-        "{}/tickets-api/tickets?current.takedown.resolution=resolved&current.resolution=resolved&pageSize={}&sortBy=current.close.date&order=desc&include=fields,attachments&ticket.customer={}",
-        API_URL, page_size, customer
+        "{}/tickets-api/tickets?current.takedown.resolution=resolved&current.resolution=resolved&current.close.date=ge:{}&current.close.date=le:{}&pageSize={}&sortBy=current.close.date&order=desc&include=fields,attachments&ticket.customer={}",
+        API_URL, from, to, page_size, customer
     );
 
     let resp = client

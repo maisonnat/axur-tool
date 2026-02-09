@@ -30,8 +30,6 @@ axur-web/
 │   ├── backend/      # Axum REST API server
 │   ├── frontend/     # Leptos WASM SPA
 │   └── core/         # Shared types and API client
-├── .agent/
-│   └── workflows/    # Agent automation workflows
 ├── build-frontend.ps1
 └── Cargo.toml
 ```
@@ -84,7 +82,7 @@ This project follows security best practices:
 - **OWASP 2025**: A01 (Access Control), A03 (Supply Chain), A10 (Error Handling)
 - **Rust Safety**: Proper `Result`/`Option` handling, no unwrap in production
 
-See `.agent/workflows/security-audit.md` for full audit workflow.
+See `docs/SECURITY_AUDIT.md` for full audit workflow.
 
 ## 🧪 Testing
 

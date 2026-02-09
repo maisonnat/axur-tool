@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter, sans-serif']}}}};</script>
+    <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter, sans-serif']}}}}</script>
     <style>
         @media print {
             @page {
@@ -44,14 +44,25 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-zinc-950 text-zinc-200">
+    <div id="lang-switcher" class="fixed top-4 right-4 z-50 flex gap-1 bg-zinc-800/90 backdrop-blur p-1 rounded-lg shadow-lg no-print">
+    <button onclick="if(window._setLang)window._setLang('es')" 
+                    class="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-orange-500 text-white"
+                    data-lang="es">ES</button>
+    <button onclick="if(window._setLang)window._setLang('en')" 
+                    class="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
+                    data-lang="en">EN</button>
+    <button onclick="if(window._setLang)window._setLang('pt')" 
+                    class="px-3 py-1.5 text-sm font-medium rounded transition-colors bg-zinc-700 text-zinc-300 hover:bg-zinc-600"
+                    data-lang="pt">PT</button>
+</div>
     <div id="report-content" class="p-4 md:p-8">
-        <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white p-0"><div class="flex-grow h-full overflow-hidden"><div class="relative h-full w-full flex"><div class="w-5/12 h-full flex flex-col p-14 relative z-10 bg-zinc-950"><div><div class="inline-block bg-black p-1"><div class="inline-flex items-center gap-2 px-4 py-1 bg-orange-600 text-white"><span class="font-bold text-lg">TLP:AMBER</span></div></div><p class="mt-2 text-xs max-w-xs">Traffic Light Protocol (TLP). Restrictions on how this information can be shared.</p></div><div class="flex-grow flex flex-col justify-center"><div><h1 class="text-6xl font-black leading-tight">Proof of Concept<br>Results Report<br></h1><div class="mt-8"><div><p class="text-orange-500 font-semibold">COMPANY</p><p class="text-2xl">Test Company</p></div></div></div></div><div class="flex items-center font-black tracking-wider select-none h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div></div><div class="w-7/12 h-full relative"><div class="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"></div><div class="absolute inset-0 bg-black/30"></div><div class="absolute inset-0 overflow-hidden" style="opacity:1"><div class="absolute -top-10 -left-10 w-40 h-40 bg-orange-500"></div><div class="absolute top-1/4 right-1/4 w-60 h-60 bg-zinc-900"></div><div class="absolute -bottom-10 -right-10 w-52 h-52 bg-orange-500"></div><div class="absolute bottom-1/2 right-10 w-24 h-24 bg-white"></div><div class="absolute top-10 right-20 w-32 h-32 bg-white"></div><div class="absolute bottom-10 left-10 w-48 h-48 bg-zinc-900"></div><div class="absolute top-1/3 left-1/4 w-20 h-20 bg-orange-500"></div><div class="absolute -right-20 top-1/2 w-48 h-48 bg-zinc-900"></div><div class="absolute right-1/3 bottom-1/3 w-32 h-32 bg-white"></div><div class="absolute h-full w-20 bg-orange-500 right-0 top-1/4"></div><div class="absolute w-full h-10 bg-zinc-900 bottom-0 left-1/3"></div></div></div></div></div></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500">Digital Protection: From Detection to Resolution</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p>This report details the results of our Proof of Concept (PoC), demonstrating Axur's capability to provide complete visibility and effective response to digital risks.</p><p>The following pages present a detailed analysis of detected threats, actions taken, and the tangible value our platform brings to your brand's security and integrity.</p></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">2</span></div></footer></div></div>
+        <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white p-0"><div class="flex-grow h-full overflow-hidden"><div class="relative h-full w-full flex"><div class="w-5/12 h-full flex flex-col p-14 relative z-10 bg-zinc-950"><div><div class="inline-block bg-black p-1"><div class="inline-flex items-center gap-2 px-4 py-1 bg-orange-600 text-white"><span class="font-bold text-lg" data-i18n="label_tlp">TLP:</span><span class="font-bold text-lg">AMBER</span></div></div><p class="mt-2 text-xs max-w-xs" data-i18n="label_tlp_desc">Traffic Light Protocol (TLP). Restrictions on how this information can be shared.</p></div><div class="flex-grow flex flex-col justify-center"><div><h1 class="text-6xl font-black leading-tight" data-i18n="cover_title_static">Proof of Concept<br>Results Report<br></h1><div class="mt-8"><div><p class="text-orange-500 font-semibold" data-i18n="label_company">COMPANY</p><p class="text-2xl">Test Company</p></div></div></div></div><div class="flex items-center font-black tracking-wider select-none h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div></div><div class="w-7/12 h-full relative"><div class="absolute inset-0 w-full h-full bg-gradient-to-br from-zinc-800 via-zinc-900 to-black"></div><div class="absolute inset-0 bg-black/30"></div><div class="absolute inset-0 overflow-hidden" style="opacity:1"><div class="absolute -top-10 -left-10 w-40 h-40 bg-orange-500"></div><div class="absolute top-1/4 right-1/4 w-60 h-60 bg-zinc-900"></div><div class="absolute -bottom-10 -right-10 w-52 h-52 bg-orange-500"></div><div class="absolute bottom-1/2 right-10 w-24 h-24 bg-white"></div><div class="absolute top-10 right-20 w-32 h-32 bg-white"></div><div class="absolute bottom-10 left-10 w-48 h-48 bg-zinc-900"></div><div class="absolute top-1/3 left-1/4 w-20 h-20 bg-orange-500"></div><div class="absolute -right-20 top-1/2 w-48 h-48 bg-zinc-900"></div><div class="absolute right-1/3 bottom-1/3 w-32 h-32 bg-white"></div><div class="absolute h-full w-20 bg-orange-500 right-0 top-1/4"></div><div class="absolute w-full h-10 bg-zinc-900 bottom-0 left-1/3"></div></div></div></div></div></div></div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500" data-i18n="intro_title">Digital Protection: From Detection to Resolution</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p data-i18n="intro_text_static">This report details the results of our Proof of Concept (PoC), demonstrating Axur's capability to provide complete visibility and effective response to digital risks.</p><p data-i18n="intro_text_closing">The following pages present a detailed analysis of detected threats, actions taken, and the tangible value our platform brings to your brand's security and integrity.</p></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">2</span></div></footer></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full relative items-center"><div class="w-5/12 text-white flex flex-col justify-center pr-10"><h2 class="text-4xl font-bold text-orange-500 leading-tight mb-8">Complete Platform for Your Digital Protection</h2><div class="space-y-6 text-zinc-300 text-sm"><p>Axur offers a complete solution for managing your digital risks.</p><p>We protect your brand, your customers, and your business from online fraud and threats.</p><p>From detection to takedown, our platform automates the entire process.</p></div></div><div class="w-7/12 bg-white text-zinc-800 p-8 rounded-lg shadow-2xl"><div class="grid grid-cols-12 gap-x-6 gap-y-4 w-full"><div class="col-span-8 grid grid-cols-2 gap-x-6 gap-y-4"><div class="bg-blue-500 text-white p-3 rounded-md"><h4 class="font-bold text-sm mb-1">Takedown</h4><p class="text-xs text-blue-100">Eliminación automatizada de contenido infractor.</p></div><div><h4 class="font-bold text-sm mb-1">Brand Protection</h4><p class="text-xs text-zinc-600">Detección de abuso de marca y falsificaciones.</p></div><div><h4 class="font-bold text-sm mb-1">Threat Intelligence</h4><p class="text-xs text-zinc-600">Inteligencia contextualizada sobre amenazas.</p></div><div><h4 class="font-bold text-sm mb-1">Caza de Amenazas</h4><p class="text-xs text-zinc-600">Búsqueda proactiva de amenazas ocultas.</p></div><div><h4 class="font-bold text-sm mb-1">Deep &amp; Dark Web</h4><p class="text-xs text-zinc-600">Monitoreo de foros y mercados clandestinos.</p></div><div><h4 class="font-bold text-sm mb-1">Inteligencia de Phishing</h4><p class="text-xs text-zinc-600">Análisis de campañas e infraestructura de phishing.</p></div><div><h4 class="font-bold text-sm mb-1">Antipiratería</h4><p class="text-xs text-zinc-600">Combate a la distribución no autorizada.</p></div><div><h4 class="font-bold text-sm mb-1">Protección VIP</h4><p class="text-xs text-zinc-600">Protección para ejecutivos y personas de alto perfil.</p></div><div><h4 class="font-bold text-sm mb-1">Gestión de Superficie de Ataque</h4><p class="text-xs text-zinc-600">Mapeo y monitoreo de activos digitales.</p></div><div><h4 class="font-bold text-sm mb-1">Fugas de Datos</h4><p class="text-xs text-zinc-600">Detección de credenciales y datos sensibles expuestos.</p></div></div><div class="col-span-4 border-l border-zinc-200 pl-6"><h5 class="text-xs font-semibold text-zinc-500 tracking-wider mb-4">INTEGRACIONES</h5><h4 class="font-bold text-sm mb-1">API y Conectores</h4><p class="text-xs text-zinc-600">Integre nuestros datos en su SIEM, SOAR u otras herramientas de seguridad.</p></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">3</span></div></footer></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100 p-0"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full w-full"><div class="w-8/12 p-14 flex flex-col justify-center"><div class="mb-12"><span class="bg-orange-600 text-white px-4 py-2 text-md font-semibold">Table of Contents</span></div><div class="space-y-5"><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">General Metrics</span></div><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">Digital Fraud</span></div><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">Data Exposure</span></div><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">Executives & VIPs</span></div><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">Deep & Dark Web</span></div><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">Threat Intelligence & Exposure</span></div><div class="flex items-center gap-4"><svg fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24" class="w-8 h-8 text-zinc-400 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M12 16L16 12L12 8"></path><path stroke-linecap="round" stroke-linejoin="round" d="M8 12H16"></path></svg><span class="text-3xl text-zinc-700 break-words leading-tight max-w-[90%]">Operational Efficiency</span></div></div></div><div class="w-4/12 relative bg-zinc-800 rounded-l-xl overflow-hidden"><div class="absolute inset-0 overflow-hidden" style="opacity:1"><div class="absolute -top-10 -left-10 w-40 h-40 bg-orange-500"></div><div class="absolute top-1/4 right-1/4 w-60 h-60 bg-zinc-900"></div><div class="absolute -bottom-10 -right-10 w-52 h-52 bg-orange-500"></div><div class="absolute bottom-1/2 right-10 w-24 h-24 bg-white"></div><div class="absolute top-10 right-20 w-32 h-32 bg-white"></div><div class="absolute bottom-10 left-10 w-48 h-48 bg-zinc-900"></div><div class="absolute top-1/3 left-1/4 w-20 h-20 bg-orange-500"></div><div class="absolute -right-20 top-1/2 w-48 h-48 bg-zinc-900"></div><div class="absolute right-1/3 bottom-1/3 w-32 h-32 bg-white"></div><div class="absolute h-full w-20 bg-orange-500 right-0 top-1/4"></div><div class="absolute w-full h-10 bg-zinc-900 bottom-0 left-1/3"></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">4</span></div></footer></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="absolute inset-0 bg-gradient-to-br from-zinc-950 to-zinc-900" style="background-image:radial-gradient(circle at 25px 25px,rgba(251,146,60,0.1) 2%,transparent 0%),radial-gradient(circle at 75px 75px,rgba(251,146,60,0.1) 2%,transparent 0%);background-size:100px 100px"></div><div class="relative h-full flex flex-col"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">Monitoring Scope</span><h2 class="text-4xl font-bold mt-2">Monitored Assets</h2></div><div class="grid grid-cols-12 gap-12 flex-grow"><div class="col-span-8"><h3 class="text-2xl font-semibold mb-6 text-orange-400">Monitored Assets</h3><div class="grid grid-cols-2 gap-6"><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z"></path></svg><div><p class="text-3xl font-bold text-white">5</p><p class="text-sm text-zinc-400">Monitored Brand(s)</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m-7.5-2.228a4.5 4.5 0 00-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 001.13-1.897M16.5 7.5V18L18 15.75l-1.5-3.75V7.5z"></path></svg><div><p class="text-3xl font-bold text-white">2</p><p class="text-sm text-zinc-400">Executives</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 17.25v-.228a4.5 4.5 0 00-.12-1.03l-2.268-9.64a3.375 3.375 0 00-3.285-2.602H7.923a3.375 3.375 0 00-3.285 2.602l-2.268 9.64a4.5 4.5 0 00-.12 1.03v.228m19.5 0a3 3 0 01-3 3H5.25a3 3 0 01-3-3m19.5 0a3 3 0 00-3-3H5.25a3 3 0 00-3 3m16.5 0h.008v.008h-.008v-.008zm-3 0h.008v.008h-.008v-.008z"></path></svg><div><p class="text-3xl font-bold text-white">10</p><p class="text-sm text-zinc-400">IPs / Ranges</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"></path></svg><div><p class="text-3xl font-bold text-white">20</p><p class="text-sm text-zinc-400">BINs</p></div></div><div class="bg-zinc-900 p-6 rounded-lg flex items-center gap-4 transition-transform hover:scale-105 hover:bg-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-10 h-10 text-orange-500 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"></path></svg><div><p class="text-3xl font-bold text-white">50</p><p class="text-sm text-zinc-400">Domains</p></div></div></div></div><div class="col-span-4 flex flex-col gap-8"><div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>PoC Duration</h3><p class="text-zinc-300">Start: 01/01/2023</p><p class="text-zinc-300">End: 31/01/2023</p></div><div class="bg-zinc-900 border border-zinc-800 p-6 rounded-lg flex-grow"><h3 class="text-xl font-semibold mb-4 text-orange-400 flex items-center gap-3"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>Acceso a Investigación</h3><div class="space-y-4"><div><p class="font-semibold">Threat Hunting</p><p class="text-sm text-zinc-400">Créditos: <span class="font-bold text-orange-400">100</span></p></div><div><p class="font-semibold">Threat Intelligence</p><p class="text-sm text-zinc-400">Activos: <span class="font-bold text-orange-400">10</span></p></div></div></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">5</span></div></footer></div></div>
 <div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="flex h-full items-center"><div class="w-7/12 pr-12"><div class="mb-8"><span class="bg-orange-600 px-4 py-1 text-sm font-semibold">CONTEXTO</span></div><h2 class="text-5xl font-bold mb-8 leading-tight">The Digital Risk Landscape</h2><p class="text-xl text-zinc-300 leading-relaxed text-justify">Digital risk monitoring is essential in today's interconnected world. This section provides an overview of the threats detected across the open, deep, and dark web. By identifying these risks early, we enable proactive mitigation strategies to protect your brand reputation and digital assets.</p></div><div class="w-5/12 flex items-center justify-center p-8 bg-zinc-900/50 rounded-lg border border-zinc-800"><svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"></path></svg></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-white h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-400"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">0</span></div></footer></div></div>
-<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8">General Metrics</h2><div class="grid grid-cols-2 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-6xl font-bold mb-4">1.000</p><p class="text-2xl font-semibold text-zinc-900 mb-4">Total Tickets (Raw Detections)</p><div class="text-zinc-600 text-lg space-y-2">Total number of signals collected by the platform.</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200 border-l-8 border-l-orange-500"><div class="flex-grow"><h3 class="text-2xl font-bold text-zinc-900 mb-4">Operational Efficiency</h3><p class="text-zinc-700 text-lg mb-6">To manually analyze the threats processed by Axur, your team would have needed <strong>250 hours</strong>. This is equivalent to <strong>1.6 full-time analysts</strong> dedicated solely to detection.</p><div class="p-4 bg-orange-50 rounded-lg border border-orange-100"><p class="text-zinc-800 font-medium">Threat management with Axur was <strong>180x faster</strong> than the industry average. While a human takes ~30 mins per alert, our AI correlates threats in seconds.</p></div></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">6</span></div></footer></div></div>
+<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold" data-i18n="metrics_results_title">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-8" data-i18n="metrics_title">General Metrics</h2><div class="grid grid-cols-2 gap-8 flex-grow"><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200"><div class="flex-grow"><p class="text-orange-600 text-6xl font-bold mb-4">1.000</p><p class="text-2xl font-semibold text-zinc-900 mb-4" data-i18n="metrics_total_tickets">Total Tickets (Raw Detections)</p><div class="text-zinc-600 text-lg space-y-2" data-i18n="metrics_desc_tickets">Total number of signals collected by the platform.</div></div></div><div class="bg-white p-8 rounded-lg shadow-md text-zinc-800 flex flex-col h-full border border-zinc-200 border-l-8 border-l-orange-500"><div class="flex-grow"><h3 class="text-2xl font-bold text-zinc-900 mb-4" data-i18n="eff_title">Operational Efficiency</h3><p class="text-zinc-700 text-lg mb-6">To manually analyze the threats processed by Axur, your team would have needed <strong>250 hours</strong>. This is equivalent to <strong>1.6 full-time analysts</strong> dedicated solely to detection.</p><div class="p-4 bg-orange-50 rounded-lg border border-orange-100"><p class="text-zinc-800 font-medium">Threat management with Axur was <strong>180x faster</strong> than the industry average. While a human takes ~30 mins per alert, our AI correlates threats in seconds.</p></div></div></div></div></div></div><footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center"><div class="flex items-center font-black tracking-wider select-none text-zinc-800 h-5"><span class="text-orange-500 text-2xl -mr-1">///</span><span class="text-xl">AXUR</span></div><div class="flex items-center text-xs text-zinc-600"><span>Axur. Digital experiences made safe. All rights reserved.</span><span class="ml-4">6</span></div></footer></div></div>
 
     <div class="printable-slide w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-900">
         <h2 class="text-4xl font-bold text-orange-500 mb-2">Attack Timeline vs. Human Capacity</h2>
@@ -170,13 +181,7 @@
                                 <div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">UOL</span>
-                </div>
-                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
-            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">AWS</span>
+                    <span class="text-zinc-300 truncate text-sm">Locaweb</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
             </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
@@ -188,19 +193,25 @@
             </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">Cloudflare</span>
-                </div>
-                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
-            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
                     <span class="text-zinc-300 truncate text-sm">Yandex</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
             </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">Locaweb</span>
+                    <span class="text-zinc-300 truncate text-sm">Cloudflare</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">Google</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">Alibaba</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
             </div>
@@ -221,7 +232,7 @@
                     new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: ["🇺🇸 USA","🇩🇪 Germany","🇧🇷 Brasil","🇧🇷 Brazil","🇷🇺 Russia","🇨🇳 China"],
+                            labels: ["🇺🇸 USA","🇷🇺 Russia","🇧🇷 Brazil","🇧🇷 Brasil","🇩🇪 Germany","🇨🇳 China"],
                             datasets: [{
                                 label: 'Origem',
                                 data: [3,1,1,1,1,1],
@@ -531,10 +542,10 @@
         <!-- Right Side: Content -->
         <div class="w-7/12 h-full flex flex-col justify-center px-16 relative bg-[#0a0a0a]">
             <div class="mb-12">
-                 <h2 class="text-5xl font-bold text-white leading-tight mb-6">
+                 <h2 class="text-5xl font-bold text-white leading-tight mb-6" data-i18n="closing_value_title">
                     Your New Extended Team
                  </h2>
-                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-xl">
+                 <p class="text-xl text-zinc-400 font-light leading-relaxed max-w-xl" data-i18n="closing_value_intro">
                     Acquiring Axur isn't just buying software; it's adding an army of virtual analysts to your SOC.
                  </p>
             </div>
@@ -546,8 +557,8 @@
                         <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-lg mb-1">Fatigue Reduction</h4>
-                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">We eliminate noise so your analysts only see what matters.</p>
+                        <h4 class="text-white font-bold text-lg mb-1" data-i18n="closing_value_item_1_title">Fatigue Reduction</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed" data-i18n="closing_value_item_1_desc">We eliminate noise so your analysts only see what matters.</p>
                     </div>
                 </div>
                 
@@ -557,8 +568,8 @@
                         <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-lg mb-1">Reaction Speed</h4>
-                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">From days to minutes. We drastically minimize exposure time.</p>
+                        <h4 class="text-white font-bold text-lg mb-1" data-i18n="closing_value_item_2_title">Reaction Speed</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed" data-i18n="closing_value_item_2_desc">From days to minutes. We drastically minimize exposure time.</p>
                     </div>
                 </div>
 
@@ -568,8 +579,8 @@
                         <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                     </div>
                     <div>
-                        <h4 class="text-white font-bold text-lg mb-1">Total Visibility</h4>
-                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed">We provide full context: 'Who, How, and Methodology', eliminating false positives so your team focuses only on real threats.</p>
+                        <h4 class="text-white font-bold text-lg mb-1" data-i18n="closing_value_item_3_title">Total Visibility</h4>
+                        <p class="text-zinc-500 text-sm max-w-sm leading-relaxed" data-i18n="closing_value_item_3_desc">We provide full context: 'Who, How, and Methodology', eliminating false positives so your team focuses only on real threats.</p>
                     </div>
                 </div>
             </div>
@@ -595,5 +606,752 @@
     </div>
     
     </div>
+    <script id="i18n-data" type="application/json">
+{
+    "en": {
+    "_meta": {
+        "language": "en",
+        "name": "English",
+        "version": "2.0.0",
+        "note": "Complete migration from Dictionary trait (M2)"
+    },
+    "welcome_message": "Welcome to Axur CLI",
+    "login_prompt_email": "Email",
+    "footer_text": "Axur. Digital experiences made safe. All rights reserved.",
+    "label_partner": "PARTNER",
+    "label_company": "COMPANY",
+    "label_tlp": "TLP:",
+    "label_tlp_desc": "Traffic Light Protocol (TLP). Restrictions on how this information can be shared.",
+    "cover_title_dynamic": "Digital Monitoring<br>Report<br>",
+    "cover_title_static": "Proof of Concept<br>Results Report<br>",
+    "intro_title": "Digital Protection: From Detection to Resolution",
+    "intro_text_dynamic": "This report details the results of continuous monitoring for your brand, demonstrating Axur's capability to provide complete visibility and effective response to digital risks.",
+    "intro_text_static": "This report details the results of our Proof of Concept (PoC), demonstrating Axur's capability to provide complete visibility and effective response to digital risks.",
+    "intro_text_closing": "The following pages present a detailed analysis of detected threats, actions taken, and the tangible value our platform brings to your brand's security and integrity.",
+    "solutions_title": "Complete Platform for Your Digital Protection",
+    "solutions_subtitle_1": "Axur offers a complete solution for managing your digital risks.",
+    "solutions_subtitle_2": "We protect your brand, your customers, and your business from online fraud and threats.",
+    "solutions_subtitle_3": "From detection to takedown, our platform automates the entire process.",
+    "solution_takedown": "Takedown",
+    "solution_brand_protection": "Brand Protection",
+    "solution_threat_intel": "Threat Intelligence",
+    "toc_title": "Table of Contents",
+    "toc_items": [
+        "General Metrics",
+        "Digital Fraud",
+        "Data Exposure",
+        "Executives & VIPs",
+        "Deep & Dark Web",
+        "Threat Intelligence & Exposure",
+        "Operational Efficiency"
+    ],
+    "poc_scope_title": "Monitoring Scope",
+    "poc_assets_title": "Monitored Assets",
+    "poc_label_brands": "Monitored Brand(s)",
+    "poc_label_executives": "Executives",
+    "poc_label_ips": "IPs / Ranges",
+    "poc_label_bins": "BINs",
+    "poc_label_domains": "Domains",
+    "poc_period_dynamic_title": "Analysis Period",
+    "poc_period_dynamic_text": "Last days until today",
+    "poc_period_static_title": "PoC Duration",
+    "poc_period_start": "Start",
+    "poc_period_end": "End",
+    "metrics_title": "General Metrics",
+    "comparative_title": "Comparative Analysis",
+    "heatmap_title": "Attack Heatmap",
+    "radar_title": "Threat Radar",
+    "insights_title": "Insights & Recommendations",
+    "metrics_total_tickets": "Total Tickets (Raw Detections)",
+    "metrics_threats_detected": "Detected Threats",
+    "metrics_time_saved": "Time Saved in Validation",
+    "metrics_desc_tickets": "Total number of signals collected by the platform.",
+    "metrics_desc_threats": "Signals confirmed as real risks after analysis and validation.",
+    "metrics_desc_time": "Estimated time your team would have spent manually collecting and validating these threats.",
+    "threats_title": "Potential Threats",
+    "threats_desc": "A total of <strong>{total}</strong> threats were detected. The chart shows main categories, highlighting the most frequent attack vectors.",
+    "stealer_title": "Risk Landscape: Infostealer Credentials",
+    "stealer_subtitle": "Analysis of {count} detected credentials",
+    "stealer_box_creds": "Total Credentials",
+    "stealer_box_hosts": "Unique Hosts Compromised",
+    "stealer_box_high_risk": "High Risk Users",
+    "stealer_action": "Immediate Action: Force password reset for exposed users and prioritize isolating infected hosts.",
+    "stealer_critical_title": "CRITICAL: Corporate Pattern Detected",
+    "stealer_critical_desc": "Found <span class=\"text-white font-bold\">{count}</span> identities using variations of the company name in their passwords.",
+    "code_leak_title": "Risk Landscape: Code Credential Leaks",
+    "code_leak_subtitle": "Analysis of {count} public secrets exposed",
+    "code_leak_box_secrets": "Total Secrets Exposed",
+    "code_leak_box_repos": "Unique Public Repos",
+    "code_leak_box_prod": "Production Secrets",
+    "code_leak_action": "Immediate Action: Rotate Production keys and API Keys immediately. Implement secret scanning in CI/CD pipeline.",
+    "incidents_title": "Incidents by Type",
+    "incidents_desc": "A total of <strong>{total}</strong> detections were processed. This chart details the relationship between raw detections and confirmed incidents.",
+    "takedowns_title": "Takedowns",
+    "takedowns_requested": "takedowns requested",
+    "takedowns_success_rate": "success rate",
+    "takedowns_median_notify": "median time for<br>1st notification",
+    "takedowns_median_uptime": "uptime median",
+    "takedowns_status_title": "Takedown status",
+    "takedowns_solved": "Solved",
+    "takedowns_in_progress": "In progress",
+    "takedowns_interrupted": "Interrupted",
+    "takedowns_not_solved": "Not solved",
+    "roi_title": "Impact & ROI",
+    "roi_efficiency_title": "Operational Efficiency",
+    "roi_efficiency_label": "FTEs Saved",
+    "roi_efficiency_desc": "Equivalent to {hours} hours of manual analysis saved for your security team.",
+    "roi_risk_title": "Risk Reduction",
+    "roi_risk_label": "vs Industry Avg",
+    "roi_risk_desc": "Axur Detection & Notification Time ({notify_time}) vs 48h (Manual).",
+    "roi_intel_title": "Critical Intelligence",
+    "roi_intel_desc": "Advanced risk profile based on {count} analyzed credentials.",
+    "roi_intel_stealer": "Malware (Stealer Logs)",
+    "roi_intel_plaintext": "Plaintext Passwords",
+    "exposure_title": "Sensitive Data Exposure",
+    "exposure_sub_code": "Source Code Leaks",
+    "exposure_sub_stealer": "Infostealer Credentials",
+    "op_badge": "OPERATIONAL IMPACT",
+    "op_time_saved_title": "Time Saved",
+    "op_time_saved_desc": "Hours your team would have spent manually processing these signals and threats.",
+    "op_unit_person_days": "person-days",
+    "op_unit_hours": "hours",
+    "op_breakdown_validation": "Validation",
+    "op_breakdown_monitoring": "Monitoring",
+    "op_breakdown_takedowns": "Takedowns",
+    "op_capacity_title": "Freed Capacity",
+    "op_capacity_desc": "Equivalent capacity of security analysts that Axur frees for strategic tasks.",
+    "op_tickets_processed": "tickets processed",
+    "op_credentials_monitored": "credentials monitored",
+    "op_response_title": "Response Time",
+    "op_response_desc": "Median time from detection to first provider notification.",
+    "op_success_rate": "Success rate",
+    "op_takedowns_completed": "Takedowns completed",
+    "examples_takedowns_title": "Resolved Takedowns: Examples",
+    "examples_poc_title": "Examples of Detected Threats",
+    "example_label_type": "Type:",
+    "example_label_date": "Date:",
+    "example_label_url": "URL:",
+    "example_no_image": "No Image Available",
+    "example_no_data": "No evidence examples found in the selected period.",
+    "closing_title": "Protect What Matters Most",
+    "closing_subtitle": "You've seen the risks. Now turn these results into continuous, 24/7 protection for your brand and customers.",
+    "closing_cta_activate": "Activate Production Environment",
+    "closing_cta_activate_desc": "Seamless transition from PoC to full protection.",
+    "closing_cta_meet": "Meet your Customer Success Manager",
+    "closing_cta_meet_desc": "Personalized onboarding and strategic planning.",
+    "deep_analytics_title": "🔍 Executive Threat Summary",
+    "deep_analytics_subtitle": "Advanced insights computed from your threat data",
+    "deep_analytics_code_leak_title": "Code Leak Insights",
+    "deep_analytics_code_leak_subtitle": "{count} unique repositories analyzed",
+    "deep_analytics_credential_title": "Credential Insights",
+    "deep_analytics_credential_subtitle": "{count} credentials analyzed",
+    "deep_analytics_takedown_title": "Takedown Efficiency",
+    "deep_analytics_takedown_subtitle": "{count} takedowns by platform",
+    "story_title": "Incident Story",
+    "story_subtitle": "Timeline of {count} related incidents",
+    "ctx_risk_title": "The Digital Risk Landscape",
+    "ctx_risk_text": "Digital risk monitoring is essential in today's interconnected world. This section provides an overview of the threats detected across the open, deep, and dark web. By identifying these risks early, we enable proactive mitigation strategies to protect your brand reputation and digital assets.",
+    "eff_title": "Operational Efficiency",
+    "eff_text_hours": "To manually analyze the threats processed by Axur, your team would have needed <strong>{hours} hours</strong>. This is equivalent to <strong>{analysts} full-time analysts</strong> dedicated solely to detection.",
+    "eff_text_speed": "Threat management with Axur was <strong>180x faster</strong> than the industry average. While a human takes ~30 mins per alert, our AI correlates threats in seconds.",
+    "narrative_phishing_title": "Phishing & Brand Abuse",
+    "narrative_phishing_pain": "Modern phishing evades traditional filters. Attempting to cover the volume of 40 million new URLs daily is humanly impossible.",
+    "narrative_phishing_solution": "Our AI visually inspects every site (Computer Vision), detecting fraud even without explicit brand mentions. We don't just detect; we take down in under 4 minutes.",
+    "narrative_stealer_title": "Understanding Infostealers",
+    "narrative_stealer_pain": "Stolen credentials from infected devices (Infostealers) allow attackers to bypass MFA by mimicking the user's digital fingerprint.",
+    "narrative_stealer_solution": "Manually searching the Deep Web is inefficient. Axur scans 42 billion credentials to find only those that pose a real risk to your active sessions.",
+    "narrative_takedown_title": "The Takedown Process",
+    "narrative_takedown_pain": "Managing takedowns across different platforms requires handling endless bureaucracy and forms for each provider.",
+    "narrative_takedown_solution": "Axur has trusted integrations with these platforms. What takes a lawyer days, we request en masse with a 98.9% success rate.",
+    "narrative_timeline_title": "Attack Timeline vs. Human Capacity",
+    "narrative_timeline_text": "Cybercriminals don't respect office hours. <strong>{percent}%</strong> of critical threats were detected outside business hours. Without 24/7 automation, these would remain active for days.",
+    "closing_value_title": "Your New Extended Team",
+    "closing_value_intro": "Acquiring Axur isn't just buying software; it's adding an army of virtual analysts to your SOC.",
+    "closing_value_item_1_title": "Fatigue Reduction",
+    "closing_value_item_1_desc": "We eliminate noise so your analysts only see what matters.",
+    "closing_value_item_2_title": "Reaction Speed",
+    "closing_value_item_2_desc": "From days to minutes. We drastically minimize exposure time.",
+    "closing_value_item_3_title": "Total Visibility",
+    "closing_value_item_3_desc": "We provide full context: 'Who, How, and Methodology', eliminating false positives so your team focuses only on real threats.",
+    "narrative_virality_title": "DEEP WEB & VIRALITY",
+    "narrative_virality_pain_primary": "Your brand was shared **{share_count} times** in {source_count} different fraud communities, including high-activity groups like '**{top_source}**'. This 'chatter' often precedes a massive wave of attacks.",
+    "narrative_virality_solution_primary": "Axur has infiltrated these invite-only channels (Telegram, Discord, Dark Web). We detect the threat at the *planning* stage, before it reaches your customers.",
+    "narrative_virality_pain_fallback": "Attacks often incubate silently in closed groups on Telegram and the Dark Web, completely invisible to standard perimeter defenses.",
+    "narrative_virality_solution_fallback": "Our Deep Web surveillance is active 24/7. In this period, **no critical viral campaigns** were detected, validating that your brand is currently not a 'trending topic' for fraudsters.",
+    "roi_precise_title": "Velocity Wins",
+    "roi_precise_text_primary": "Real Data: Your median takedown time was **{median_minutes} minutes**. This speed neutralizes phishing campaigns before they can claim victims.",
+    "roi_precise_text_fallback": "Managing threats with Axur is **180x faster** than industry average. AI correlation happens in seconds, replacing 30-minute manual triage per alert.",
+    "intent_title": "AI Intent Analysis",
+    "intent_fmt_primary": "Our AI Classifiers reveal that **{percent}%** of attacks aim for **{top_intent}**, indicating a specific campaign against your customer base.",
+    "intent_fmt_fallback": "Attacks are categorized by technical vector. Phishing remains the dominant method for initiating fraud.",
+    "intent_cat_credentials": "Credential Theft",
+    "intent_cat_infection": "Infection & Access",
+    "intent_cat_fraud": "Fraud & Reputation",
+    "intent_cat_trust": "Brand Trust & Phishing",
+    "intent_cat_chat": "Chat Intelligence",
+    "intent_cat_compromised": "Compromised Devices",
+    "intent_cat_data_leak": "Data Leakage",
+    "intent_cat_other": "Other",
+    "intent_cat_vip": "VIP Protection",
+    "intent_cat_dark_web": "Deep & Dark Web",
+    "geo_title": "Global Attack Origins",
+    "geo_fmt_primary": "We detected attacks originating from **{count} countries**. The primary source of hostile infrastructure is **{top_country}**.",
+    "geo_fmt_fallback": "Geographic attribution reveals jurisdiction overlaps. Monitoring international infrastructure helps predict future campaigns.",
+    "geo_lbl_countries": "Top Origin Countries",
+    "geo_lbl_isps": "Top ISPs (Networks)",
+    "ctx_stealer_title": "Understanding Infostealers",
+    "ctx_stealer_text": "Infostealers are malware designed to harvest sensitive information from infected devices. They collect login credentials, cookies, and system details, often sold on dark web marketplaces. Detecting these logs allows us to identify compromised employee or customer accounts before they are used for unauthorized access.",
+    "ctx_leak_title": "The Danger of Exposed Secrets",
+    "ctx_leak_text": "Developers sometimes inadvertently commit sensitive keys, tokens, or credentials to public repositories. These 'secrets' can grant attackers access to cloud infrastructure, databases, or internal services. Continuous monitoring of public code repositories is crucial to detect and revoke these keys immediately.",
+    "ctx_takedown_title": "The Takedown Process",
+    "ctx_takedown_text": "Takedown is the process of removing malicious or infringing content from the internet. When a threat is confirmed, our automated systems and legal team interact with hosting providers, registrars, and social media platforms to enforce removal, neutralizing the threat at its source.",
+    "timeline_title": "Attack Timeline",
+    "ti_title": "Threat Intelligence",
+    "ti_dark_web": "Dark Web Mentions",
+    "ti_mentions": "Total Mentions",
+    "ti_credentials": "Exposed Credentials",
+    "ti_sources": "Data Sources",
+    "ti_quality": "Intelligence Quality",
+    "virality_title": "Virality Analysis",
+    "virality_chat": "Chat Channels",
+    "virality_social": "Social Media",
+    "virality_dark": "Dark Web",
+    "geo_map_placeholder": "Interactive map showing global attack origins",
+    "metrics_results_title": "RESULTS",
+    "metrics_lbl_total": "Total Detections",
+    "metrics_lbl_threats": "Confirmed Threats",
+    "metrics_lbl_time": "Time Saved",
+    "evidence_context_title": "Executive Context",
+    "evidence_context_desc": "<strong class=\"text-white\">Real</strong> snapshots of detected threats. Badges show risk level and detection time.",
+    "evidence_risk_high": "HIGH",
+    "evidence_risk_medium": "MEDIUM",
+    "evidence_risk_low": "LOW",
+    "evidence_stats_shown": "detected",
+    "evidence_stats_high_risk": "high risk",
+    "evidence_stats_detection": "min detection",
+    "evidence_credential_capture": "Credential Capture"
+},
+    "es": {
+    "_meta": {
+        "language": "es",
+        "name": "Español",
+        "version": "1.0.0",
+        "note": "Migrated from Dictionary trait (M3)"
+    },
+    "welcome_message": "Bienvenido a Axur CLI",
+    "login_prompt_email": "Correo Electrónico",
+    "footer_text": "Axur. Digital experiences made safe. Todos los derechos reservados.",
+    "label_partner": "PARTNER",
+    "label_company": "EMPRESA",
+    "label_tlp": "TLP:",
+    "label_tlp_desc": "Protocolo de Semáforo (TLP). Restricciones sobre cómo se puede compartir esta información.",
+    "cover_title_dynamic": "Informe de<br>Monitoreo Digital<br>",
+    "cover_title_static": "Informe de Resultados<br>Prueba de Concepto<br>",
+    "intro_title": "Protección Digital: De la Detección a la Resolución",
+    "intro_text_dynamic": "Este informe detalla los resultados del monitoreo continuo de su marca, demostrando la capacidad de Axur para ofrecer visibilidad completa y respuesta eficaz ante los riesgos digitales.",
+    "intro_text_static": "Este informe detalla los resultados de nuestra Prueba de Concepto (PoC), demostrando la capacidad de Axur para ofrecer visibilidad completa y respuesta eficaz ante los riesgos digitales.",
+    "intro_text_closing": "Las siguientes páginas presentan un análisis detallado de las amenazas detectadas, las acciones tomadas y el valor tangible que nuestra plataforma aporta a la seguridad e integridad de su marca.",
+    "solutions_title": "Plataforma Completa para su Protección Digital",
+    "solutions_subtitle_1": "Axur ofrece una solución completa para la gestión de sus riesgos digitales.",
+    "solutions_subtitle_2": "Protegemos su marca, sus clientes y su negocio de fraudes y amenazas en línea.",
+    "solutions_subtitle_3": "Desde la detección hasta el takedown, nuestra plataforma automatiza todo el proceso.",
+    "solution_takedown": "Takedown",
+    "solution_brand_protection": "Protección de Marca",
+    "solution_threat_intel": "Inteligencia de Amenazas",
+    "toc_title": "Índice de Contenidos",
+    "toc_items": [
+        "Métricas Generales",
+        "Fraude Digital",
+        "Exposición de Datos",
+        "Ejecutivos y VIPs",
+        "Web Profunda y Oscura",
+        "Inteligencia de Amenazas y Exposición",
+        "Eficiencia Operativa"
+    ],
+    "poc_scope_title": "Alcance del Monitoreo",
+    "poc_assets_title": "Activos Monitoreados",
+    "poc_label_brands": "Marcas Monitoreadas",
+    "poc_label_executives": "Ejecutivos",
+    "poc_label_ips": "IPs / Rangos",
+    "poc_label_bins": "BINs",
+    "poc_label_domains": "Dominios",
+    "poc_period_dynamic_title": "Período de Análisis",
+    "poc_period_dynamic_text": "Últimos días hasta hoy",
+    "poc_period_static_title": "Duración de la PoC",
+    "poc_period_start": "Inicio",
+    "poc_period_end": "Fin",
+    "metrics_title": "Métricas Generales",
+    "comparative_title": "Análisis Comparativo",
+    "heatmap_title": "Mapa de Calor de Ataques",
+    "radar_title": "Radar de Amenazas",
+    "insights_title": "Insights y Recomendaciones",
+    "metrics_total_tickets": "Total de Tickets (Detecciones Crudas)",
+    "metrics_threats_detected": "Amenazas Detectadas",
+    "metrics_time_saved": "Ahorro de Tiempo en Validación",
+    "metrics_desc_tickets": "El número total de señales que la plataforma ha recopilado.",
+    "metrics_desc_threats": "Señales que, tras el análisis y validación, se confirmaron como riesgos reales.",
+    "metrics_desc_time": "Tiempo estimado que su equipo habría dedicado a recolectar, analizar y validar manualmente estas mismas amenazas.",
+    "threats_title": "Amenazas Potenciales",
+    "threats_desc": "Se detectaron un total de <strong>{total}</strong> amenazas. El gráfico muestra las principales categorías, destacando los vectores de ataque más frecuentes contra su marca.",
+    "stealer_title": "Panorama de Riesgo: Credenciales por Infostealer",
+    "stealer_subtitle": "Análisis de {count} credenciales detectadas",
+    "stealer_box_creds": "Credenciales Totales",
+    "stealer_box_hosts": "Hosts Únicos Comprometidos",
+    "stealer_box_high_risk": "Usuarios de Alto Riesgo",
+    "stealer_action": "Acción Inmediata: Forzar el reseteo de contraseña para los usuarios expuestos y priorizar el aislamiento de los hosts infectados.",
+    "stealer_critical_title": "CRÍTICO: Patrón Corporativo Detectado",
+    "stealer_critical_desc": "Se encontraron <span class=\"text-white font-bold\">{count}</span> identidades usando variaciones del nombre de la empresa en sus contraseñas.",
+    "code_leak_title": "Panorama de Riesgo: Fugas de Credenciales en Código",
+    "code_leak_subtitle": "Análisis de {count} secretos expuestos públicamente",
+    "code_leak_box_secrets": "Secretos Totales Expuestos",
+    "code_leak_box_repos": "Repositorios Públicos Únicos",
+    "code_leak_box_prod": "Secretos de Producción",
+    "code_leak_action": "Acción Inmediata: Rotar las claves de 'Producción' y las Claves de API inmediatamente. Implementar un escáner de secretos en el pipeline de CI/CD.",
+    "incidents_title": "Incidentes por Tipo",
+    "incidents_desc": "Se procesaron un total de <strong>{total}</strong> detecciones. Este gráfico detalla la relación entre detecciones brutas e incidentes confirmados.",
+    "takedowns_title": "Takedowns",
+    "takedowns_requested": "solicitudes de takedown",
+    "takedowns_success_rate": "tasa de éxito",
+    "takedowns_median_notify": "tiempo medio para<br>1ª notificación",
+    "takedowns_median_uptime": "uptime medio",
+    "takedowns_status_title": "Estado de takedown",
+    "takedowns_solved": "Resuelto",
+    "takedowns_in_progress": "En progreso",
+    "takedowns_interrupted": "Interrumpido",
+    "takedowns_not_solved": "No resuelto",
+    "roi_title": "Impacto y ROI",
+    "roi_efficiency_title": "Eficiencia Operativa",
+    "roi_efficiency_label": "FTEs Ahorrados",
+    "roi_efficiency_desc": "Equivalente a {hours} horas de análisis manual ahorradas a su equipo.",
+    "roi_risk_title": "Reducción de Riesgo",
+    "roi_risk_label": "vs Promedio Industria",
+    "roi_risk_desc": "Tiempo de Detección Axur ({notify_time}) vs 48h (Manual).",
+    "roi_intel_title": "Inteligencia Crítica",
+    "roi_intel_desc": "Perfil de riesgo basado en {count} credenciales analizadas.",
+    "roi_intel_stealer": "Malware (Stealer Logs)",
+    "roi_intel_plaintext": "Password Texto Plano",
+    "exposure_title": "Exposición de Datos Sensibles",
+    "exposure_sub_code": "Fugas en Código Fuente",
+    "exposure_sub_stealer": "Credenciales (Infostealer)",
+    "op_badge": "IMPACTO OPERACIONAL",
+    "op_time_saved_title": "Tiempo Ahorrado",
+    "op_time_saved_desc": "Horas que tu equipo hubiera dedicado a procesar manualmente estas señales y amenazas.",
+    "op_unit_person_days": "días persona",
+    "op_unit_hours": "horas",
+    "op_breakdown_validation": "Validación",
+    "op_breakdown_monitoring": "Monitoreo",
+    "op_breakdown_takedowns": "Takedowns",
+    "op_capacity_title": "Capacidad Liberada",
+    "op_capacity_desc": "Capacidad equivalente de analistas de seguridad que Axur libera para tareas estratégicas.",
+    "op_tickets_processed": "tickets procesados",
+    "op_credentials_monitored": "credenciales monitoreadas",
+    "op_response_title": "Tiempo de Respuesta",
+    "op_response_desc": "Tiempo mediano desde detección hasta la primera notificación al proveedor.",
+    "op_success_rate": "Tasa de éxito",
+    "op_takedowns_completed": "Takedowns realizados",
+    "examples_takedowns_title": "Takedowns Resueltos: Ejemplos",
+    "examples_poc_title": "Ejemplos de Amenazas Detectadas",
+    "example_label_type": "Tipo:",
+    "example_label_date": "Fecha:",
+    "example_label_url": "URL:",
+    "example_no_image": "Imagen no disponible",
+    "example_no_data": "No se encontraron ejemplos de evidencia en el período seleccionado.",
+    "closing_title": "Protege lo que más importa",
+    "closing_subtitle": "Has visto los riesgos. Ahora convierte estos resultados en protección continua 24/7.",
+    "closing_cta_activate": "Activar Entorno de Producción",
+    "closing_cta_activate_desc": "Transición fluida de PoC a protección total.",
+    "closing_cta_meet": "Reunirse con Customer Success",
+    "closing_cta_meet_desc": "Onboarding personalizado y planificación estratégica.",
+    "deep_analytics_title": "🔍 Resumen Ejecutivo de Amenazas",
+    "deep_analytics_subtitle": "Insights avanzados computados a partir de tus datos de amenazas",
+    "deep_analytics_code_leak_title": "Insights de Fugas de Código",
+    "deep_analytics_code_leak_subtitle": "{count} repositorios únicos analizados",
+    "deep_analytics_credential_title": "Insights de Credenciales",
+    "deep_analytics_credential_subtitle": "{count} credenciales analizadas",
+    "deep_analytics_takedown_title": "Eficiencia de Takedowns",
+    "deep_analytics_takedown_subtitle": "{count} takedowns por plataforma",
+    "story_title": "Historia del Incidente",
+    "story_subtitle": "Línea de tiempo de {count} incidentes relacionados",
+    "ctx_risk_title": "El Panorama de Riesgo Digital",
+    "ctx_risk_text": "El monitoreo de riesgos digitales es esencial en el mundo interconectado de hoy. Esta sección ofrece una visión general de las amenazas detectadas en la web abierta, profunda y oscura. Al identificar estos riesgos temprano, permitimos estrategias de mitigación proactivas para proteger la reputación de su marca y sus activos digitales.",
+    "eff_title": "Eficiencia Operativa",
+    "eff_text_hours": "Para analizar manualmente las amenazas procesadas por Axur, su equipo habría necesitado <strong>{hours} horas</strong>. Esto equivale a <strong>{analysts} analistas a tiempo completo</strong> dedicados solo a la detección.",
+    "eff_text_speed": "La gestión de amenazas con Axur fue <strong>180 veces más rápida</strong> que el promedio de la industria. Mientras un humano tarda ~30 mins por alerta, nuestra IA correlaciona amenazas en segundos.",
+    "narrative_phishing_title": "Phishing y Abuso de Marca",
+    "narrative_phishing_pain": "El phishing moderno evita los filtros tradicionales. Intentar cubrir el volumen de 40 millones de URLs nuevas diariamente es humanamente imposible.",
+    "narrative_phishing_solution": "Nuestra IA inspecciona visualmente cada sitio (Computer Vision), detectando fraudes incluso sin menciones explícitas de la marca. No solo detectamos; eliminamos en menos de 4 minutos.",
+    "narrative_stealer_title": "Entendiendo los Infostealers",
+    "narrative_stealer_pain": "Las credenciales robadas de dispositivos infectados (Infostealers) permiten a los atacantes eludir el MFA imitando la huella digital del usuario.",
+    "narrative_stealer_solution": "Buscar manualmente en la Deep Web es ineficiente. Axur escanea 42 mil millones de credenciales para encontrar solo aquellas que representan un riesgo real para sus sesiones activas.",
+    "narrative_takedown_title": "El Proceso de Takedown",
+    "narrative_takedown_pain": "Gestionar takedowns en diferentes plataformas requiere manejar burocracia interminable y formularios específicos para cada proveedor.",
+    "narrative_takedown_solution": "Axur tiene integraciones de confianza con estas plataformas. Lo que a un abogado le toma días, nosotros lo solicitamos masivamente con una tasa de éxito del 98.9%.",
+    "narrative_timeline_title": "Línea de Tiempo vs. Capacidad Humana",
+    "narrative_timeline_text": "Los ciberdelincuentes no respetan el horario de oficina. El <strong>{percent}%</strong> de las amenazas críticas se detectaron fuera del horario laboral. Sin la automatización 24/7, estas habrían permanecido activas durante días.",
+    "closing_value_title": "Su Nuevo Equipo Extendido",
+    "closing_value_intro": "Adquirir Axur no es solo comprar software; es sumar un ejército de analistas virtuales a su SOC.",
+    "closing_value_item_1_title": "Reducción de Fatiga",
+    "closing_value_item_1_desc": "Eliminamos el ruido para que sus analistas solo vean lo que importa.",
+    "closing_value_item_2_title": "Velocidad de Reacción",
+    "closing_value_item_2_desc": "De días a minutos. Minimizamos drásticamente el tiempo de exposición.",
+    "closing_value_item_3_title": "Visibilidad Total",
+    "closing_value_item_3_desc": "Entregamos el contexto completo: 'Quién, Cómo y Metodología', eliminando falsos positivos para que tu equipo se enfoque solo en amenazas reales.",
+    "narrative_virality_title": "DEEP WEB & VIRALIDAD",
+    "narrative_virality_pain_primary": "Tu marca fue compartida **{share_count} veces** en {source_count} comunidades de fraude, incluyendo grupos activos como '**{top_source}**'. Este 'ruido' suele preceder una ola masiva de ataques.",
+    "narrative_virality_solution_primary": "Axur está infiltrado en estos canales cerrados (Telegram, Discord, Dark Web). Detectamos la amenaza en la etapa de *planeación*, antes de que llegue a tus clientes.",
+    "narrative_virality_pain_fallback": "Los ataques suelen incubarse silenciosamente en grupos cerrados de Telegram y Dark Web, invisibles para las defensas perimetrales estándar.",
+    "narrative_virality_solution_fallback": "Nuestro monitoreo de Deep Web está activo 24/7. En este periodo, **no detectamos campañas virales críticas**, validando que tu marca no es actualmente un 'tema de moda' para los defraudadores.",
+    "roi_precise_title": "La Velocidad Gana",
+    "roi_precise_text_primary": "Dato Real: Tu tiempo mediano de baja fue de **{median_minutes} minutos**. Esta velocidad neutraliza campañas de phishing antes de que cobren víctimas.",
+    "roi_precise_text_fallback": "Gestionar amenazas con Axur es **180x más rápido** que el promedio. Nuestra IA correlaciona en segundos, reemplazando los 30 min de triaje manual.",
+    "intent_title": "Análisis de Intención (AI)",
+    "intent_fmt_primary": "Nuestra IA revela que el **{percent}%** de los ataques buscan **{top_intent}**, indicando una campaña específica contra sus usuarios.",
+    "intent_fmt_fallback": "Los ataques se categorizan por vector técnico. El Phishing sigue siendo el método dominante para iniciar fraudes.",
+    "intent_cat_credentials": "Robo de Credenciales",
+    "intent_cat_infection": "Infección y Acceso",
+    "intent_cat_fraud": "Fraude y Reputación",
+    "intent_cat_trust": "Fraude de Marca / Phishing",
+    "intent_cat_chat": "Chat Intelligence",
+    "intent_cat_compromised": "Dispositivos Comprometidos",
+    "intent_cat_data_leak": "Fuga de Datos y Accesos",
+    "intent_cat_other": "Otros",
+    "intent_cat_vip": "Protección VIP",
+    "intent_cat_dark_web": "Deep & Dark Web",
+    "geo_title": "Orígenes Globales de Ataque",
+    "geo_fmt_primary": "Detectamos ataques originados en **{count} países**. La fuente principal de infraestructura hostil es **{top_country}**.",
+    "geo_fmt_fallback": "La atribución geográfica revela superposiciones de jurisdicción. Monitorear infraestructura internacional ayuda a predecir futuras campañas.",
+    "geo_lbl_countries": "Principales Países de Origen",
+    "geo_lbl_isps": "Top ISPs (Redes)",
+    "ctx_stealer_title": "Entendiendo los Infostealers",
+    "ctx_stealer_text": "Los Infostealers son malware diseñado para recolectar información sensible de dispositivos infectados. Roban credenciales de inicio de sesión, cookies y detalles del sistema, que a menudo se venden en mercados de la dark web. Detectar estos registros nos permite identificar cuentas de empleados o clientes comprometidas antes de que sean utilizadas para accesos no autorizados.",
+    "ctx_leak_title": "El Peligro de Secretos Expuestos",
+    "ctx_leak_text": "Los desarrolladores a veces publican inadvertidamente claves, tokens o credenciales sensibles en repositorios públicos. Estos 'secretos' pueden dar a los atacantes acceso a infraestructura en la nube, bases de datos o servicios internos. El monitoreo continuo de repositorios de código público es crucial para detectar y revocar estas claves de inmediato.",
+    "ctx_takedown_title": "El Proceso de Takedown",
+    "ctx_takedown_text": "El Takedown es el proceso de eliminación de contenido malicioso o infractor de internet. Cuando se confirma una amenaza, nuestros sistemas automatizados y equipo legal interactúan con proveedores de alojamiento, registradores y plataformas de redes sociales para forzar su eliminación, neutralizando la amenaza en su origen.",
+    "timeline_title": "Línea de Tiempo de Ataques",
+    "ti_title": "Inteligencia de Amenazas",
+    "ti_dark_web": "Menciones Dark Web",
+    "ti_mentions": "Menciones Totales",
+    "ti_credentials": "Credenciales Expuestas",
+    "ti_sources": "Fuentes de Datos",
+    "ti_quality": "Calidad de Inteligencia",
+    "virality_title": "Análisis de Viralidad",
+    "virality_chat": "Canales de Chat",
+    "virality_social": "Redes Sociales",
+    "virality_dark": "Dark Web",
+    "geo_map_placeholder": "Mapa interactivo mostrando orígenes globales de ataques",
+    "metrics_results_title": "RESULTADOS",
+    "metrics_lbl_total": "Detecciones Totales",
+    "metrics_lbl_threats": "Amenazas Confirmadas",
+    "metrics_lbl_time": "Tiempo Ahorrado",
+    "evidence_context_title": "Para el decisor",
+    "evidence_context_desc": "Capturas <strong class=\"text-white\">reales</strong> de amenazas detectadas. Los badges muestran nivel de riesgo y tiempo de detección.",
+    "evidence_risk_high": "ALTO",
+    "evidence_risk_medium": "MEDIO",
+    "evidence_risk_low": "BAJO",
+    "evidence_stats_shown": "detectadas",
+    "evidence_stats_high_risk": "alto riesgo",
+    "evidence_stats_detection": "min detección",
+    "evidence_credential_capture": "Captura credenciales"
+},
+    "pt": {
+    "_meta": {
+        "language": "pt-br",
+        "name": "Português (Brasil)",
+        "version": "1.0.0",
+        "note": "Migrated from Dictionary trait (M3)"
+    },
+    "welcome_message": "Bem-vindo ao Axur CLI",
+    "login_prompt_email": "E-mail",
+    "footer_text": "Axur. Digital experiences made safe. Todos os direitos reservados.",
+    "label_partner": "PARCEIRO",
+    "label_company": "EMPRESA",
+    "label_tlp": "TLP:",
+    "label_tlp_desc": "Protocolo de Semáforo (TLP). Restrições sobre como esta informação pode ser compartilhada.",
+    "cover_title_dynamic": "Relatório de<br>Monitoramento Digital<br>",
+    "cover_title_static": "Relatório de Resultados<br>Prova de Conceito<br>",
+    "intro_title": "Proteção Digital: Da Detecção à Resolução",
+    "intro_text_dynamic": "Este relatório detalha os resultados do monitoramento contínuo da sua marca, demonstrando a capacidade da Axur de oferecer visibilidade completa e resposta eficaz aos riscos digitais.",
+    "intro_text_static": "Este relatório detalha os resultados da nossa Prova de Conceito (PoC), demonstrando a capacidade da Axur de oferecer visibilidade completa e resposta eficaz aos riscos digitais.",
+    "intro_text_closing": "As páginas a seguir apresentam uma análise detalhada das ameaças detectadas, ações tomadas e o valor tangível que nossa plataforma traz para a segurança e integridade da sua marca.",
+    "solutions_title": "Plataforma Completa para sua Proteção Digital",
+    "solutions_subtitle_1": "A Axur oferece uma solução completa para a gestão dos seus riscos digitais.",
+    "solutions_subtitle_2": "Protegemos sua marca, seus clientes e seu negócio contra fraudes e ameaças online.",
+    "solutions_subtitle_3": "Da detecção à remoção (takedown), nossa plataforma automatiza todo o processo.",
+    "solution_takedown": "Takedown",
+    "solution_brand_protection": "Proteção de Marca",
+    "solution_threat_intel": "Inteligência de Ameaças",
+    "toc_title": "Índice de Conteúdos",
+    "toc_items": [
+        "Métricas Gerais",
+        "Fraude Digital",
+        "Exposição de Dados",
+        "Executivos e VIPs",
+        "Deep & Dark Web",
+        "Inteligência e Exposição",
+        "Eficiência Operacional"
+    ],
+    "poc_scope_title": "Escopo do Monitoramento",
+    "poc_assets_title": "Ativos Monitorados",
+    "poc_label_brands": "Marcas Monitoradas",
+    "poc_label_executives": "Executivos",
+    "poc_label_ips": "IPs / Ranges",
+    "poc_label_bins": "BINs",
+    "poc_label_domains": "Domínios",
+    "poc_period_dynamic_title": "Período de Análise",
+    "poc_period_dynamic_text": "Últimos dias até hoje",
+    "poc_period_static_title": "Duração da PoC",
+    "poc_period_start": "Início",
+    "poc_period_end": "Fim",
+    "metrics_title": "Métricas Gerais",
+    "comparative_title": "Análise Comparativa",
+    "heatmap_title": "Mapa de Calor de Ataques",
+    "radar_title": "Radar de Ameaças",
+    "insights_title": "Insights e Recomendações",
+    "metrics_total_tickets": "Total de Tickets (Detecções Brutas)",
+    "metrics_threats_detected": "Ameaças Detectadas",
+    "metrics_time_saved": "Economia de Tempo na Validação",
+    "metrics_desc_tickets": "O número total de sinais que a plataforma coletou.",
+    "metrics_desc_threats": "Sinais que, após análise e validação, foram confirmados como riscos reais.",
+    "metrics_desc_time": "Tempo estimado que sua equipe teria gasto coletando e validando manualmente essas mesmas ameaças.",
+    "threats_title": "Ameaças Potenciais",
+    "threats_desc": "Foram detectadas um total de <strong>{total}</strong> ameaças. O gráfico mostra as principais categorias, destacando os vetores de ataque mais frequentes contra sua marca.",
+    "stealer_title": "Cenário de Risco: Credenciais por Infostealer",
+    "stealer_subtitle": "Análise de {count} credenciais detectadas",
+    "stealer_box_creds": "Credenciais Totais",
+    "stealer_box_hosts": "Hosts Únicos Comprometidos",
+    "stealer_box_high_risk": "Usuários de Alto Risco",
+    "stealer_action": "Ação Imediata: Forçar a redefinição de senha para usuários expostos e priorizar o isolamento de hosts infectados.",
+    "stealer_critical_title": "CRÍTICO: Padrão Corporativo Detectado",
+    "stealer_critical_desc": "Foram encontradas <span class=\"text-white font-bold\">{count}</span> identidades usando variações do nome da empresa em suas senhas.",
+    "code_leak_title": "Panorama de Risco: Vazamento de Credenciais em Código",
+    "code_leak_subtitle": "Análise de {count} segredos expostos publicamente",
+    "code_leak_box_secrets": "Segredos Totais Expostos",
+    "code_leak_box_repos": "Repositórios Públicos Únicos",
+    "code_leak_box_prod": "Segredos de Produção",
+    "code_leak_action": "Ação Imediata: Rotacionar chaves de 'Produção' e chaves de API imediatamente. Implementar scanner de segredos no pipeline CI/CD.",
+    "incidents_title": "Incidentes por Tipo",
+    "incidents_desc": "Foram processadas um total de <strong>{total}</strong> detecções. Este gráfico detalha a relação entre detecções brutas e incidentes confirmados.",
+    "takedowns_title": "Takedowns",
+    "takedowns_requested": "takedowns solicitados",
+    "takedowns_success_rate": "taxa de sucesso",
+    "takedowns_median_notify": "tempo médio para<br>1ª notificação",
+    "takedowns_median_uptime": "uptime médio",
+    "takedowns_status_title": "Status do takedown",
+    "takedowns_solved": "Resolvido",
+    "takedowns_in_progress": "Em progresso",
+    "takedowns_interrupted": "Interrompido",
+    "takedowns_not_solved": "Não resolvido",
+    "roi_title": "Impacto e ROI",
+    "roi_efficiency_title": "Eficiência Operacional",
+    "roi_efficiency_label": "FTEs Economizados",
+    "roi_efficiency_desc": "Equivalente a {hours} horas de análise manual economizadas para sua equipe.",
+    "roi_risk_title": "Redução de Risco",
+    "roi_risk_label": "vs Média de Mercado",
+    "roi_risk_desc": "Tempo de Detecção Axur ({notify_time}) vs 48h (Manual).",
+    "roi_intel_title": "Inteligência Crítica",
+    "roi_intel_desc": "Perfil de risco baseado em {count} credenciais analisadas.",
+    "roi_intel_stealer": "Malware (Stealer Logs)",
+    "roi_intel_plaintext": "Senhas em Texto Plano",
+    "exposure_title": "Exposição de Dados Sensíveis",
+    "exposure_sub_code": "Vazamentos em Código Fonte",
+    "exposure_sub_stealer": "Credenciais (Infostealer)",
+    "op_badge": "IMPACTO OPERACIONAL",
+    "op_time_saved_title": "Tempo Economizado",
+    "op_time_saved_desc": "Horas que sua equipe teria dedicado para processar manualmente esses sinais e ameaças.",
+    "op_unit_person_days": "dias pessoa",
+    "op_unit_hours": "horas",
+    "op_breakdown_validation": "Validação",
+    "op_breakdown_monitoring": "Monitoramento",
+    "op_breakdown_takedowns": "Takedowns",
+    "op_capacity_title": "Capacidade Liberada",
+    "op_capacity_desc": "Capacidade equivalente de analistas de segurança que a Axur libera para tarefas estratégicas.",
+    "op_tickets_processed": "tickets processados",
+    "op_credentials_monitored": "credenciais monitoradas",
+    "op_response_title": "Tempo de Resposta",
+    "op_response_desc": "Tempo mediano desde detecção até a primeira notificação ao provedor.",
+    "op_success_rate": "Taxa de sucesso",
+    "op_takedowns_completed": "Takedowns realizados",
+    "examples_takedowns_title": "Takedowns Resolvidos: Exemplos",
+    "examples_poc_title": "Exemplos de Ameaças Detectadas",
+    "example_label_type": "Tipo:",
+    "example_label_date": "Data:",
+    "example_label_url": "URL:",
+    "example_no_image": "Imagem indisponível",
+    "example_no_data": "Nenhum exemplo de evidência encontrado no período selecionado.",
+    "closing_title": "Proteja o que mais importa",
+    "closing_subtitle": "Você viu os riscos. Agora transforme esses resultados em proteção contínua 24/7.",
+    "closing_cta_activate": "Ativar Ambiente de Produção",
+    "closing_cta_activate_desc": "Transição fluida da PoC para proteção total.",
+    "closing_cta_meet": "Falar com Customer Success",
+    "closing_cta_meet_desc": "Onboarding personalizado e planejamento estratégico.",
+    "deep_analytics_title": "🔍 Resumo Executivo de Ameaças",
+    "deep_analytics_subtitle": "Insights avançados computados a partir dos seus dados de ameaças",
+    "deep_analytics_code_leak_title": "Insights de Vazamento de Código",
+    "deep_analytics_code_leak_subtitle": "{count} repositórios únicos analisados",
+    "deep_analytics_credential_title": "Insights de Credenciais",
+    "deep_analytics_credential_subtitle": "{count} credenciais analisadas",
+    "deep_analytics_takedown_title": "Eficiência de Takedowns",
+    "deep_analytics_takedown_subtitle": "{count} takedowns por plataforma",
+    "story_title": "Histórico do Incidente",
+    "story_subtitle": "Linha do tempo de {count} incidentes relacionados",
+    "ctx_risk_title": "O Panorama de Risco Digital",
+    "ctx_risk_text": "O monitoramento de riscos digitais é essencial no mundo interconectado de hoje. Esta seção oferece uma visão geral das ameaças detectadas na web aberta, profunda e dark. Ao identificar esses riscos antecipadamente, possibilitamos estratégias de mitigação proativas para proteger a reputação da sua marca e seus ativos digitais.",
+    "eff_title": "Eficiência Operacional",
+    "eff_text_hours": "Para analisar manualmente as ameaças processadas pela Axur, sua equipe precisaria dedicar <strong>{hours} horas</strong>. Isso equivale a <strong>{analysts} analistas em tempo integral</strong> dedicados apenas à detecção.",
+    "eff_text_speed": "A gestão de ameaças com a Axur foi <strong>180x mais rápida</strong> que a média da indústria. Enquanto um humano leva ~30 min por alerta, nossa IA correlaciona ameaças em segundos.",
+    "narrative_phishing_title": "Phishing & Abuso de Marca",
+    "narrative_phishing_pain": "O phishing moderno evita filtros tradicionais. Tentar cobrir o volume de 40 milhões de novas URLs diariamente é humanamente impossível.",
+    "narrative_phishing_solution": "Nossa IA inspeciona visualmente cada site (Visão Computacional), detectando fraudes mesmo sem menções explícitas à marca. Não apenas detectamos; removemos em menos de 4 minutos.",
+    "narrative_stealer_title": "Entendendo os Infostealers",
+    "narrative_stealer_pain": "Credenciais roubadas de dispositivos infectados (Infostealers) permitem que atacantes ignorem o MFA imitando a impressão digital do usuário.",
+    "narrative_stealer_solution": "Buscar manualmente na Deep Web é ineficiente. A Axur escaneia 42 bilhões de credenciais para encontrar apenas aquelas que representam risco real para suas sessões ativas.",
+    "narrative_takedown_title": "O Processo de Takedown",
+    "narrative_takedown_pain": "Gerenciar takedowns em diferentes plataformas exige lidar com burocracia sem fim e formulários específicos para cada provedor.",
+    "narrative_takedown_solution": "A Axur possui integrações confiáveis com essas plataformas. O que leva dias para um advogado, solicitamos em massa com uma taxa de sucesso de 98,9%.",
+    "narrative_timeline_title": "Linha do Tempo de Ataques vs. Capacidade Humana",
+    "narrative_timeline_text": "Cibercriminosos não respeitam horário comercial. <strong>{percent}%</strong> das ameaças críticas foram detectadas fora do expediente. Sem a automação 24/7, elas permaneceriam ativas por dias.",
+    "closing_value_title": "Sua Nova Equipe Estendida",
+    "closing_value_intro": "Adquirir a Axur não é apenas comprar software; é adicionar um exército de analistas virtuais ao seu SOC.",
+    "closing_value_item_1_title": "Redução de Fadiga",
+    "closing_value_item_1_desc": "Eliminamos o ruído para que seus analistas vejam apenas o que importa.",
+    "closing_value_item_2_title": "Velocidade de Reação",
+    "closing_value_item_2_desc": "De dias para minutos. Minimizamos drasticamente o tempo de exposição.",
+    "closing_value_item_3_title": "Visibilidade Total",
+    "closing_value_item_3_desc": "Entregamos contexto completo: 'Quem, Como e Metodologia', eliminando falsos positivos para que seu time foque apenas em ameaças reais.",
+    "narrative_virality_title": "DEEP WEB & VIRALIDADE",
+    "narrative_virality_pain_primary": "Sua marca foi compartilhada **{share_count} vezes** em {source_count} comunidades de fraude, incluindo grupos como '**{top_source}**'. Esse 'ruído' geralmente precede uma onda massiva de ataques.",
+    "narrative_virality_solution_primary": "A Axur está infiltrada nesses canais fechados (Telegram, Discord, Dark Web). Detectamos a ameaça no estágio de *planejamento*, antes que atinja seus clientes.",
+    "narrative_virality_pain_fallback": "Ataques costumam ser incubados silenciosamente em grupos fechados do Telegram e Dark Web, invisíveis para defesas de perímetro padrão.",
+    "narrative_virality_solution_fallback": "Nosso monitoramento de Deep Web está ativo 24/7. Neste período, **não detectamos campanhas virais críticas**, validando que sua marca não é atualmente um 'tópico de tendência' para fraudadores.",
+    "roi_precise_title": "Velocidade é Segurança",
+    "roi_precise_text_primary": "Dado Real: Seu tempo mediano de takedown foi de **{median_minutes} minutos**. Essa velocidade neutraliza campanhas de phishing antes de fazerem vítimas.",
+    "roi_precise_text_fallback": "Gerenciar ameaças com a Axur é **180x mais rápido** que a média. Nossa IA correlaciona em segundos, substituindo 30 min de triagem manual.",
+    "intent_title": "Análise de Intenção (IA)",
+    "intent_fmt_primary": "Nossa IA revela que **{percent}%** dos ataques visam **{top_intent}**, indicando uma campanha específica contra sua base.",
+    "intent_fmt_fallback": "Ataques são categorizados por vetor técnico. Phishing continua sendo o método dominante para iniciar fraudes.",
+    "intent_cat_credentials": "Roubo de Credenciais",
+    "intent_cat_infection": "Infecção e Acesso",
+    "intent_cat_fraud": "Fraude e Reputação",
+    "intent_cat_trust": "Proteção de Marca e Clientes",
+    "intent_cat_chat": "Chat Intelligence",
+    "intent_cat_compromised": "Dispositivos Comprometidos",
+    "intent_cat_data_leak": "Fuga de Dados e Acessos",
+    "intent_cat_other": "Outros",
+    "intent_cat_vip": "Proteção VIP",
+    "intent_cat_dark_web": "Deep & Dark Web",
+    "geo_title": "Origens Globais de Ataque",
+    "geo_fmt_primary": "Detectamos ataques originados em **{count} países**. A principal fonte de infraestrutura hostil é **{top_country}**.",
+    "geo_fmt_fallback": "A atribuição geográfica revela sobreposições de jurisdição. Monitorar infraestrutura internacional ajuda a prever campanhas futuras.",
+    "geo_lbl_countries": "Principais Países de Origem",
+    "geo_lbl_isps": "Top ISPs (Redes)",
+    "ctx_stealer_title": "Entendendo os Infostealers",
+    "ctx_stealer_text": "Infostealers são malwares projetados para coletar informações sensíveis de dispositivos infectados. Eles roubam credenciais de login, cookies e detalhes do sistema, frequentemente vendidos em mercados da dark web. Detectar esses registros nos permite identificar contas de funcionários ou clientes comprometidas antes que sejam usadas para acessos não autorizados.",
+    "ctx_leak_title": "O Perigo de Segredos Expostos",
+    "ctx_leak_text": "Desenvolvedores às vezes publicam inadvertidamente chaves, tokens ou credenciais sensíveis em repositórios públicos. Esses 'segredos' podem dar aos atacantes acesso à infraestrutura em nuvem, banco de dados ou serviços internos. O monitoramento contínuo de repositórios de código público é crucial para detectar e revogar essas chaves imediatamente.",
+    "ctx_takedown_title": "O Processo de Takedown",
+    "ctx_takedown_text": "Takedown é o processo de remoção de conteúdo malicioso ou infrator da internet. Quando uma ameaça é confirmada, nossos sistemas automatizados e equipe jurídica interagem com provedores de hospedagem, registradores e plataformas de redes sociais para forçar a remoção, neutralizando a ameaça em sua origem.",
+    "timeline_title": "Linha do Tempo de Ataques",
+    "ti_title": "Inteligência de Ameaças",
+    "ti_dark_web": "Menções Dark Web",
+    "ti_mentions": "Menções Totais",
+    "ti_credentials": "Credenciais Expostas",
+    "ti_sources": "Fontes de Dados",
+    "ti_quality": "Qualidade da Inteligência",
+    "virality_title": "Análise de Viralidade",
+    "virality_chat": "Canais de Chat",
+    "virality_social": "Redes Sociais",
+    "virality_dark": "Dark Web",
+    "geo_map_placeholder": "Mapa interativo mostrando origens globais de ataques",
+    "metrics_results_title": "RESULTADOS",
+    "metrics_lbl_total": "Detecções Totais",
+    "metrics_lbl_threats": "Ameaças Confirmadas",
+    "metrics_lbl_time": "Tempo Economizado",
+    "evidence_context_title": "Para o Decisor",
+    "evidence_context_desc": "Capturas <strong class=\"text-white\">reais</strong> de ameaças detectadas. Os badges mostram nível de risco e tempo de detecção.",
+    "evidence_risk_high": "ALTO",
+    "evidence_risk_medium": "MÉDIO",
+    "evidence_risk_low": "BAIXO",
+    "evidence_stats_shown": "detectadas",
+    "evidence_stats_high_risk": "alto risco",
+    "evidence_stats_detection": "min detecção",
+    "evidence_credential_capture": "Captura credenciais"
+}
+}
+</script>
+<script>
+// Self-executing language switcher initialization
+// Uses setTimeout to ensure execution even when inserted via innerHTML
+setTimeout(function() {
+    var translations = {};
+    
+    // Load translations from embedded JSON
+    var i18nData = document.getElementById('i18n-data');
+    if (i18nData) {
+        try {
+            translations = JSON.parse(i18nData.textContent);
+        } catch (e) {
+            console.error('Failed to parse i18n data:', e);
+        }
+    }
+    
+    // Define the language switching function globally
+    window._setLang = function(lang) {
+        if (!translations[lang]) {
+            console.warn('Language not found:', lang);
+            return;
+        }
+        
+        var dict = translations[lang];
+        
+        // Update all elements with data-i18n attribute
+        var elements = document.querySelectorAll('[data-i18n]');
+        for (var i = 0; i < elements.length; i++) {
+            var el = elements[i];
+            var key = el.getAttribute('data-i18n');
+            if (dict[key]) {
+                var text = dict[key];
+                
+                // Handle interpolation: {variable} patterns
+                var placeholders = el.getAttribute('data-i18n-params');
+                if (placeholders) {
+                    try {
+                        var params = JSON.parse(placeholders);
+                        for (var pkey in params) {
+                            text = text.replace(new RegExp('\\{' + pkey + '\\}', 'g'), params[pkey]);
+                        }
+                    } catch (e) {}
+                }
+                
+                el.innerHTML = text;
+            }
+        }
+        
+        // Update button states
+        var buttons = document.querySelectorAll('#lang-switcher button');
+        for (var j = 0; j < buttons.length; j++) {
+            var btn = buttons[j];
+            if (btn.getAttribute('data-lang') === lang) {
+                btn.className = 'px-3 py-1.5 text-sm font-medium rounded transition-colors bg-orange-500 text-white';
+            } else {
+                btn.className = 'px-3 py-1.5 text-sm font-medium rounded transition-colors bg-zinc-700 text-zinc-300 hover:bg-zinc-600';
+            }
+        }
+        
+        // Store preference
+        try { localStorage.setItem('report_lang', lang); } catch(e) {}
+    };
+    
+    // Auto-load saved preference
+    try {
+        var saved = localStorage.getItem('report_lang');
+        if (saved && translations[saved]) {
+            window._setLang(saved);
+        }
+    } catch(e) {}
+    
+    console.log('Language switcher initialized');
+}, 0);
+</script>
 </body>
 </html>

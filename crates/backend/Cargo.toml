@@ -69,3 +69,4 @@ yup-oauth2 = { version = "12", features = ["service-account", "hyper-rustls"] }
 governor = "0.6"
 nonzero_ext = "0.3" # Helper for governor
 once_cell = "1.19" # Lazy statics for Firebase client
+clap = { version = "4.4", features = ["derive"] }

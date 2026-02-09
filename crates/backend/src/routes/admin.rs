@@ -84,11 +84,41 @@ async fn require_admin(jar: &CookieJar) -> Result<String, ApiError> {
         .map(|c| c.value().to_string())
         .ok_or_else(|| ApiError::Unauthorized("Not logged in".into()))?;
 
-    // Use GitHub storage for admin check
+    let email_lower = user_email.to_lowercase();
+    let mut is_admin = false;
+
+    // 1. Check Firestore
+    if let Some(firestore) = crate::firebase::get_firestore() {
+        let doc_id = email_lower.replace("@", "_at_").replace(".", "_dot_");
+        match firestore
+            .get_doc::<serde_json::Value>("allowed_users", &doc_id)
+            .await
+        {
+            Ok(Some(doc)) => {
+                if let Some(role) = doc.get("role").and_then(|v| v.as_str()) {
+                    if role == "admin" {
+                        is_admin = true;
+                        tracing::debug!("Firestore check: {} is admin", user_email);
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(e) => tracing::warn!("Firestore admin check failed: {}", e),
+        }
+    }
+
+    if is_admin {
+        return Ok(user_email);
+    }
+
+    // 2. Check GitHub storage (fallback)
     if let Some(storage) = crate::github_storage::get_github_storage() {
         match storage.is_admin(&user_email).await {
             Ok(true) => return Ok(user_email),
-            Ok(false) => return Err(ApiError::Forbidden("Admin access required".into())),
+            Ok(false) => {
+                tracing::warn!("Admin check failed for {}", user_email);
+                return Err(ApiError::Forbidden("Admin access required".into()));
+            }
             Err(e) => {
                 tracing::error!("GitHub storage admin check failed: {}", e);
                 // Fallthrough to error

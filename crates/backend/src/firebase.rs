@@ -210,15 +210,22 @@ impl FirestoreClient {
         let cache_key = format!("{}/{}", collection, doc_id);
 
         // Check cache first
-        if let Some(cached) = CACHE.read().unwrap().get(&cache_key) {
-            return serde_json::from_str(&cached)
-                .map(Some)
-                .map_err(|e| FirestoreError::ParseError(format!("Cache parse error: {}", e)));
+        if let Ok(cache) = CACHE.read() {
+            if let Some(cached) = cache.get(&cache_key) {
+                return serde_json::from_str(&cached)
+                    .map(Some)
+                    .map_err(|e| FirestoreError::ParseError(format!("Cache parse error: {}", e)));
+            }
         }
 
         // Rate limit check
-        if !RATE_LIMITER.write().unwrap().can_read() {
-            return Err(FirestoreError::RateLimited);
+        {
+            let mut limiter = RATE_LIMITER
+                .write()
+                .map_err(|e| FirestoreError::LockError(e.to_string()))?;
+            if !limiter.can_read() {
+                return Err(FirestoreError::RateLimited);
+            }
         }
 
         // Get token
@@ -257,10 +264,9 @@ impl FirestoreClient {
             serde_json::to_string(&value).map_err(|e| FirestoreError::ParseError(e.to_string()))?;
 
         // Cache the result
-        CACHE
-            .write()
-            .unwrap()
-            .set(cache_key, json.clone(), CACHE_TTL);
+        if let Ok(mut cache) = CACHE.write() {
+            cache.set(cache_key, json.clone(), CACHE_TTL);
+        }
 
         serde_json::from_str(&json)
             .map(Some)
@@ -275,14 +281,21 @@ impl FirestoreClient {
         let cache_key = format!("list:{}", collection);
 
         // Check cache
-        if let Some(cached) = CACHE.read().unwrap().get(&cache_key) {
-            return serde_json::from_str(&cached)
-                .map_err(|e| FirestoreError::ParseError(format!("Cache parse error: {}", e)));
+        if let Ok(cache) = CACHE.read() {
+            if let Some(cached) = cache.get(&cache_key) {
+                return serde_json::from_str(&cached)
+                    .map_err(|e| FirestoreError::ParseError(format!("Cache parse error: {}", e)));
+            }
         }
 
         // Rate limit
-        if !RATE_LIMITER.write().unwrap().can_read() {
-            return Err(FirestoreError::RateLimited);
+        {
+            let mut limiter = RATE_LIMITER
+                .write()
+                .map_err(|e| FirestoreError::LockError(e.to_string()))?;
+            if !limiter.can_read() {
+                return Err(FirestoreError::RateLimited);
+            }
         }
 
         // Get token
@@ -323,7 +336,10 @@ impl FirestoreClient {
         // Cache the JSON values
         let json = serde_json::to_string(&values)
             .map_err(|e| FirestoreError::ParseError(e.to_string()))?;
-        CACHE.write().unwrap().set(cache_key, json, CACHE_TTL);
+
+        if let Ok(mut cache) = CACHE.write() {
+            cache.set(cache_key, json, CACHE_TTL);
+        }
 
         // Deserialize to target type
         let docs: Vec<T> = values
@@ -342,12 +358,19 @@ impl FirestoreClient {
         data: &T,
     ) -> Result<(), FirestoreError> {
         // Rate limit
-        if !RATE_LIMITER.write().unwrap().can_write() {
-            return Err(FirestoreError::RateLimited);
+        {
+            let mut limiter = RATE_LIMITER
+                .write()
+                .map_err(|e| FirestoreError::LockError(e.to_string()))?;
+            if !limiter.can_write() {
+                return Err(FirestoreError::RateLimited);
+            }
         }
 
         let url = format!("{}/{}/{}", self.base_url(), collection, doc_id);
-        let fields = value_to_firestore(&serde_json::to_value(data).unwrap())?;
+        let fields = value_to_firestore(
+            &serde_json::to_value(data).map_err(|e| FirestoreError::ParseError(e.to_string()))?,
+        )?;
         let body = serde_json::json!({ "fields": fields });
 
         // Get token
@@ -373,22 +396,23 @@ impl FirestoreClient {
         }
 
         // Invalidate cache
-        CACHE
-            .write()
-            .unwrap()
-            .invalidate(&format!("{}/{}", collection, doc_id));
-        CACHE
-            .write()
-            .unwrap()
-            .invalidate_prefix(&format!("list:{}", collection));
+        if let Ok(mut cache) = CACHE.write() {
+            cache.invalidate(&format!("{}/{}", collection, doc_id));
+            cache.invalidate_prefix(&format!("list:{}", collection));
+        }
 
         Ok(())
     }
 
     /// Delete a document
     pub async fn delete_doc(&self, collection: &str, doc_id: &str) -> Result<(), FirestoreError> {
-        if !RATE_LIMITER.write().unwrap().can_write() {
-            return Err(FirestoreError::RateLimited);
+        {
+            let mut limiter = RATE_LIMITER
+                .write()
+                .map_err(|e| FirestoreError::LockError(e.to_string()))?;
+            if !limiter.can_write() {
+                return Err(FirestoreError::RateLimited);
+            }
         }
 
         let url = format!("{}/{}/{}", self.base_url(), collection, doc_id);
@@ -414,14 +438,10 @@ impl FirestoreClient {
             )));
         }
 
-        CACHE
-            .write()
-            .unwrap()
-            .invalidate(&format!("{}/{}", collection, doc_id));
-        CACHE
-            .write()
-            .unwrap()
-            .invalidate_prefix(&format!("list:{}", collection));
+        if let Ok(mut cache) = CACHE.write() {
+            cache.invalidate(&format!("{}/{}", collection, doc_id));
+            cache.invalidate_prefix(&format!("list:{}", collection));
+        }
 
         Ok(())
     }
@@ -433,12 +453,19 @@ impl FirestoreClient {
         doc_id: &str,
         data: &T,
     ) -> Result<(), FirestoreError> {
-        if !RATE_LIMITER.write().unwrap().can_write() {
-            return Err(FirestoreError::RateLimited);
+        {
+            let mut limiter = RATE_LIMITER
+                .write()
+                .map_err(|e| FirestoreError::LockError(e.to_string()))?;
+            if !limiter.can_write() {
+                return Err(FirestoreError::RateLimited);
+            }
         }
 
         let base_url = format!("{}/{}/{}", self.base_url(), collection, doc_id);
-        let fields_map = value_to_firestore(&serde_json::to_value(data).unwrap())?;
+        let fields_map = value_to_firestore(
+            &serde_json::to_value(data).map_err(|e| FirestoreError::ParseError(e.to_string()))?,
+        )?;
 
         let body = serde_json::json!({ "fields": fields_map });
 
@@ -483,14 +510,10 @@ impl FirestoreClient {
         }
 
         // Invalidate cache
-        CACHE
-            .write()
-            .unwrap()
-            .invalidate(&format!("{}/{}", collection, doc_id));
-        CACHE
-            .write()
-            .unwrap()
-            .invalidate_prefix(&format!("list:{}", collection));
+        if let Ok(mut cache) = CACHE.write() {
+            cache.invalidate(&format!("{}/{}", collection, doc_id));
+            cache.invalidate_prefix(&format!("list:{}", collection));
+        }
 
         Ok(())
     }
@@ -617,6 +640,7 @@ pub enum FirestoreError {
     ParseError(String),
     RateLimited,
     NotConfigured,
+    LockError(String),
 }
 
 impl std::fmt::Display for FirestoreError {
@@ -627,6 +651,7 @@ impl std::fmt::Display for FirestoreError {
             Self::ParseError(e) => write!(f, "Parse error: {}", e),
             Self::RateLimited => write!(f, "Rate limited - quota exceeded"),
             Self::NotConfigured => write!(f, "Firebase not configured"),
+            Self::LockError(e) => write!(f, "Lock error: {}", e),
         }
     }
 }
@@ -695,9 +720,3 @@ pub fn get_firestore() -> Option<&'static FirestoreClient> {
 // ========================
 // USAGE STATS
 // ========================
-
-/// Get current rate limit usage stats
-pub fn get_usage_stats() -> (u32, u32) {
-    let limiter = RATE_LIMITER.read().unwrap();
-    (limiter.reads, limiter.writes)
-}

@@ -35,21 +35,35 @@ pub fn create_router(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin([
             // Development
-            "http://localhost:3000".parse::<HeaderValue>().unwrap(),
-            "http://localhost:8080".parse::<HeaderValue>().unwrap(),
-            "http://127.0.0.1:3000".parse::<HeaderValue>().unwrap(),
-            "http://127.0.0.1:8080".parse::<HeaderValue>().unwrap(),
-            "http://localhost:8081".parse::<HeaderValue>().unwrap(),
-            "http://127.0.0.1:8081".parse::<HeaderValue>().unwrap(),
+            "http://localhost:3000"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
+            "http://localhost:8080"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
+            "http://127.0.0.1:3000"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
+            "http://127.0.0.1:8080"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
+            "http://localhost:8081"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
+            "http://127.0.0.1:8081"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
             // Production (Cloudflare Pages)
-            "https://axtool.pages.dev".parse::<HeaderValue>().unwrap(),
+            "https://axtool.pages.dev"
+                .parse::<HeaderValue>()
+                .expect("Static header valid"),
             // Leapcell
             "https://axur-tool-maisonnat2655-5j70lozi.leapcell.dev"
                 .parse::<HeaderValue>()
-                .unwrap(),
+                .expect("Static header valid"),
             "https://axur-tool-maisonnat2655-dc5ya68vc4dbqraqq0.leapcell-async.dev"
                 .parse::<HeaderValue>()
-                .unwrap(),
+                .expect("Static header valid"),
         ])
         .allow_methods([
             Method::GET,

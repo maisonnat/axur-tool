@@ -46,7 +46,8 @@ impl SlidePlugin for RadarSlidePlugin {
   <div class="mb-4">
     <span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">ANÁLISIS</span>
   </div>
-  <h2 class="text-4xl font-black mb-6 uppercase tracking-tight">{title}</h2>
+  <h2 class="text-4xl font-black mb-2 uppercase tracking-tight">{title}</h2>
+  <p class="text-lg text-zinc-400 mb-6 max-w-4xl">{desc}</p>
   
   <!-- Main Content -->
   <div class="flex-grow flex items-center">
@@ -67,6 +68,7 @@ impl SlidePlugin for RadarSlidePlugin {
 {footer}
 </div></div>"#,
             title = if title.is_empty() { "Radar de Amenazas".to_string() } else { title },
+            desc = t.get("radar_desc"),
             svg = svg,
             dimension_cards = generate_dimension_cards(&dimensions),
             footer = Self::render_footer(t.get("footer_text")),

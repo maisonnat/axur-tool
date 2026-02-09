@@ -2,7 +2,7 @@
 //!
 //! Displays incidents breakdown by type with chart.
 
-use super::helpers::footer_light;
+use super::helpers::footer_dark;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 pub struct IncidentsSlidePlugin;
@@ -46,39 +46,47 @@ impl SlidePlugin for IncidentsSlidePlugin {
         let det_json = serde_json::to_string(&detections).unwrap_or_default();
         let inc_json = serde_json::to_string(&incidents).unwrap_or_default();
 
+        // ... (data prep is same) ...
+
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-100"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col text-zinc-800"><div class="mb-4"><span class="bg-orange-600 text-white px-4 py-1 text-sm font-semibold">RESULTADOS</span></div><h2 class="text-4xl font-bold mb-4">{title}</h2><p class="text-lg text-zinc-600 mb-8">{desc}</p><div class="flex-grow relative"><canvas id="incidentsChart"></canvas></div></div></div>{footer}<script>(function(){{
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 50% 10%, #FF4B00 0%, transparent 40%);"></div><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RESULTADOS</span></div><h2 class="text-4xl font-black mb-4 uppercase tracking-tight">{title}</h2><p class="text-lg text-zinc-400 mb-8 max-w-4xl">{desc}</p><div class="flex-grow relative"><canvas id="incidentsChart"></canvas></div></div></div>{footer}<script>(function(){{
     function initIncidentsChart() {{
         if (typeof Chart === 'undefined') {{ setTimeout(initIncidentsChart, 100); return; }}
         const ctx=document.getElementById('incidentsChart').getContext('2d');
+        Chart.defaults.color = '#a1a1aa';
+        Chart.defaults.borderColor = '#27272a';
         new Chart(ctx,{{
             type:'bar',
             data:{{
                 labels:{labels},
                 datasets:[
-                    {{label:'Detecciones',data:{detections},backgroundColor:'#94a3b8',borderWidth:0}},
-                    {{label:'Incidentes',data:{incidents},backgroundColor:'#ea580c',borderWidth:0}}
+                    {{label:'Detecciones',data:{detections},backgroundColor:'#27272a',hoverBackgroundColor:'#3f3f46',borderRadius:4,borderSkipped:false,barPercentage:0.6}},
+                    {{label:'Incidentes',data:{incidents},backgroundColor:'#FF5824',hoverBackgroundColor:'#FF7A4D',borderRadius:4,borderSkipped:false,barPercentage:0.6}}
                 ]
             }},
             options:{{
                 responsive:true,
                 maintainAspectRatio:false,
-                plugins:{{legend:{{position:'bottom'}}}},
-                scales:{{y:{{beginAtZero:true}}}}
+                plugins:{{
+                    legend:{{position:'top',align:'end',labels:{{color:'#d4d4d8',usePointStyle:true,boxWidth:8}}}},
+                    tooltip:{{backgroundColor:'#18181b',titleColor:'#fff',bodyColor:'#d4d4d8',borderColor:'#3f3f46',borderWidth:1,padding:10,displayColors:true}}
+                }},
+                scales:{{
+                    y:{{beginAtZero:true,grid:{{color:'#27272a',drawBorder:false}},ticks:{{font:{{family:"'Inter', sans-serif"}} }} }},
+                    x:{{grid:{{display:false}},ticks:{{font:{{family:"'Inter', sans-serif"}} }} }}
+                }},
+                interaction:{{mode:'index',intersect:false}}
             }}
         }});
     }}
     if (document.readyState === 'complete') {{ initIncidentsChart(); }} else {{ window.addEventListener('load', initIncidentsChart); }}
 }})();</script></div></div>"#,
             title = t.get("incidents_title"),
-            desc = t.format(
-                "incidents_desc",
-                &[("total", &total_detections.to_string())]
-            ),
+            desc = t.get("incidents_desc"),
             labels = labels_json,
             detections = det_json,
             incidents = inc_json,
-            footer = footer_light(10, &t.get("footer_text")),
+            footer = footer_dark(10, &t.get("footer_text")),
         );
 
         vec![SlideOutput {

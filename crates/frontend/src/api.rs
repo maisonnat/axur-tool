@@ -135,7 +135,18 @@ pub async fn login(email: &str, password: &str) -> Result<LoginResponse, String>
         let text = resp.text().await.map_err(|e| e.to_string())?;
         serde_json::from_str(&text).map_err(|e| e.to_string())
     } else {
-        Err(format!("Login failed: {}", resp.status()))
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        // Try to parse JSON error message
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(msg) = json.get("message").and_then(|v| v.as_str()) {
+                return Err(msg.to_string());
+            }
+            if let Some(err) = json.get("error").and_then(|v| v.as_str()) {
+                return Err(err.to_string());
+            }
+        }
+        Err(format!("Login failed: {} - {}", status, text))
     }
 }
 
@@ -1114,5 +1125,96 @@ pub fn download_base64_file(base64_data: &str, filename: &str, mime_type: &str) 
             // Cleanup
             let _ = web_sys::Url::revoke_object_url(&url);
         }
+    }
+}
+
+// ========================
+// ADMIN USER MANAGEMENT
+// ========================
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+pub struct AllowedUser {
+    pub email: String,
+    pub role: String,
+    pub description: Option<String>,
+    pub created_at: Option<String>,
+    pub added_by: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct AddUserRequest {
+    pub email: String,
+    pub role: String,
+    pub description: Option<String>,
+}
+
+/// List allowed users
+pub async fn list_users() -> Result<Vec<AllowedUser>, String> {
+    let resp = Request::get(&format!("{}/api/admin/users", API_BASE))
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        resp.json().await.map_err(|e| e.to_string())
+    } else {
+        Err(format!("Failed to list users: {}", resp.status()))
+    }
+}
+
+/// Add a user to the whitelist
+pub async fn add_user(email: &str, role: &str, description: Option<String>) -> Result<(), String> {
+    let resp = Request::post(&format!("{}/api/admin/users", API_BASE))
+        .header("Content-Type", "application/json")
+        .credentials(web_sys::RequestCredentials::Include)
+        .json(&AddUserRequest {
+            email: email.to_string(),
+            role: role.to_string(),
+            description,
+        })
+        .map_err(|e| e.to_string())?
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        Ok(())
+    } else {
+        // Try parsing error message
+        let text = resp.text().await.unwrap_or_default();
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(msg) = json.get("message").and_then(|v| v.as_str()) {
+                return Err(msg.to_string());
+            }
+        }
+        Err(format!("Failed to add user: {} - {}", resp.status(), text))
+    }
+}
+
+/// Remove a user from the whitelist
+pub async fn remove_user(email: &str) -> Result<(), String> {
+    let url = format!("{}/api/admin/users/{}", API_BASE, urlencoding_encode(email));
+    let resp = Request::delete(&url)
+        .credentials(web_sys::RequestCredentials::Include)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if resp.ok() {
+        Ok(())
+    } else {
+        // Try parsing error message
+        let text = resp.text().await.unwrap_or_default();
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(msg) = json.get("message").and_then(|v| v.as_str()) {
+                return Err(msg.to_string());
+            }
+        }
+        Err(format!(
+            "Failed to remove user: {} - {}",
+            resp.status(),
+            text
+        ))
     }
 }

@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use axur_backend::create_router;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load .env definitions
     dotenv::dotenv().ok();
 
@@ -77,6 +77,8 @@ async fn main() {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("🚀 Axur Backend listening on http://{}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }
