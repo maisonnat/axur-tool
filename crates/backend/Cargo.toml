@@ -22,7 +22,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 # HTTP client (for proxying to Axur API)
-reqwest = { version = "0.11", default-features = false, features = ["json", "multipart", "rustls-tls"] }
+reqwest.workspace = true
 
 # Error handling
 anyhow.workspace = true
@@ -53,11 +53,11 @@ chrono = { version = "0.4", features = ["serde"] }
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono", "uuid"] }
 
 # PPTX parsing
-zip = "0.6"
+zip = "2"
 sha2 = { version = "0.10.9", default-features = false }
 
 # New dependencies
-rand = "0.8"
+rand = "0.9"
 jsonwebtoken = "9.2"
 bcrypt = "0.15"
 tempfile = "3.10"

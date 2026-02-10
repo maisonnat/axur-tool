@@ -39,9 +39,7 @@ pub fn inject_edits(original_pptx: &[u8], edits: Vec<SlideEdit>) -> Result<Vec<u
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)?;
         let name = file.name().to_string();
-        let options = FileOptions::default()
-            .compression_method(file.compression())
-            .unix_permissions(file.unix_mode().unwrap_or(0o644));
+        let options = FileOptions::<()>::default().compression_method(file.compression());
 
         let mut content = Vec::new();
         file.read_to_end(&mut content)?;
