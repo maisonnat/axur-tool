@@ -61,6 +61,8 @@ target-wasm/
 
 # Agent artifacts (keep workflows)
 .agent/
+!.agent/skills/
+!.agent/workflows/
 .gemini/
 *.gemini*
 

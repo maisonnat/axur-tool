@@ -28,6 +28,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1.a Generate Context Packet (Repomix)
+      - name: Pack Codebase with Repomix
+        uses: yamadashy/repomix-action@v0.1.25 # Using latest compatible version
+        with:
+          output: codebase_context.xml
+          style: xml
+
+      - name: Upload Context Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codebase_context
+          path: codebase_context.xml
+          retention-days: 7
+
+
       # 1. Authenticate to Google Cloud
       - name: Authenticate to Google Cloud
         id: auth
