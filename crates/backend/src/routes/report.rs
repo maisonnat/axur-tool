@@ -811,7 +811,7 @@ pub async fn generate_report_stream(
             };
             let translations = match Translations::load(lang_code) {
                 Ok(t) => t,
-                Err(_) => Translations::load("en").unwrap(),
+                Err(_) => Translations::load("en").expect("CRITICAL: Default English translations missing"),
             };
             generate_report_with_plugins(
                 &report_data,

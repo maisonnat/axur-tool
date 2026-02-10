@@ -144,7 +144,11 @@ pub async fn inject_pptx(
             );
             res.headers_mut().insert(
                 axum::http::header::CONTENT_DISPOSITION,
-                axum::http::HeaderValue::from_str(&filename_header).unwrap(),
+                axum::http::HeaderValue::from_str(&filename_header).unwrap_or_else(|_| {
+                    axum::http::HeaderValue::from_static(
+                        "attachment; filename=\"presentation.pptx\"",
+                    )
+                }),
             );
 
             Ok(res)
