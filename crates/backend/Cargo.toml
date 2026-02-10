@@ -50,7 +50,6 @@ dotenv = "0.15"
 # Remote logging
 base64 = "0.21"
 chrono = { version = "0.4", features = ["serde"] }
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono", "uuid"] }
 
 # PPTX parsing
 zip = "2"

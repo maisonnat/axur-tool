@@ -30,7 +30,7 @@ jobs:
 
       # 1.a Generate Context Packet (Repomix)
       - name: Pack Codebase with Repomix
-        uses: yamadashy/repomix-action@v0.1.25 # Using latest compatible version
+        uses: yamadashy/repomix/.github/actions/repomix@main
         with:
           output: codebase_context.xml
           style: xml
