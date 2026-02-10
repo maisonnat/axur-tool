@@ -26,4 +26,4 @@ Test-NetConnection localhost -Port 3001
 ```
 
 ## For AI Agents
-Read `.agent/memory/DASHBOARD.md` at session start.
+Read `.agent/memory/DASHBOARD.md` and `.agent/memory/LESSONS_LEARNED.md` at session start.
