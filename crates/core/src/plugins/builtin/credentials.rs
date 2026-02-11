@@ -32,8 +32,11 @@ impl SlidePlugin for CredentialsSlidePlugin {
         // Show top 5 exposures (masked)
         let examples_html: String = data.credential_exposures.iter().take(5).map(|cred| {
             let user = cred.user.as_deref().unwrap_or("unknown");
-            let masked_user = if user.len() > 6 {
-                format!("{}...{}", &user[..3], &user[user.len()-2..])
+            let chars: Vec<char> = user.chars().collect();
+            let masked_user = if chars.len() > 6 {
+                let first: String = chars[..3].iter().collect();
+                let last: String = chars[chars.len()-2..].iter().collect();
+                format!("{}...{}", first, last)
             } else {
                 user.to_string()
             };
@@ -51,7 +54,20 @@ impl SlidePlugin for CredentialsSlidePlugin {
             lbl_total = t.get("cred_total"),
             critical = critical,
             lbl_critical = t.get("cred_critical"),
-            stealer = format_number(data.threat_intelligence.stealer_log_count),
+            stealer = format_number(if data.threat_intelligence.stealer_log_count > 0 {
+                data.threat_intelligence.stealer_log_count
+            } else {
+                // Fallback: count credentials that came from stealer logs
+                data.credential_exposures
+                    .iter()
+                    .filter(|c| {
+                        c.leak_name
+                            .as_deref()
+                            .map(|n| n.to_lowercase().contains("stealer"))
+                            .unwrap_or(false)
+                    })
+                    .count() as u64
+            }),
             lbl_stealer = t.get("cred_stealer"),
             examples = examples_html,
             footer = footer_dark(15, &t.get("footer_text")),

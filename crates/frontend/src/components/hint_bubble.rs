@@ -52,6 +52,7 @@ pub fn HintBubble(
 }
 
 /// Idle timer hook - returns true if user has been idle for specified duration
+#[allow(dead_code)]
 pub fn use_idle_timer(idle_seconds: u32) -> RwSignal<bool> {
     let is_idle = create_rw_signal(false);
 

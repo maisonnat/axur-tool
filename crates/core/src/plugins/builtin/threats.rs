@@ -60,7 +60,7 @@ impl SlidePlugin for ThreatsSlidePlugin {
         // Find dominant threat
         let top_threat = data.threats_by_type.first();
         let top_pct = top_threat
-            .map(|t| (t.count * 100) / total_threats.max(1))
+            .map(|t| (t.count as f64 * 100.0 / total_threats.max(1) as f64).round() as u64)
             .unwrap_or(0);
         let top_name = top_threat.map(|t| t.threat_type.as_str()).unwrap_or("N/A");
 

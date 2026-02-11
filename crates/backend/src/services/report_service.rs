@@ -64,7 +64,7 @@ impl ReportService {
         token: &str,
         user_id: &str,
     ) -> Result<GenerateReportResponse, ApiError> {
-        let start_time = Instant::now();
+        let _start_time = Instant::now();
 
         // 1. Fetch Data
         let report_data = match fetch_full_report(

@@ -10,11 +10,9 @@ use axum_extra::extract::CookieJar;
 use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
-use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::middleware::AUTH_COOKIE_NAME;
-use crate::routes::templates::{self, GitHubConfig};
 use crate::routes::AppState;
 use crate::services::report_service::{
     classify_error, get_user_friendly_message, GenerateReportRequest, GenerateReportResponse,
@@ -24,7 +22,7 @@ use axur_core::api::report::{
     fetch_available_tenants, fetch_full_report, fetch_tagged_tickets_for_preview,
     preview_threat_hunting,
 };
-use axur_core::error_codes::{self, ErrorCode};
+use axur_core::error_codes;
 use axur_core::i18n::{get_dictionary, Language, Translations};
 use axur_core::report::html::{generate_full_report_html, generate_report_with_plugins};
 use axur_core::report::OfflineAssets;

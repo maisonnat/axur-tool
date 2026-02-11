@@ -106,6 +106,7 @@ pub fn toggle_favorite(key: &str) -> bool {
 }
 
 /// Check if a placeholder is a favorite
+#[allow(dead_code)]
 pub fn is_favorite(key: &str) -> bool {
     load_favorites().contains(&key.to_string())
 }
@@ -197,6 +198,7 @@ pub fn get_template_version(template_id: &str, version: u32) -> Option<TemplateV
 }
 
 /// Get the latest version number for a template
+#[allow(dead_code)]
 pub fn get_latest_version_number(template_id: &str) -> u32 {
     load_template_versions(template_id)
         .first()

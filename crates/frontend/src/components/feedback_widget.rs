@@ -24,7 +24,7 @@ pub fn FeedbackWidget() -> impl IntoView {
     let (is_sending, set_is_sending) = create_signal(false);
     let (sent_success, set_sent_success) = create_signal(false);
     let (screenshot_data, set_screenshot_data) = create_signal::<Option<String>>(None);
-    let (is_annotating, set_is_annotating) = create_signal(false);
+    let (_is_annotating, set_is_annotating) = create_signal(false);
 
     // Open modal and capture screenshot
     let open_feedback = move |_| {

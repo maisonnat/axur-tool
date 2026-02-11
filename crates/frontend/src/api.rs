@@ -79,6 +79,7 @@ pub struct Tenant {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 pub struct GenerateReportRequest {
     pub tenant_id: String,
     pub from_date: String,
@@ -237,6 +238,7 @@ pub async fn logout() -> Result<(), String> {
 
 /// Health check response
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct HealthCheckResponse {
     pub status: String,
 }
@@ -277,6 +279,7 @@ pub async fn list_tenants() -> Result<Vec<Tenant>, String> {
 }
 
 /// Generate report
+#[allow(dead_code)]
 pub async fn generate_report(
     tenant_id: &str,
     from_date: &str,
@@ -680,6 +683,7 @@ pub async fn list_log_categories(date: Option<&str>) -> Result<ListCategoriesRes
 // ========================
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct LogAccessResponse {
     pub has_access: bool,
     #[allow(dead_code)]
@@ -687,6 +691,7 @@ pub struct LogAccessResponse {
 }
 
 /// Check if user has access to logs
+#[allow(dead_code)]
 pub async fn check_log_access(email: &str) -> Result<bool, String> {
     let url = format!(
         "{}/api/logs/access?email={}",
@@ -971,6 +976,7 @@ use std::collections::HashMap;
 
 /// Response from PPTX generation
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct GeneratePptxResponse {
     pub success: bool,
     pub message: String,
@@ -979,6 +985,7 @@ pub struct GeneratePptxResponse {
 
 /// Slide edit structure for PPTX injection
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub struct PptxSlideEdit {
     pub slide_index: usize,
     pub text: String,
@@ -993,6 +1000,7 @@ pub struct PptxSlideEdit {
 ///
 /// Takes the template PPTX file, placeholder edits (positions), and actual values
 /// Returns the modified PPTX as base64
+#[allow(dead_code)]
 pub async fn generate_pptx_report(
     pptx_file: web_sys::File,
     edits: Vec<PptxSlideEdit>,
@@ -1040,6 +1048,7 @@ pub async fn generate_pptx_report(
 
 /// Response for get_template_pptx
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct GetTemplatePptxResponse {
     pub success: bool,
     pub pptx_base64: Option<String>,
@@ -1048,6 +1057,7 @@ pub struct GetTemplatePptxResponse {
 }
 
 /// Get the base PPTX file of a template
+#[allow(dead_code)]
 pub async fn get_template_pptx(template_id: &str) -> Result<GetTemplatePptxResponse, String> {
     let resp = Request::get(&format!("{}/api/templates/{}/pptx", API_BASE, template_id))
         .credentials(web_sys::RequestCredentials::Include)
@@ -1069,6 +1079,7 @@ pub async fn get_template_pptx(template_id: &str) -> Result<GetTemplatePptxRespo
 
 /// Download a base64-encoded file by triggering browser download
 /// Uses JavaScript atob for base64 decoding
+#[allow(dead_code)]
 pub fn download_base64_file(base64_data: &str, filename: &str, mime_type: &str) {
     use wasm_bindgen::JsCast;
 

@@ -25,6 +25,8 @@
 - [x] Validated `codebase_context.xml` artifact (1.21 MB)
 - [x] Added `LESSONS_LEARNED.md` + ACE protocol (praefectus-inspired)
 - [x] Pushed 4 commits to `main` — all CI/CD ✅
+- [x] **CRITICAL FIX**: Debugged Data Pipeline (Axur API 90-day limit identified & fixed with clamp)
+
 
 ## 📋 BACKLOG (Next Session)
 - [ ] Clean up pre-existing frontend warnings (22 warnings)

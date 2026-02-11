@@ -39,7 +39,7 @@ impl SlidePlugin for TimelineSlidePlugin {
             .iter()
             .filter(|t| t.status == "incident")
             .count();
-        let active_count = total_events.saturating_sub(closed_count + incident_count);
+        let _active_count = total_events.saturating_sub(closed_count + incident_count);
 
         // Find most common threat type
         let mut threat_counts: std::collections::HashMap<&str, usize> =

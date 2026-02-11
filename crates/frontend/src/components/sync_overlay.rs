@@ -7,6 +7,7 @@ use leptos::*;
 
 /// Sync state for the overlay
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[allow(dead_code)]
 pub enum SyncState {
     Idle,
     Syncing,

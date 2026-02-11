@@ -23,3 +23,8 @@
 ### Repomix vs Code2Prompt
 - Migrated from Code2Prompt to Repomix. Repomix has better MCP integration, tree-sitter compression, and a native GitHub Action.
 - **Lesson:** Repomix MCP is the preferred context engine. Code2Prompt workflows are deprecated.
+
+### Axur API Limits
+- **Tickets API** (`/stats/customer` etc.) returns **HTTP 400** if `from` -> `to` date range exceeds **90 days**.
+- **Credentials API** does NOT have this limit.
+- **Lesson:** When fetching data for user-selected ranges, always **clamp** specific sub-calls to their known API limits to prevent total failure. Implemented `clamp_date_range` helper in `report.rs`.

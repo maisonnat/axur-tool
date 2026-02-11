@@ -17,6 +17,7 @@ struct BetaRequestPayload {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
 struct BetaRequestResponse {
     success: bool,
     message: String,

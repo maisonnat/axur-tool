@@ -188,7 +188,7 @@ pub fn EditorPage() -> impl IntoView {
                     let new_slides: Vec<EditorSlide> = demo_slides
                         .iter()
                         .enumerate()
-                        .map(|(i, s)| EditorSlide {
+                        .map(|(_i, s)| EditorSlide {
                             id: s.id.to_string(),
                             name: s.name.to_string(),
                             canvas_json: sandbox_slides_to_canvas_json(s),
@@ -491,7 +491,7 @@ pub fn EditorPage() -> impl IntoView {
                     state.current_page.set(crate::Page::Dashboard);
                 })
             />
-            
+
             // Top Bar
             <header class="h-14 bg-zinc-900 border-b border-zinc-800 flex items-center px-4 gap-4">
                 <button

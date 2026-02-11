@@ -161,20 +161,24 @@ fn generate_insights(data: &crate::api::report::PocReportData) -> Vec<Insight> {
     }
 
     // Insight 2: Low takedown rate
-    let takedown_rate = if data.total_tickets > 0 {
-        (data.takedown_resolved as f64 / data.total_tickets as f64) * 100.0
+    let total_takedowns = data.takedown_resolved
+        + data.takedown_pending
+        + data.takedown_aborted
+        + data.takedown_unresolved;
+    let takedown_rate = if total_takedowns > 0 {
+        (data.takedown_resolved as f64 / total_takedowns as f64) * 100.0
     } else {
         0.0
     };
 
-    if takedown_rate < 50.0 && data.total_tickets > 20 {
+    if takedown_rate < 50.0 && total_takedowns > 20 {
         insights.push(Insight {
             icon: "⚡",
             title: "Tasa de Takedown Baja".to_string(),
             description: format!(
-                "Solo {:.0}% de amenazas neutralizadas. {} pendientes.",
+                "Solo {:.0}% de takedowns exitosos. {} pendientes.",
                 takedown_rate,
-                data.total_tickets - data.takedown_resolved
+                total_takedowns - data.takedown_resolved
             ),
             priority: Priority::High,
             action: "Escalar con proveedores y revisar SLAs".to_string(),

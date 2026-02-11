@@ -115,7 +115,7 @@ impl SlidePlugin for RoiSlidePlugin {
                                 </div>
                                 <h3 class="text-xl font-bold mb-3">{resp_title}</h3>
                                 <div class="mb-4">
-                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">180x</span>
+                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">{speed_mult}</span>
                                 </div>
                                 <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{resp_desc}</p>
                                 <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
@@ -156,6 +156,11 @@ impl SlidePlugin for RoiSlidePlugin {
             creds = data.credentials_total,
             lbl_creds = t.get("op_credentials_monitored"),
             resp_title = t.get("op_response_title"),
+            speed_mult = if metrics.response_speed_multiplier >= 2.0 {
+                format!("{:.0}x", metrics.response_speed_multiplier)
+            } else {
+                "N/A".to_string()
+            },
             resp_desc = t.get("op_response_desc"),
             lbl_success = t.get("op_success_rate"),
             success_rate = data.takedown_success_rate,

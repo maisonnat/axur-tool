@@ -22,6 +22,7 @@ impl AppError {
         }
     }
 
+    #[allow(dead_code)]
     fn from_response(resp: &GenerateReportResponse) -> Self {
         Self {
             code: resp.error_code.clone(),

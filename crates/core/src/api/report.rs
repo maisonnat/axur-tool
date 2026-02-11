@@ -278,6 +278,7 @@ pub struct PocReportData {
     // General Metrics
     pub total_tickets: u64,
     pub total_threats: u64,
+    pub total_incidents: u64, // Tickets with status=incident (for funnel visualization)
     pub validation_hours: f64,
 
     // Threats by Type (for chart)
@@ -882,6 +883,7 @@ const MINUTES_PER_SECRET_REMEDIATION: f64 = 30.0; // Time to remediate one code 
 const MINUTES_PER_TAKEDOWN_MANUAL: f64 = 120.0; // Time to manually process a takedown
 const WORKING_HOURS_PER_DAY: f64 = 8.0;
 const WORKING_DAYS_PER_MONTH: f64 = 22.0;
+const INDUSTRY_BENCHMARK_RESPONSE_HOURS: f64 = 48.0; // Conservative industry benchmark for manual threat response
 
 /// Operational Impact Metrics for COO Executive Slide
 /// Focused on TIME and PEOPLE instead of money (better for LATAM)
@@ -928,8 +930,10 @@ pub struct OperationalMetrics {
     pub threats_detected: u64,
 
     // ===== EFFICIENCY RATIOS =====
-    /// Automation rate (percentage of automated vs manual work)
-    pub automation_rate_percent: f64,
+    /// Takedown resolution rate (resolved / total takedowns * 100)
+    pub takedown_resolution_rate: f64,
+    /// Speed multiplier vs industry benchmark (e.g., 48h manual / Axur response time)
+    pub response_speed_multiplier: f64,
 
     // ===== DISPLAY FLAGS =====
     /// Should this slide be shown? (based on data significance)
@@ -979,9 +983,25 @@ impl OperationalMetrics {
         let avg_response_minutes = parse_duration_to_minutes(&data.takedown_median_time_to_notify);
 
         // ===== EFFICIENCY =====
-        // Automation rate: percentage of threats that were auto-processed
-        let automation_rate_percent = if data.total_threats > 0 {
-            (data.takedown_resolved as f64 / data.total_threats as f64 * 100.0).min(100.0)
+        // Takedown resolution rate: resolved / total takedowns
+        let total_takedowns = data.takedown_resolved
+            + data.takedown_pending
+            + data.takedown_aborted
+            + data.takedown_unresolved;
+        let takedown_resolution_rate = if total_takedowns > 0 {
+            (data.takedown_resolved as f64 / total_takedowns as f64 * 100.0).min(100.0)
+        } else {
+            0.0
+        };
+
+        // Response speed multiplier: industry benchmark / Axur response time
+        let response_speed_multiplier = if avg_response_minutes > 0.0 {
+            let axur_hours = avg_response_minutes / 60.0;
+            if axur_hours > 0.0 {
+                (INDUSTRY_BENCHMARK_RESPONSE_HOURS / axur_hours).round()
+            } else {
+                0.0
+            }
         } else {
             0.0
         };
@@ -1010,7 +1030,8 @@ impl OperationalMetrics {
             secrets_detected: data.secrets_total,
             takedowns_completed: data.takedown_resolved,
             threats_detected: data.total_threats,
-            automation_rate_percent,
+            takedown_resolution_rate,
+            response_speed_multiplier,
             has_significant_data,
         }
     }
@@ -1297,6 +1318,27 @@ async fn resolve_ip_country(client: &reqwest::Client, ip: &str) -> Option<String
 }
 
 // ========================
+// DATE HELPER
+// ========================
+
+// Clamp date range to max_days (for APIs with limits like tickets-api)
+fn clamp_date_range(from: &str, to: &str, max_days: i64) -> (String, String) {
+    use chrono::NaiveDate;
+    let from_date = NaiveDate::parse_from_str(from, "%Y-%m-%d")
+        .unwrap_or_else(|_| chrono::Local::now().date_naive());
+    let to_date = NaiveDate::parse_from_str(to, "%Y-%m-%d")
+        .unwrap_or_else(|_| chrono::Local::now().date_naive());
+
+    let days_diff = (to_date - from_date).num_days();
+    if days_diff > max_days {
+        let new_from = to_date - chrono::Duration::days(max_days);
+        // tracing::warn!("Clamping date range for tickets: {} -> {} (limit 90 days)", from, new_from.format("%Y-%m-%d"));
+        return (new_from.format("%Y-%m-%d").to_string(), to.to_string());
+    }
+    (from.to_string(), to.to_string())
+}
+
+// ========================
 // MAIN FETCH FUNCTION
 // ========================
 
@@ -1327,28 +1369,43 @@ pub async fn fetch_full_report(
     let client = create_client()?;
     let auth = format!("Bearer {}", token);
 
-    // Phase 1: Fetch customer info and stats in parallel
+    // FIX: Tickets API has a strict 90-day limit. Clamp range for ticket calls.
+    // Credentials and other APIs support longer ranges.
+    let (ticket_from, ticket_to) = clamp_date_range(from, to, 90);
+    let t_from = &ticket_from;
+    let t_to = &ticket_to;
+
     // Phase 1: Fetch customer info and stats in batches to avoid rate limiting
-    // Batch 1 (4 reqs): Base Counts
-    let (customer_data, total_open, total_incident, total_closed) = tokio::join!(
+    // Batch 1 (6 reqs): Base Counts — ALL 5 ticket statuses per API docs
+    // Lifecycle: open → quarantine → incident → treatment → closed
+    let (
+        customer_data,
+        total_open,
+        total_quarantine,
+        total_incident,
+        total_treatment,
+        total_closed,
+    ) = tokio::join!(
         fetch_customer_data(&client, &auth, tenant_id),
-        fetch_ticket_count(&client, &auth, from, to, "open", tenant_id),
-        fetch_ticket_count(&client, &auth, from, to, "incident", tenant_id),
-        fetch_ticket_count(&client, &auth, from, to, "closed", tenant_id),
+        fetch_ticket_count(&client, &auth, t_from, t_to, "open", tenant_id),
+        fetch_ticket_count(&client, &auth, t_from, t_to, "quarantine", tenant_id),
+        fetch_ticket_count(&client, &auth, t_from, t_to, "incident", tenant_id),
+        fetch_ticket_count(&client, &auth, t_from, t_to, "treatment", tenant_id),
+        fetch_ticket_count(&client, &auth, t_from, t_to, "closed", tenant_id),
     );
 
     // Batch 2 (3 reqs): Detailed Stats
     let (threats_by_type, credentials_total, code_leaks_total) = tokio::join!(
-        fetch_threats_by_type_map(&client, &auth, from, to, tenant_id),
-        fetch_credentials_total_all(&client, &auth, from, to, tenant_id),
-        fetch_code_leaks_count(&client, &auth, from, to, tenant_id),
+        fetch_threats_by_type_map(&client, &auth, t_from, t_to, tenant_id),
+        fetch_credentials_total_all(&client, &auth, from, to, tenant_id), // Use full range
+        fetch_code_leaks_count(&client, &auth, from, to, tenant_id),      // Use full range
     );
 
     // Batch 3 (4 reqs): Advanced & Risk
     let (takedown_stats, story_tickets_res, risk_metrics, credential_exposures_res) = tokio::join!(
-        fetch_takedown_stats_full(&client, &auth, from, to, tenant_id),
+        fetch_takedown_stats_full(&client, &auth, t_from, t_to, tenant_id),
         fetch_tagged_tickets(&client, &auth, tenant_id, story_tag.as_deref()),
-        fetch_risk_score_metrics(&client, &auth, tenant_id, from, to),
+        fetch_risk_score_metrics(&client, &auth, tenant_id, t_from, t_to),
         async {
             if let Some(tag) = story_tag.as_deref() {
                 if !tag.is_empty() {
@@ -1440,17 +1497,31 @@ pub async fn fetch_full_report(
         top_affected_domains: vec![],
     });
 
-    // Calculate metrics
+    // Calculate metrics — sum ALL 5 ticket lifecycle statuses for true total
     let open_count = total_open.unwrap_or(0);
+    let quarantine_count = total_quarantine.unwrap_or(0);
+    let incident_count = total_incident.unwrap_or(0);
+    let treatment_count = total_treatment.unwrap_or(0);
     let closed_count = total_closed.unwrap_or(0);
     let creds_count = credentials_total.unwrap_or(0);
     let leaks_count = code_leaks_total.unwrap_or(0);
 
-    // FIXED: total_threats should be sum of all incidents by type (from correct endpoint)
-    // The fetch_ticket_count with status=incident uses wrong endpoint, threats_vec uses correct one
+    // total_threats: incidents by type from /stats/incident/count/ticket-types
     let total_threats: u64 = threats_vec.iter().map(|t| t.count).sum();
-    let total_tickets = open_count + total_threats + closed_count;
+
+    let total_tickets =
+        open_count + quarantine_count + incident_count + treatment_count + closed_count;
     let validation_hours = (total_tickets as f64 * 5.0) / 60.0; // 5 min per ticket
+
+    // DEBUG: trace data pipeline values at WARN level for visibility
+    tracing::warn!(
+        "DATA PIPELINE: tickets by status: open={}, quarantine={}, incident={}, treatment={}, closed={} => total_tickets={}",
+        open_count, quarantine_count, incident_count, treatment_count, closed_count, total_tickets
+    );
+    tracing::warn!(
+        "DATA PIPELINE: total_threats={}, credentials={}, leaks={}, takedowns=(resolved={}, pending={}, aborted={})",
+        total_threats, creds_count, leaks_count, tk.resolved, tk.pending, tk.aborted
+    );
 
     // Build incidents by type from threats
     let incidents_by_type: Vec<IncidentTypeCount> = threats_vec
@@ -1509,6 +1580,7 @@ pub async fn fetch_full_report(
         threat_intelligence_assets: 0,
         total_tickets: final_total_tickets,
         total_threats,
+        total_incidents: incident_count,
 
         validation_hours,
         threats_by_type: threats_vec,
@@ -1839,12 +1911,70 @@ async fn fetch_ticket_count(
         .send()
         .await?;
 
-    let status = resp.status().as_u16();
+    let http_status = resp.status().as_u16();
     let success = resp.status().is_success();
 
+    // Always read body — even on error — to see the actual API error message
+    let text = resp.text().await.unwrap_or_default();
+
     if !success {
+        tracing::warn!(
+            "fetch_ticket_count FAILED: status_param={}, HTTP {}, body={}",
+            status,
+            http_status,
+            text
+        );
         log_api_call(
-            &format!("fetch_ticket_count_{}", status),
+            &format!("fetch_ticket_count_{}", http_status),
+            &url,
+            http_status,
+            false,
+            &text,
+        );
+        return Ok(0);
+    }
+
+    log_api_call(
+        &format!("fetch_ticket_count_{}", http_status),
+        &url,
+        http_status,
+        true,
+        &text,
+    );
+
+    let data: StatsCountResponse =
+        serde_json::from_str(&text).unwrap_or(StatsCountResponse { total: None });
+    Ok(data.total.unwrap_or(0))
+}
+
+/// Fetch total ticket count WITHOUT status filter (returns ALL tickets in period)
+async fn fetch_ticket_count_all(
+    client: &reqwest::Client,
+    auth: &str,
+    from: &str,
+    to: &str,
+    customer: &str,
+) -> Result<u64> {
+    let url = format!(
+        "{}/tickets-api/stats/customer?from={}&to={}&customer={}",
+        API_URL, from, to, customer
+    );
+    tracing::warn!("🎫 fetch_ticket_count_all URL: {}", url);
+
+    let resp = client
+        .get(&url)
+        .header("Authorization", auth)
+        .send()
+        .await?;
+
+    let status = resp.status().as_u16();
+    let success = resp.status().is_success();
+    tracing::warn!("🎫 fetch_ticket_count_all HTTP status: {}", status);
+
+    if !success {
+        tracing::warn!("🎫 fetch_ticket_count_all FAILED with HTTP {}", status);
+        log_api_call(
+            &format!("fetch_ticket_count_all_{}", status),
             &url,
             status,
             false,
@@ -1854,8 +1984,9 @@ async fn fetch_ticket_count(
     }
 
     let text = resp.text().await?;
+    tracing::warn!("🎫 fetch_ticket_count_all RAW RESPONSE: {}", text);
     log_api_call(
-        &format!("fetch_ticket_count_{}", status),
+        &format!("fetch_ticket_count_all_{}", status),
         &url,
         status,
         true,
@@ -1864,7 +1995,9 @@ async fn fetch_ticket_count(
 
     let data: StatsCountResponse =
         serde_json::from_str(&text).unwrap_or(StatsCountResponse { total: None });
-    Ok(data.total.unwrap_or(0))
+    let total = data.total.unwrap_or(0);
+    tracing::warn!("🎫 fetch_ticket_count_all PARSED TOTAL: {}", total);
+    Ok(total)
 }
 
 async fn fetch_threats_by_type_map(
