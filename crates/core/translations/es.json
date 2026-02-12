@@ -192,6 +192,8 @@
     "geo_fmt_fallback": "La atribución geográfica revela superposiciones de jurisdicción. Monitorear infraestructura internacional ayuda a predecir futuras campañas.",
     "geo_lbl_countries": "Principales Países de Origen",
     "geo_lbl_isps": "Top ISPs (Redes)",
+    "geo_why_important_title": "¿Por qué es importante esto?",
+    "geo_why_important_text": "El origen geográfico de los ataques revela la infraestructura global de los ciberdelincuentes. Este dato permite bloqueos estratégicos por región y mejora la atribución, facilitando defensas más efectivas contra amenazas localizadas.",
     "ctx_stealer_title": "Entendiendo los Infostealers",
     "ctx_stealer_text": "Los Infostealers son malware diseñado para recolectar información sensible de dispositivos infectados. Roban credenciales de inicio de sesión, cookies y detalles del sistema, que a menudo se venden en mercados de la dark web. Detectar estos registros nos permite identificar cuentas de empleados o clientes comprometidas antes de que sean utilizadas para accesos no autorizados.",
     "ctx_leak_title": "El Peligro de Secretos Expuestos",

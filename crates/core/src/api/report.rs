@@ -360,6 +360,263 @@ pub struct PocReportData {
     pub is_dynamic_window: bool,
 }
 
+impl PocReportData {
+    pub fn demo() -> Self {
+        PocReportData {
+            company_name: "Acme Corp (Mock)".to_string(),
+            partner_name: Some("Partner Security Ltd".to_string()),
+            tlp_level: "AMBER".to_string(),
+            start_date: "2024-01-01".to_string(),
+            end_date: "2024-01-31".to_string(),
+            brands_count: 3,
+            brands: vec![
+                "Acme".to_string(),
+                "AcmeBank".to_string(),
+                "AcmePay".to_string(),
+            ],
+            executives_count: 5,
+            ips_count: 12,
+            bins_count: 4,
+            domains_count: 15,
+            threat_hunting_credits: 100,
+            threat_intelligence_assets: 50,
+            total_tickets: 245,
+            total_threats: 180,
+            total_incidents: 25,
+            validation_hours: 45.5,
+            threats_by_type: vec![
+                ThreatTypeCount {
+                    threat_type: "phishing".to_string(),
+                    count: 85,
+                },
+                ThreatTypeCount {
+                    threat_type: "fraudulent-brand-use".to_string(),
+                    count: 45,
+                },
+                ThreatTypeCount {
+                    threat_type: "fake-social-media-profile".to_string(),
+                    count: 30,
+                },
+                ThreatTypeCount {
+                    threat_type: "suspicious-domain".to_string(),
+                    count: 20,
+                },
+            ],
+            credentials_total: 512,
+            unique_hosts: 42,
+            high_risk_users: 8,
+            malware_breakdown: vec![
+                NameValuePair {
+                    name: "RedLine".to_string(),
+                    value: 45,
+                },
+                NameValuePair {
+                    name: "Raccoon".to_string(),
+                    value: 20,
+                },
+            ],
+            top_services: vec![
+                NameValuePair {
+                    name: "Jira".to_string(),
+                    value: 30,
+                },
+                NameValuePair {
+                    name: "Slack".to_string(),
+                    value: 25,
+                },
+            ],
+            secrets_total: 12,
+            unique_repos: 3,
+            production_secrets: 4,
+            platform_breakdown: vec![
+                NameValuePair {
+                    name: "GitHub".to_string(),
+                    value: 10,
+                },
+                NameValuePair {
+                    name: "GitLab".to_string(),
+                    value: 2,
+                },
+            ],
+            secret_types: vec![
+                NameValuePair {
+                    name: "AWS Key".to_string(),
+                    value: 5,
+                },
+                NameValuePair {
+                    name: "Private RSA".to_string(),
+                    value: 3,
+                },
+            ],
+            credential_leaks_summary: CredentialLeaksSummary {
+                total_credentials: 512,
+                unique_emails: 410,
+                sources: vec![
+                    NameValuePair {
+                        name: "Dark Web".to_string(),
+                        value: 300,
+                    },
+                    NameValuePair {
+                        name: "Botnets".to_string(),
+                        value: 212,
+                    },
+                ],
+                plaintext_passwords: 120,
+                stealer_logs_count: 45,
+                top_affected_domains: vec![NameValuePair {
+                    name: "acme.com".to_string(),
+                    value: 150,
+                }],
+            },
+            incidents_by_type: vec![IncidentTypeCount {
+                incident_type: "phishing".to_string(),
+                detections: 85,
+                incidents: 10,
+            }],
+            takedown_resolved: 120,
+            takedown_pending: 15,
+            takedown_aborted: 5,
+            takedown_unresolved: 10,
+            takedown_success_rate: 94.5,
+            takedown_median_time_to_notify: "15 min".to_string(),
+            takedown_median_uptime: "4 hours".to_string(),
+            takedowns_by_type: vec![
+                NameValuePair {
+                    name: "phishing".to_string(),
+                    value: 80,
+                },
+                NameValuePair {
+                    name: "fraud".to_string(),
+                    value: 40,
+                },
+            ],
+            poc_examples: vec![PocEvidence {
+                evidence_type: "phishing".to_string(),
+                ticket_key: "TK-1234".to_string(),
+                reference_url: "http://malicious-acme.com".to_string(),
+                status: "incident".to_string(),
+                ip: Some("192.168.1.1".to_string()),
+                isp: Some("Bad ISP".to_string()),
+                domain: Some("malicious-acme.com".to_string()),
+                screenshot_url: None,
+                reported_date: Some("2024-01-15".to_string()),
+                risk_score: Some(0.95),
+                brand_confidence: Some(0.99),
+                detection_minutes: Some(15),
+                has_login_form: Some(true),
+            }],
+            takedown_examples: vec![TakedownExample {
+                name: "Phishing Site".to_string(),
+                ticket_type: "phishing".to_string(),
+                status: "resolved".to_string(),
+                request_date: Some("2024-01-10".to_string()),
+                url: "http://fake-login.com".to_string(),
+            }],
+            resolved_takedowns: vec![ResolvedTakedown {
+                ticket_key: "TK-5678".to_string(),
+                name: "Brand Abuse".to_string(),
+                ticket_type: "fraud".to_string(),
+                status: "resolved".to_string(),
+                host: "fake-brand.net".to_string(),
+                ip: "10.0.0.1".to_string(),
+                country: "US".to_string(),
+                request_date: Some("2024-01-05".to_string()),
+                resolution_date: Some("2024-01-06".to_string()),
+                url: "http://fake-brand.net/login".to_string(),
+                registrar: Some("NameCheap".to_string()),
+                isp: Some("AWS".to_string()),
+                screenshot_url: None,
+            }],
+            latest_incidents: vec![IncidentExample {
+                ticket_key: "TK-9012".to_string(),
+                name: "Active Phishing".to_string(),
+                ticket_type: "phishing".to_string(),
+                status: "incident".to_string(),
+                open_date: Some("2024-01-20T10:00:00Z".to_string()),
+                incident_date: Some("2024-01-20T10:05:00Z".to_string()),
+                host: "evil-site.org".to_string(),
+                ip: "1.2.3.4".to_string(),
+                isp: "Cloudflare".to_string(),
+                url: "https://evil-site.org/auth".to_string(),
+                country: "RU".to_string(),
+                registrar: Some("GoDaddy".to_string()),
+                screenshot_url: None,
+            }],
+            deep_analytics: DeepAnalyticsData {
+                top_repositories: vec![NameValuePair {
+                    name: "acme-backend".to_string(),
+                    value: 5,
+                }],
+                secret_types_breakdown: vec![NameValuePair {
+                    name: "API Key".to_string(),
+                    value: 8,
+                }],
+                leak_source_breakdown: vec![
+                    NameValuePair {
+                        name: "Stealer Logs".to_string(),
+                        value: 60,
+                    },
+                    NameValuePair {
+                        name: "Combolist".to_string(),
+                        value: 40,
+                    },
+                ],
+                top_affected_domains: vec![NameValuePair {
+                    name: "acme.com".to_string(),
+                    value: 100,
+                }],
+                avg_takedown_time_hours: Some(4.5),
+                takedowns_by_platform: vec![NameValuePair {
+                    name: "Facebook".to_string(),
+                    value: 15,
+                }],
+                has_code_leak_insights: true,
+                has_credential_insights: true,
+                has_takedown_insights: true,
+            },
+            roi_metrics: OperationalMetrics {
+                hours_saved_total: 150.0,
+                hours_saved_validation: 20.0,
+                hours_saved_credentials: 30.0,
+                hours_saved_takedowns: 50.0,
+                hours_saved_secrets: 50.0,
+                analysts_equivalent_monthly: 1.5,
+                person_days_saved: 18.0,
+                avg_response_minutes: 15.0,
+                median_response_time: "15 min".to_string(),
+                median_threat_exposure: "4 hours".to_string(),
+                takedown_success_rate: 94.5,
+                tickets_processed: 245,
+                credentials_monitored: 512,
+                secrets_detected: 12,
+                takedowns_completed: 120,
+                threats_detected: 180,
+                takedown_resolution_rate: 90.0,
+                response_speed_multiplier: 5.0,
+                has_significant_data: true,
+            },
+            story_tickets: vec![],
+            threat_intelligence: ThreatIntelligence::demo(),
+            deep_investigations: vec![],
+            credential_exposures: vec![],
+            critical_credentials: vec![],
+            risk_score: RiskScore {
+                current: 450.0,
+                history: vec![400.0, 420.0, 450.0],
+                label: "Medium".to_string(),
+                color: "#FFA500".to_string(),
+            },
+            comparison: Some(ComparisonData {
+                period_label: "vs. Last Month".to_string(),
+                prev_tickets: 200,
+                prev_takedowns: 100,
+                prev_credentials: 400,
+            }),
+            is_dynamic_window: true,
+        }
+    }
+}
+
 /// Data for period-over-period comparison analysis
 #[derive(Debug, Serialize, Clone, Default)]
 pub struct ComparisonData {

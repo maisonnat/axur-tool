@@ -192,6 +192,8 @@
     "geo_fmt_fallback": "Geographic attribution reveals jurisdiction overlaps. Monitoring international infrastructure helps predict future campaigns.",
     "geo_lbl_countries": "Top Origin Countries",
     "geo_lbl_isps": "Top ISPs (Networks)",
+    "geo_why_important_title": "Why is this important?",
+    "geo_why_important_text": "The geographic origin of attacks helps identify global infrastructure used by cybercriminals. This data enables strategic geo-blocking and aids in attribution, allowing for more effective defensive measures against specific regional threats.",
     "ctx_stealer_title": "Understanding Infostealers",
     "ctx_stealer_text": "Infostealers are malware designed to harvest sensitive information from infected devices. They collect login credentials, cookies, and system details, often sold on dark web marketplaces. Detecting these logs allows us to identify compromised employee or customer accounts before they are used for unauthorized access.",
     "ctx_leak_title": "The Danger of Exposed Secrets",

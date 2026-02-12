@@ -47,14 +47,12 @@ pub fn ReportLoader(#[prop(optional)] include_threat_intel: bool) -> impl IntoVi
     };
 
     // Rotating fun messages
-    let messages = vec![
-        "Preparando tu reporte ejecutivo...",
+    let messages = ["Preparando tu reporte ejecutivo...",
         "Analizando datos de seguridad...",
         "Procesando incidentes...",
         "Generando visualizaciones...",
         "Casi listo...",
-        "Puliendo los detalles finales...",
-    ];
+        "Puliendo los detalles finales..."];
 
     // Advance step every 8 seconds (to better match actual API timing)
     // Does NOT cycle - stays on last step once reached

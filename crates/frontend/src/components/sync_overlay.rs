@@ -40,7 +40,10 @@ pub fn GitHubSyncOverlay(
                         <div class="sync-icon warning">"⚠"</div>
                         <span class="warning-text">"Modo offline"</span>
                     }.into_view(),
-                    SyncState::Idle => view! { <></> }.into_view(),
+                    SyncState::Idle => {
+                        view! { <></> };
+                        ().into_view()
+                    },
                 }}
             </div>
         </Show>

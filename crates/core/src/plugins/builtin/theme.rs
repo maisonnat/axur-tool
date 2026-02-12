@@ -259,7 +259,7 @@ pub const BRAND_CSS: &str = r#"
 }
 
 .axur-logo::before {
-  content: '///';
+  /* content: '///'; Removed to prevent duplication with explicit HTML */
   color: var(--axur-orange);
   margin-right: 0.25rem;
 }

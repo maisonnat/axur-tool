@@ -98,6 +98,9 @@ pub struct GenerateReportRequest {
     /// List of plugin IDs to disable
     #[serde(default)]
     pub disabled_plugins: Option<Vec<String>>,
+    /// Use mock data (development only)
+    #[serde(default)]
+    pub mock: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -280,6 +283,7 @@ pub async fn list_tenants() -> Result<Vec<Tenant>, String> {
 
 /// Generate report
 #[allow(dead_code)]
+#[allow(clippy::too_many_arguments)]
 pub async fn generate_report(
     tenant_id: &str,
     from_date: &str,
@@ -292,6 +296,7 @@ pub async fn generate_report(
     use_plugins: bool,
     theme: Option<String>,
     disabled_plugins: Option<Vec<String>>,
+    mock: bool,
 ) -> Result<GenerateReportResponse, String> {
     let resp = Request::post(&format!("{}/api/report/generate", API_BASE))
         .header("Content-Type", "application/json")
@@ -308,6 +313,7 @@ pub async fn generate_report(
             use_plugins,
             theme,
             disabled_plugins,
+            mock,
         })
         .map_err(|e| e.to_string())?
         .send()
@@ -470,6 +476,7 @@ pub enum ReportStreamEvent {
 }
 
 /// Get the SSE stream URL for report generation
+#[allow(clippy::too_many_arguments)]
 pub fn get_report_stream_url(
     tenant_id: &str,
     from_date: &str,
@@ -479,16 +486,18 @@ pub fn get_report_stream_url(
     include_threat_intel: bool,
     template_id: Option<&str>,
     use_plugins: bool,
+    mock: bool, // NEW
 ) -> String {
     let mut url = format!(
-        "{}/api/reports/generate-stream?tenant_id={}&from_date={}&to_date={}&language={}&include_threat_intel={}&use_plugins={}",
+        "{}/api/reports/generate-stream?tenant_id={}&from_date={}&to_date={}&language={}&include_threat_intel={}&use_plugins={}&mock={}",
         API_BASE,
         urlencoding_encode(tenant_id),
         urlencoding_encode(from_date),
         urlencoding_encode(to_date),
         urlencoding_encode(language),
         include_threat_intel,
-        use_plugins
+        use_plugins,
+        mock
     );
 
     if let Some(tag) = story_tag {

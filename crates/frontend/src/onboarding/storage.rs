@@ -106,5 +106,5 @@ pub fn increment_shortcut_usage() {
 
 /// Reset all onboarding progress (for testing)
 pub fn reset_onboarding() {
-    let _ = LocalStorage::delete(STORAGE_KEY);
+    LocalStorage::delete(STORAGE_KEY);
 }

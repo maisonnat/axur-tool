@@ -187,8 +187,7 @@ pub fn EditorPage() -> impl IntoView {
                     let demo_slides = crate::onboarding::get_sandbox_slides();
                     let new_slides: Vec<EditorSlide> = demo_slides
                         .iter()
-                        .enumerate()
-                        .map(|(_i, s)| EditorSlide {
+                        .map(|s| EditorSlide {
                             id: s.id.to_string(),
                             name: s.name.to_string(),
                             canvas_json: sandbox_slides_to_canvas_json(s),
@@ -977,7 +976,7 @@ pub fn EditorPage() -> impl IntoView {
                     </CollapsibleSection>
 
                     // Collapsible Placeholder Side Panel
-                    <PlaceholderSidePanel on_insert=insert_placeholder.clone() />
+                    <PlaceholderSidePanel on_insert=insert_placeholder />
 
                     // Smart Templates Analysis
                     <TemplateAnalysisPanel slides=slides />
@@ -1070,7 +1069,7 @@ where
     I: Fn(String, String) + 'static + Clone,
 {
     // Category colors for visual distinction
-    let category_colors = vec![
+    let category_colors = [
         ("📋", "#6366f1", "#6366f120"), // General - Indigo
         ("📊", "#f97316", "#f9731620"), // Métricas - Orange
         ("🎯", "#ef4444", "#ef444420"), // Amenazas - Red

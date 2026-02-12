@@ -93,8 +93,6 @@ pub fn App() -> impl IntoView {
 
     // Check server health and detect cold starts
     {
-        let is_warming = is_warming.clone();
-        let is_ready = is_ready.clone();
         spawn_local(async move {
             match api::health_check().await {
                 Ok(elapsed_ms) => {

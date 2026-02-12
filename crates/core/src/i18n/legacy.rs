@@ -276,6 +276,8 @@ pub trait Dictionary: Send + Sync {
     fn geo_fmt_fallback(&self) -> String;
     fn geo_lbl_countries(&self) -> String;
     fn geo_lbl_isps(&self) -> String;
+    fn geo_why_important_title(&self) -> String;
+    fn geo_why_important_text(&self) -> String;
 
     fn ctx_stealer_title(&self) -> String;
     fn ctx_stealer_text(&self) -> String;
@@ -868,6 +870,13 @@ impl Dictionary for English {
         "Top ISPs (Networks)".to_string()
     }
 
+    fn geo_why_important_title(&self) -> String {
+        "Why is this important?".to_string()
+    }
+    fn geo_why_important_text(&self) -> String {
+        "The geographic origin of attacks helps identify global infrastructure used by cybercriminals. This data enables strategic geo-blocking and aids in attribution, allowing for more effective defensive measures against specific regional threats.".to_string()
+    }
+
     fn ctx_stealer_title(&self) -> String {
         "Understanding Infostealers".to_string()
     }
@@ -1317,6 +1326,13 @@ impl Dictionary for Spanish {
     }
     fn geo_lbl_isps(&self) -> String {
         "Top ISPs (Redes)".to_string()
+    }
+
+    fn geo_why_important_title(&self) -> String {
+        "¿Por qué es importante esto?".to_string()
+    }
+    fn geo_why_important_text(&self) -> String {
+        "El origen geográfico de los ataques revela la infraestructura global de los ciberdelincuentes. Este dato permite bloqueos estratégicos por región y mejora la atribución, facilitando defensas más efectivas contra amenazas localizadas.".to_string()
     }
 
     fn roi_title(&self) -> String {
@@ -2083,6 +2099,13 @@ impl Dictionary for Portuguese {
     }
     fn geo_lbl_isps(&self) -> String {
         "Top ISPs (Redes)".to_string()
+    }
+
+    fn geo_why_important_title(&self) -> String {
+        "Por que isso é importante?".to_string()
+    }
+    fn geo_why_important_text(&self) -> String {
+        "A origem geográfica dos ataques revela a infraestrutura global usada por cibercriminosos. Esses dados permitem bloqueio geográfico estratégico e auxiliam na atribuição, permitindo defesas mais eficazes contra ameaças regionais.".to_string()
     }
 }
 

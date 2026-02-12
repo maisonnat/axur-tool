@@ -3499,6 +3499,7 @@ mod tests {
             threat_intelligence_assets: 10,
             
             total_tickets: 1000,
+            total_incidents: 100,
             total_threats: 500,
             validation_hours: 10.0,
             

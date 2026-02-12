@@ -181,12 +181,6 @@
                                 <div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">Locaweb</span>
-                </div>
-                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
-            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
-                <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
                     <span class="text-zinc-300 truncate text-sm">Hetzner</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
@@ -199,7 +193,7 @@
             </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">Cloudflare</span>
+                    <span class="text-zinc-300 truncate text-sm">Alibaba</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
             </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
@@ -211,7 +205,13 @@
             </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
                 <div class="flex items-center gap-3 overflow-hidden">
                     <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
-                    <span class="text-zinc-300 truncate text-sm">Alibaba</span>
+                    <span class="text-zinc-300 truncate text-sm">UOL</span>
+                </div>
+                <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
+            </div><div class="flex items-center justify-between p-3 bg-zinc-800/50 rounded lg:mb-2 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center text-zinc-400 text-xs">ISP</div>
+                    <span class="text-zinc-300 truncate text-sm">Locaweb</span>
                 </div>
                 <span class="text-white font-bold bg-zinc-700 px-2 py-0.5 rounded text-xs">1</span>
             </div>
@@ -232,7 +232,7 @@
                     new Chart(ctx, {
                         type: 'bar',
                         data: {
-                            labels: ["🇺🇸 USA","🇷🇺 Russia","🇧🇷 Brazil","🇧🇷 Brasil","🇩🇪 Germany","🇨🇳 China"],
+                            labels: ["🇺🇸 USA","🇩🇪 Germany","🇷🇺 Russia","🇨🇳 China","🇧🇷 Brasil","🇧🇷 Brazil"],
                             datasets: [{
                                 label: 'Origem',
                                 data: [3,1,1,1,1,1],
@@ -685,7 +685,7 @@
     "code_leak_box_prod": "Production Secrets",
     "code_leak_action": "Immediate Action: Rotate Production keys and API Keys immediately. Implement secret scanning in CI/CD pipeline.",
     "incidents_title": "Incidents by Type",
-    "incidents_desc": "A total of <strong>{total}</strong> detections were processed. This chart details the relationship between raw detections and confirmed incidents.",
+    "incidents_desc": "This analysis categorizes confirmed threats by attack vector. Identifying volumetric distribution allows prioritizing defenses against methods most used by attackers.",
     "takedowns_title": "Takedowns",
     "takedowns_requested": "takedowns requested",
     "takedowns_success_rate": "success rate",
@@ -708,6 +708,9 @@
     "roi_intel_stealer": "Malware (Stealer Logs)",
     "roi_intel_plaintext": "Plaintext Passwords",
     "exposure_title": "Sensitive Data Exposure",
+    "exposure_desc": "Analysis of the total external attack surface. We identify entry points that could allow unauthorized access to critical infrastructure.",
+    "radar_desc": "Multidimensional risk visualization. This chart allows quick identification of security pillars requiring immediate attention.",
+    "heatmap_desc": "Temporal distribution of attacks. Identifying peak times allows optimizing defensive resource allocation and anticipating campaigns.",
     "exposure_sub_code": "Source Code Leaks",
     "exposure_sub_stealer": "Infostealer Credentials",
     "op_badge": "OPERATIONAL IMPACT",
@@ -799,6 +802,8 @@
     "geo_fmt_fallback": "Geographic attribution reveals jurisdiction overlaps. Monitoring international infrastructure helps predict future campaigns.",
     "geo_lbl_countries": "Top Origin Countries",
     "geo_lbl_isps": "Top ISPs (Networks)",
+    "geo_why_important_title": "Why is this important?",
+    "geo_why_important_text": "The geographic origin of attacks helps identify global infrastructure used by cybercriminals. This data enables strategic geo-blocking and aids in attribution, allowing for more effective defensive measures against specific regional threats.",
     "ctx_stealer_title": "Understanding Infostealers",
     "ctx_stealer_text": "Infostealers are malware designed to harvest sensitive information from infected devices. They collect login credentials, cookies, and system details, often sold on dark web marketplaces. Detecting these logs allows us to identify compromised employee or customer accounts before they are used for unauthorized access.",
     "ctx_leak_title": "The Danger of Exposed Secrets",
@@ -908,7 +913,7 @@
     "code_leak_box_prod": "Secretos de Producción",
     "code_leak_action": "Acción Inmediata: Rotar las claves de 'Producción' y las Claves de API inmediatamente. Implementar un escáner de secretos en el pipeline de CI/CD.",
     "incidents_title": "Incidentes por Tipo",
-    "incidents_desc": "Se procesaron un total de <strong>{total}</strong> detecciones. Este gráfico detalla la relación entre detecciones brutas e incidentes confirmados.",
+    "incidents_desc": "Este análisis categoriza las amenazas confirmadas por vector de ataque. Identificar la distribución volumétrica permite priorizar defensas contra los métodos más utilizados por los atacantes.",
     "takedowns_title": "Takedowns",
     "takedowns_requested": "solicitudes de takedown",
     "takedowns_success_rate": "tasa de éxito",
@@ -931,6 +936,9 @@
     "roi_intel_stealer": "Malware (Stealer Logs)",
     "roi_intel_plaintext": "Password Texto Plano",
     "exposure_title": "Exposición de Datos Sensibles",
+    "exposure_desc": "Análisis de la superficie de ataque externa total. Identificamos <strong>{creds}</strong> credenciales expuestas y <strong>{secrets}</strong> secretos en código. Esta exposición aumenta drásticamente la superficie para ataques de Ransomware y Account Takeover.",
+    "radar_desc": "Visualización multidimensional del riesgo. Este gráfico permite identificar rápidamente qué pilares de seguridad requieren atención inmediata.",
+    "heatmap_desc": "Distribución temporal de los ataques. Identificar los horarios pico permite optimizar la asignación de recursos defensivos y anticipar campañas.",
     "exposure_sub_code": "Fugas en Código Fuente",
     "exposure_sub_stealer": "Credenciales (Infostealer)",
     "op_badge": "IMPACTO OPERACIONAL",
@@ -1022,6 +1030,8 @@
     "geo_fmt_fallback": "La atribución geográfica revela superposiciones de jurisdicción. Monitorear infraestructura internacional ayuda a predecir futuras campañas.",
     "geo_lbl_countries": "Principales Países de Origen",
     "geo_lbl_isps": "Top ISPs (Redes)",
+    "geo_why_important_title": "¿Por qué es importante esto?",
+    "geo_why_important_text": "El origen geográfico de los ataques revela la infraestructura global de los ciberdelincuentes. Este dato permite bloqueos estratégicos por región y mejora la atribución, facilitando defensas más efectivas contra amenazas localizadas.",
     "ctx_stealer_title": "Entendiendo los Infostealers",
     "ctx_stealer_text": "Los Infostealers son malware diseñado para recolectar información sensible de dispositivos infectados. Roban credenciales de inicio de sesión, cookies y detalles del sistema, que a menudo se venden en mercados de la dark web. Detectar estos registros nos permite identificar cuentas de empleados o clientes comprometidas antes de que sean utilizadas para accesos no autorizados.",
     "ctx_leak_title": "El Peligro de Secretos Expuestos",
@@ -1131,7 +1141,7 @@
     "code_leak_box_prod": "Segredos de Produção",
     "code_leak_action": "Ação Imediata: Rotacionar chaves de 'Produção' e chaves de API imediatamente. Implementar scanner de segredos no pipeline CI/CD.",
     "incidents_title": "Incidentes por Tipo",
-    "incidents_desc": "Foram processadas um total de <strong>{total}</strong> detecções. Este gráfico detalha a relação entre detecções brutas e incidentes confirmados.",
+    "incidents_desc": "Esta análise categoriza as ameaças confirmadas por vetor de ataque. Identificar a distribuição volumétrica permite priorizar defesas contra os métodos mais utilizados pelos atacantes.",
     "takedowns_title": "Takedowns",
     "takedowns_requested": "takedowns solicitados",
     "takedowns_success_rate": "taxa de sucesso",
@@ -1154,6 +1164,9 @@
     "roi_intel_stealer": "Malware (Stealer Logs)",
     "roi_intel_plaintext": "Senhas em Texto Plano",
     "exposure_title": "Exposição de Dados Sensíveis",
+    "exposure_desc": "Análise da superfície de ataque externa total. Identificamos <strong>{creds}</strong> credenciais vazadas e <strong>{secrets}</strong> segredos em código. Essa exposição aumenta drasticamente a superfície para ataques de Ransomware e Account Takeover.",
+    "radar_desc": "Visualização multidimensional do risco. Este gráfico permite identificar rapidamente quais pilares de segurança requerem atenção imediata.",
+    "heatmap_desc": "Distribuição temporal dos ataques. Identificar os horários de pico permite otimizar a alocação de recursos defensivos e antecipar campanhas.",
     "exposure_sub_code": "Vazamentos em Código Fonte",
     "exposure_sub_stealer": "Credenciais (Infostealer)",
     "op_badge": "IMPACTO OPERACIONAL",
@@ -1245,6 +1258,8 @@
     "geo_fmt_fallback": "A atribuição geográfica revela sobreposições de jurisdição. Monitorar infraestrutura internacional ajuda a prever campanhas futuras.",
     "geo_lbl_countries": "Principais Países de Origem",
     "geo_lbl_isps": "Top ISPs (Redes)",
+    "geo_why_important_title": "Por que isso é importante?",
+    "geo_why_important_text": "A origem geográfica dos ataques revela a infraestrutura global usada por cibercriminosos. Esses dados permitem bloqueio geográfico estratégico e auxiliam na atribuição, permitindo defesas mais eficazes contra ameaças regionais.",
     "ctx_stealer_title": "Entendendo os Infostealers",
     "ctx_stealer_text": "Infostealers são malwares projetados para coletar informações sensíveis de dispositivos infectados. Eles roubam credenciais de login, cookies e detalhes do sistema, frequentemente vendidos em mercados da dark web. Detectar esses registros nos permite identificar contas de funcionários ou clientes comprometidas antes que sejam usadas para acessos não autorizados.",
     "ctx_leak_title": "O Perigo de Segredos Expostos",

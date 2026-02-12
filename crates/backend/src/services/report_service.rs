@@ -37,6 +37,8 @@ pub struct GenerateReportRequest {
     pub theme: Option<String>,
     #[serde(default)]
     pub disabled_plugins: Option<Vec<String>>,
+    #[serde(default)]
+    pub mock: bool,
 }
 
 fn default_language() -> String {
@@ -67,36 +69,42 @@ impl ReportService {
         let _start_time = Instant::now();
 
         // 1. Fetch Data
-        let report_data = match fetch_full_report(
-            token,
-            &payload.tenant_id,
-            &payload.from_date,
-            &payload.to_date,
-            payload.story_tag.clone(),
-            payload.include_threat_intel,
-        )
-        .await
-        {
-            Ok(data) => data,
-            Err(e) => {
-                let error_code = classify_error(&e.to_string());
-                tracing::error!(
-                    error_code = %error_code.code(),
-                    context = %e.to_string(),
-                    "Report generation failed"
-                );
+        // 1. Fetch Data
+        let report_data = if payload.mock {
+            tracing::info!("Using MOCK DATA for report generation");
+            axur_core::api::report::PocReportData::demo()
+        } else {
+            match fetch_full_report(
+                token,
+                &payload.tenant_id,
+                &payload.from_date,
+                &payload.to_date,
+                payload.story_tag.clone(),
+                payload.include_threat_intel,
+            )
+            .await
+            {
+                Ok(data) => data,
+                Err(e) => {
+                    let error_code = classify_error(&e.to_string());
+                    tracing::error!(
+                        error_code = %error_code.code(),
+                        context = %e.to_string(),
+                        "Report generation failed"
+                    );
 
-                // 📝 Log error (Assuming log_error is handled by caller or we inject logger)
-                // Ideally logging relates to HTTP layer, but Service can log domain errors.
+                    // 📝 Log error (Assuming log_error is handled by caller or we inject logger)
+                    // Ideally logging relates to HTTP layer, but Service can log domain errors.
 
-                return Ok(GenerateReportResponse {
-                    success: false,
-                    html: None,
-                    company_name: None,
-                    message: e.to_string(),
-                    error_code: Some(error_code.code()),
-                    error_message: Some(get_user_friendly_message(&error_code)),
-                });
+                    return Ok(GenerateReportResponse {
+                        success: false,
+                        html: None,
+                        company_name: None,
+                        message: e.to_string(),
+                        error_code: Some(error_code.code()),
+                        error_message: Some(get_user_friendly_message(&error_code)),
+                    });
+                }
             }
         };
 

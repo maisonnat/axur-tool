@@ -169,10 +169,10 @@ mod tests {
     #[test]
     fn test_registry_with_builtins() {
         let registry = PluginRegistry::with_builtins();
-        // 20 builtin slide plugins registered
-        assert_eq!(registry.slide_plugins().len(), 20);
+        // 24 builtin slide plugins registered
+        assert_eq!(registry.slide_plugins().len(), 24);
         // Verify ordering by priority (cover should be first, closing last)
         assert_eq!(registry.slide_plugins()[0].id(), "builtin.cover");
-        assert_eq!(registry.slide_plugins()[19].id(), "builtin.closing");
+        assert_eq!(registry.slide_plugins()[23].id(), "builtin.closing");
     }
 }

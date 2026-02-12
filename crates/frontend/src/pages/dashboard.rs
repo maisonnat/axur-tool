@@ -93,6 +93,7 @@ pub fn DashboardPage() -> impl IntoView {
     let include_threat_intel = create_rw_signal(false);
     let use_user_credits = create_rw_signal(false);
     let use_plugins = create_rw_signal(false); // New plugin system toggle
+    let use_mock_data = create_rw_signal(false); // Mock report mode
 
     // Load preferences from localStorage
     let plugin_theme = create_rw_signal(crate::load_theme());
@@ -235,11 +236,11 @@ pub fn DashboardPage() -> impl IntoView {
             match es {
                 Ok(event_source) => {
                     // Clone signals for closures
-                    let sp = streaming_progress.clone();
-                    let pd = preview_data.clone();
-                    let pl = preview_loading.clone();
-                    let _spm = show_preview_modal.clone();
-                    let _err = error.clone();
+                    let sp = streaming_progress;
+                    let pd = preview_data;
+                    let pl = preview_loading;
+                    let _spm = show_preview_modal;
+                    let _err = error;
                     let es_clone = event_source.clone();
 
                     // Message handler
@@ -326,8 +327,8 @@ pub fn DashboardPage() -> impl IntoView {
                     onmessage.forget(); // Prevent closure from being dropped
 
                     // Error handler
-                    let sp_err = streaming_progress.clone();
-                    let pl_err = preview_loading.clone();
+                    let sp_err = streaming_progress;
+                    let pl_err = preview_loading;
                     let es_err = event_source.clone();
                     let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
                         sp_err.update(|s| {
@@ -380,6 +381,7 @@ pub fn DashboardPage() -> impl IntoView {
             threat_intel,
             template_id.as_deref(),
             use_plugins.get(),
+            use_mock_data.get(),
         );
 
         // Use JavaScript EventSource for SSE
@@ -394,9 +396,9 @@ pub fn DashboardPage() -> impl IntoView {
         match es {
             Ok(event_source) => {
                 // Clone signals for closures
-                let report = report_html.clone();
-                let err = error.clone();
-                let gen = generating.clone();
+                let report = report_html;
+                let err = error;
+                let gen = generating;
                 let ti = threat_intel;
                 let es_clone = event_source.clone();
 
@@ -438,8 +440,8 @@ pub fn DashboardPage() -> impl IntoView {
                 onmessage.forget();
 
                 // Error handler
-                let err_clone = error.clone();
-                let gen_clone = generating.clone();
+                let err_clone = error;
+                let gen_clone = generating;
                 let es_err = event_source.clone();
                 let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
                     err_clone.set(Some(AppError::simple(
@@ -867,6 +869,20 @@ pub fn DashboardPage() -> impl IntoView {
                                         </details>
                                     </div>
                                 </Show>
+                            </div>
+
+                            // Mock Data Toggle (Dev)
+                            <div class="mb-6 p-4 rounded-lg bg-indigo-900/20 border border-indigo-700/50">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        class="w-5 h-5 rounded border-indigo-600 bg-zinc-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900 cursor-pointer"
+                                        prop:checked=move || use_mock_data.get()
+                                        on:change=move |ev| use_mock_data.set(event_target_checked(&ev))
+                                    />
+                                    <span class="text-white font-medium">"🧪 Mock Report Mode"</span>
+                                </label>
+                                <p class="text-zinc-500 text-xs mt-1 ml-7">"Genera un reporte con datos falsos completos para pruebas de diseño (ignora tenant/fechas)"</p>
                             </div>
 
                             <button
