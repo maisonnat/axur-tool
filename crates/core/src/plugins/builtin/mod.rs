@@ -21,6 +21,7 @@ pub mod poc_data;
 pub mod radar;
 pub mod roi;
 pub mod solutions;
+pub mod style_showcase;
 pub mod takedowns;
 pub mod theme; // Axur brand theme
 pub mod threat_intel;
@@ -46,6 +47,7 @@ pub use poc_data::PocDataSlidePlugin;
 pub use radar::RadarSlidePlugin;
 pub use roi::RoiSlidePlugin;
 pub use solutions::SolutionsSlidePlugin;
+pub use style_showcase::StyleShowcasePlugin;
 pub use takedowns::TakedownsSlidePlugin;
 pub use threat_intel::ThreatIntelSlidePlugin;
 pub use threats::ThreatsSlidePlugin;

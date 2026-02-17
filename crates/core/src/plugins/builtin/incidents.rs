@@ -3,7 +3,7 @@
 //! Displays detections breakdown by type with a detection → incident → resolved funnel.
 //! Explains the difference: detections are potential threats, incidents are validated.
 
-use super::helpers::footer_dark;
+use super::helpers::{footer_dark, format_number};
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 pub struct IncidentsSlidePlugin;
@@ -29,93 +29,139 @@ impl SlidePlugin for IncidentsSlidePlugin {
 
         // Total detections from the breakdown
         let total_detections: u64 = data.incidents_by_type.iter().map(|i| i.detections).sum();
-
-        // Funnel data: Detections → Incidents → Resolved
         let incident_count = data.total_incidents;
         let resolved_count = data.takedown_resolved;
 
-        // Prepare chart data — single series (detections only, no always-0 incidents)
-        let labels: Vec<String> = data
-            .incidents_by_type
-            .iter()
-            .map(|i| i.incident_type.clone())
-            .collect();
-        let detections: Vec<u64> = data
-            .incidents_by_type
-            .iter()
-            .map(|i| i.detections)
-            .collect();
+        // Sort incidents by detections count descending
+        let mut sorted_incidents = data.incidents_by_type.clone();
+        sorted_incidents.sort_by(|a, b| b.detections.cmp(&a.detections));
 
-        let labels_json = serde_json::to_string(&labels).unwrap_or_default();
-        let det_json = serde_json::to_string(&detections).unwrap_or_default();
+        // Calculate max for bar scaling
+        let max_detections = sorted_incidents
+            .first()
+            .map(|i| i.detections)
+            .unwrap_or(1)
+            .max(1);
+
+        // Generate progress bars for incident types
+        let bars_html: String = sorted_incidents
+            .iter()
+            .map(|item| {
+                let percentage = (item.detections as f64 / max_detections as f64) * 100.0;
+                crate::plugins::builtin::theme::progress_bar_colored(
+                    percentage,
+                    Some(&format!(
+                        "{} ({})",
+                        item.incident_type,
+                        format_number(item.detections)
+                    )),
+                    "orange",
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n<div class='h-4'></div>\n");
+
+        // Generate funnel cards
+        let card_detections = crate::plugins::builtin::theme::stat_card_glow(
+            &format_number(total_detections),
+            "Detecciones",
+            false,
+        );
+        let card_incidents = crate::plugins::builtin::theme::stat_card_glow(
+            &format_number(incident_count),
+            "Incidentes",
+            true, // Glow for incidents as it's critical
+        );
+        let card_resolved = crate::plugins::builtin::theme::stat_card_glow(
+            &format_number(resolved_count),
+            "Resueltos",
+            false,
+        );
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 50% 10%, #FF4B00 0%, transparent 40%);"></div><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RESULTADOS</span></div><h2 class="text-4xl font-black mb-2 uppercase tracking-tight">{title}</h2><p class="text-sm text-zinc-400 mb-4 max-w-4xl">{desc}</p><div class="flex-grow relative" style="min-height: 200px;"><canvas id="incidentsChart"></canvas></div>
-<!-- Detection Funnel -->
-<div class="mt-4 bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <span class="text-xs text-zinc-500 uppercase tracking-wider">¿Qué pasa con cada detección?</span>
-    </div>
-  </div>
-  <div class="flex items-center gap-2 mt-3">
-    <div class="flex items-center gap-2 bg-zinc-800 px-4 py-2 rounded-lg">
-      <span class="text-lg font-bold text-[#FF5824]">🔍 {total_det}</span>
-      <span class="text-xs text-zinc-400">Detecciones</span>
-    </div>
-    <svg class="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-    <div class="flex items-center gap-2 bg-zinc-800 px-4 py-2 rounded-lg">
-      <span class="text-lg font-bold text-amber-400">⚠️ {incidents}</span>
-      <span class="text-xs text-zinc-400">Incidentes</span>
-    </div>
-    <svg class="w-5 h-5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-    <div class="flex items-center gap-2 bg-zinc-800 px-4 py-2 rounded-lg">
-      <span class="text-lg font-bold text-green-400">✅ {resolved}</span>
-      <span class="text-xs text-zinc-400">Resueltos</span>
-    </div>
-    <div class="ml-auto text-xs text-zinc-500">
-      <span class="text-zinc-300 font-medium">Detección</span> = amenaza potencial · <span class="text-zinc-300 font-medium">Incidente</span> = amenaza validada
-    </div>
-  </div>
-</div>
-</div></div>{footer}<script>(function(){{
-    function initIncidentsChart() {{
-        if (typeof Chart === 'undefined') {{ setTimeout(initIncidentsChart, 100); return; }}
-        const ctx=document.getElementById('incidentsChart').getContext('2d');
-        Chart.defaults.color = '#a1a1aa';
-        Chart.defaults.borderColor = '#27272a';
-        new Chart(ctx,{{
-            type:'bar',
-            data:{{
-                labels:{labels},
-                datasets:[
-                    {{label:'Detecciones',data:{detections},backgroundColor:'#FF5824',hoverBackgroundColor:'#FF7A4D',borderRadius:4,borderSkipped:false,barPercentage:0.5}}
-                ]
-            }},
-            options:{{
-                responsive:true,
-                maintainAspectRatio:false,
-                plugins:{{
-                    legend:{{display:false}},
-                    tooltip:{{backgroundColor:'#18181b',titleColor:'#fff',bodyColor:'#d4d4d8',borderColor:'#3f3f46',borderWidth:1,padding:10,displayColors:true}}
-                }},
-                scales:{{
-                    y:{{beginAtZero:true,grid:{{color:'#27272a',drawBorder:false}},ticks:{{font:{{family:"'Inter', sans-serif"}} }} }},
-                    x:{{grid:{{display:false}},ticks:{{font:{{family:"'Inter', sans-serif"}} }} }}
-                }},
-                interaction:{{mode:'index',intersect:false}}
-            }}
-        }});
-    }}
-    if (document.readyState === 'complete') {{ initIncidentsChart(); }} else {{ window.addEventListener('load', initIncidentsChart); }}
-}})();</script></div></div>"#,
-            title = t.get("incidents_title"),
-            desc = t.get("incidents_desc"),
-            labels = labels_json,
-            detections = det_json,
-            total_det = total_detections,
-            incidents = incident_count,
-            resolved = resolved_count,
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative text-white overflow-hidden">
+                <!-- Background is handled by Global + Helper {bg} -->
+                {bg}
+
+                <!-- Header -->
+                {header}
+                
+                <div class="grid grid-cols-12 gap-8 flex-grow mt-8">
+                    <!-- Column 1: Incidents by Type (7 cols) -->
+                    <div class="col-span-7 flex flex-col">
+                        <div class="glass-panel p-8 h-full backdrop-blur-sm bg-zinc-900/30 border-zinc-800/50 flex flex-col">
+                            <h3 class="text-sm font-bold text-orange-500 mb-6 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_5px_#FF5824]"></span>
+                                Detecciones por Tipo
+                            </h3>
+                            <div class="overflow-y-auto pr-2 max-h-[full] space-y-5 flex-grow">
+                                {bars}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Column 2: Funnel (5 cols) -->
+                    <div class="col-span-5 flex flex-col h-full">
+                        <div class="glass-panel p-8 h-full flex flex-col relative overflow-hidden">
+                            <!-- Background accent -->
+                            <div class="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                            
+                            <div class="mb-6">
+                                 <h3 class="text-sm font-bold text-white uppercase tracking-[0.2em]">Funnel de Gestión</h3>
+                                 <p class="text-zinc-500 text-xs mt-1 font-light tracking-wide">De detección bruta a resolución efectiva</p>
+                            </div>
+                            
+                            <div class="flex-grow flex flex-col justify-center space-y-2 relative z-10">
+                                {card_detections}
+                                
+                                <div class="flex justify-center -my-1 relative z-0">
+                                    <div class="h-6 w-px bg-gradient-to-b from-transparent via-zinc-700 to-transparent"></div>
+                                </div>
+                                
+                                {card_incidents}
+                                
+                                <div class="flex justify-center -my-1 relative z-0">
+                                    <div class="h-6 w-px bg-gradient-to-b from-transparent via-zinc-700 to-transparent"></div>
+                                </div>
+                                
+                                {card_resolved}
+                            </div>
+
+                            <!-- CO-CREATION FRAME: Draft Actions -->
+                            <div class="mt-8 border-t border-zinc-800 pt-6">
+                                <h4 class="text-[10px] text-zinc-500 uppercase tracking-widest mb-4 flex items-center justify-between">
+                                    Sugerencias de Acción
+                                    <span class="bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded text-[9px]">DRAFT</span>
+                                </h4>
+                                <div class="flex flex-col gap-3">
+                                    <div class="flex items-center gap-3 group/action cursor-pointer opacity-80 hover:opacity-100 transition-opacity">
+                                        <div class="w-4 h-4 rounded border border-orange-500/50 flex items-center justify-center text-orange-500">
+                                            <div class="w-2 h-2 bg-orange-500 rounded-sm opacity-0 group-hover/action:opacity-100 transition-opacity"></div>
+                                        </div>
+                                        <span class="text-sm text-zinc-300">Aprobar bloqueo automático de Phishing</span>
+                                    </div>
+                                    <div class="flex items-center gap-3 group/action cursor-pointer opacity-60 hover:opacity-100 transition-opacity">
+                                        <div class="w-4 h-4 rounded border border-zinc-700 flex items-center justify-center"></div>
+                                        <span class="text-sm text-zinc-400">Revisar política de VIPs</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                {footer}
+            </div></div>"#,
+            bg = crate::plugins::builtin::helpers::geometric_pattern(),
+            header = crate::plugins::builtin::theme::section_header(
+                "RESULTADOS",
+                &t.get("incidents_title")
+            ),
+            bars = bars_html,
+            card_detections = card_detections,
+            card_incidents = card_incidents,
+            card_resolved = card_resolved,
             footer = footer_dark(10, &t.get("footer_text")),
         );
 

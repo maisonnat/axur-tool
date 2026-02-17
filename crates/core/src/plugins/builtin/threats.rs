@@ -2,7 +2,7 @@
 //!
 //! Displays threats distribution by type with Axur.com dark theme aesthetics.
 
-use super::helpers::footer_dark;
+use super::helpers::{footer_dark, format_number};
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 pub struct ThreatsSlidePlugin;
@@ -34,95 +34,111 @@ impl SlidePlugin for ThreatsSlidePlugin {
             .max()
             .unwrap_or(1);
 
-        // Generate horizontal bar chart items
-        let bars_html: String = data
-            .threats_by_type
+        // Sort threats by count descending for the chart/list
+        let mut sorted_threats = data.threats_by_type.clone();
+        sorted_threats.sort_by(|a, b| b.count.cmp(&a.count));
+
+        // Generate semantic progress bars
+        let bars_html: String = sorted_threats
             .iter()
-            .take(8) // Limit to top 8 for visual clarity
+            .take(6) // Limit to top 6 to prevent overcrowding
             .map(|threat| {
                 let percentage = (threat.count as f64 / max_count as f64) * 100.0;
-                format!(
-                    r#"<div class="flex items-center gap-4 mb-4">
-                        <div class="w-40 text-sm text-zinc-300 truncate">{name}</div>
-                        <div class="flex-grow h-8 bg-zinc-800 rounded overflow-hidden relative">
-                            <div class="h-full bg-gradient-to-r from-[#FF5824] to-[#FF7A4D] rounded transition-all duration-500" 
-                                 style="width: {pct}%; box-shadow: 0 0 15px rgba(255, 88, 36, 0.3);"></div>
-                        </div>
-                        <div class="w-16 text-right font-bold text-[#FF5824] glow-orange-text">{count}</div>
-                    </div>"#,
-                    name = threat.threat_type,
-                    pct = percentage,
-                    count = threat.count
+
+                // Determine color based on threat type (heuristic)
+                let color = if threat.threat_type.to_lowercase().contains("phishing") {
+                    "orange" // High severity -> Orange
+                } else if threat.threat_type.to_lowercase().contains("brand") {
+                    "blue" // Brand -> Blue
+                } else {
+                    "orange" // Default
+                };
+
+                // Use the theme helper
+                crate::plugins::builtin::theme::progress_bar_colored(
+                    percentage,
+                    Some(&format!(
+                        "{} ({})",
+                        threat.threat_type,
+                        format_number(threat.count)
+                    )),
+                    color,
                 )
             })
             .collect();
 
-        // Find dominant threat
-        let top_threat = data.threats_by_type.first();
-        let top_pct = top_threat
-            .map(|t| (t.count as f64 * 100.0 / total_threats.max(1) as f64).round() as u64)
-            .unwrap_or(0);
+        // Top Threat for the "Hero" card
+        let top_threat = sorted_threats.first();
         let top_name = top_threat.map(|t| t.threat_type.as_str()).unwrap_or("N/A");
+        let top_count = top_threat.map(|t| t.count).unwrap_or(0);
 
         let html = format!(
-            r#"<div class="relative group">
-                <div class="printable-slide aspect-[16/9] w-full flex flex-col shadow-lg mb-8 relative bg-[#121212] text-white overflow-hidden">
-                    <!-- Wireframe background pattern -->
-                    <div class="absolute inset-0 wireframe-bg opacity-50"></div>
-                    
-                    <!-- Content -->
-                    <div class="relative z-10 h-full flex flex-col p-14">
-                        <!-- Header -->
-                        <div class="mb-4">
-                            <span class="bg-gradient-to-r from-[#FF5824] to-[#FF7A4D] text-white px-5 py-2 text-xs font-bold tracking-wider uppercase">
-                                ANÁLISIS
-                            </span>
-                        </div>
-                        
-                        <h2 class="text-4xl font-black mb-2 text-white tracking-tight">{title}</h2>
-                        <p class="text-zinc-400 text-sm mb-6">{desc}</p>
-                        
-                        <!-- Two Column Layout -->
-                        <div class="flex gap-8 flex-grow">
-                            <!-- Left: Context + Big Number -->
-                            <div class="w-2/5 flex flex-col gap-4">
-                                <div class="bg-zinc-900/70 p-5 rounded-xl border border-zinc-800">
-                                    <div class="flex items-center gap-2 mb-3">
-                                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                                        <h3 class="text-base font-semibold text-orange-400">¿Qué son estas amenazas?</h3>
-                                    </div>
-                                    <p class="text-zinc-400 text-sm leading-relaxed">Son detecciones de <strong class="text-white">actividad maliciosa</strong> contra su marca: sitios falsos, phishing, perfiles fraudulentos, y más. Cada una fue validada por nuestros sistemas de IA.</p>
-                                </div>
-                                
-                                <!-- Big Number Panel -->
-                                <div class="bg-gradient-to-br from-orange-500/20 to-orange-600/10 p-6 rounded-xl border border-orange-500/30 flex-grow flex flex-col justify-center">
-                                    <div class="text-7xl font-black text-[#FF5824]" style="text-shadow: 0 0 40px rgba(255, 88, 36, 0.5);">{total}</div>
-                                    <div class="text-sm text-zinc-300 uppercase tracking-wider mt-2">Amenazas Detectadas</div>
-                                    <div class="mt-4 pt-4 border-t border-orange-500/20">
-                                        <p class="text-sm text-zinc-400"><strong class="text-orange-400">{top_pct}%</strong> son <strong class="text-white">{top_name}</strong></p>
-                                    </div>
-                                </div>
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
+                <!-- Background -->
+                {bg}
+                
+                <!-- Header -->
+                {header}
+                
+                <div class="grid grid-cols-2 gap-12 flex-grow mt-4">
+                    <!-- Column 1: Context & Key Stats -->
+                    <div class="flex flex-col gap-6 h-full"> 
+                        <div class="bg-zinc-900/50 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm flex flex-col flex-grow justify-between">
+                            <div>
+                                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
+                                    <span class="text-[#FF5824] bg-[#FF5824]/10 p-2 rounded-lg">
+                                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                    </span>
+                                    AMENAZAS CONFIRMADAS
+                                </h3>
+                                <p class="text-zinc-400 text-sm leading-relaxed mb-8">
+                                    Las siguientes detecciones fueron <strong class="text-white">validadas por IA</strong> como riesgos reales, descartando falsos positivos.
+                                </p>
                             </div>
                             
-                            <!-- Right: Bar Chart -->
-                            <div class="w-3/5 flex flex-col">
-                                <div class="bg-zinc-900/50 rounded-xl p-6 border border-zinc-800 flex-grow">
-                                    <h3 class="text-lg font-semibold text-white mb-4">Distribución por Tipo</h3>
-                                    {bars}
-                                </div>
+                            <!-- Hero Stat -->
+                            <div class="mt-auto">
+                                {card_total}
+                            </div>
+                        </div>
+
+                        <!-- Top Threat Mention -->
+                        <div class="p-6 rounded-xl border border-[#FF5824]/20 bg-[#FF5824]/5 flex-none">
+                            <h4 class="text-[#FF5824] uppercase text-xs font-bold tracking-wider mb-2">PRINCIPAL VECTOR</h4>
+                            <div class="flex items-end gap-3">
+                                <span class="text-3xl font-bold text-white">{top_name}</span>
+                                <span class="text-xl text-zinc-500 mb-1">{top_count} incidentes</span>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Footer -->
-                    {footer}
+                    <!-- Column 2: Distribution Chart -->
+                    <div class="flex flex-col gap-6">
+                         <div class="flex items-center gap-3 border-b border-zinc-800 pb-2">
+                            <h3 class="text-xl font-bold text-white uppercase tracking-wider">DISTRIBUCIÓN POR TIPO</h3>
+                        </div>
+                        
+                        <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 backdrop-blur-sm space-y-5 flex-grow overflow-y-auto">
+                            {bars}
+                        </div>
+                    </div>
                 </div>
-            </div>"#,
-            title = t.get("threats_title"),
-            desc = t.format("threats_desc", &[("total", &total_threats.to_string())]),
-            total = total_threats,
-            top_pct = top_pct,
+
+                {footer}
+            </div></div>"#,
+            bg = crate::plugins::builtin::helpers::geometric_pattern(),
+            // LABELED: Naming the value (Validation) not the metric (Threats)
+            header = crate::plugins::builtin::theme::section_header(
+                "VALIDACIÓN DE RIESGOS",
+                "Detecciones Reales vs Ruido"
+            ),
+            card_total = crate::plugins::builtin::theme::stat_card_glow(
+                &format_number(total_threats),
+                "AMENAZAS ACTIVAS",
+                true
+            ),
             top_name = top_name,
+            top_count = format_number(top_count),
             bars = bars_html,
             footer = footer_dark(7, &t.get("footer_text")),
         );

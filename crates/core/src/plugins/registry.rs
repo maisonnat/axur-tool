@@ -60,6 +60,7 @@ impl PluginRegistry {
         registry.register_slide(Box::new(TakedownExamplesSlidePlugin));
         registry.register_slide(Box::new(PocExamplesSlidePlugin));
         registry.register_slide(Box::new(InsightsSlidePlugin)); // NEW: Insights & Recommendations
+        registry.register_slide(Box::new(StyleShowcasePlugin)); // NEW: Style Showcase
         registry.register_slide(Box::new(ClosingSlidePlugin));
         registry
     }
@@ -169,10 +170,11 @@ mod tests {
     #[test]
     fn test_registry_with_builtins() {
         let registry = PluginRegistry::with_builtins();
-        // 24 builtin slide plugins registered
-        assert_eq!(registry.slide_plugins().len(), 24);
-        // Verify ordering by priority (cover should be first, closing last)
-        assert_eq!(registry.slide_plugins()[0].id(), "builtin.cover");
-        assert_eq!(registry.slide_plugins()[23].id(), "builtin.closing");
+        // 25 builtin slide plugins registered (incl. StyleShowcase)
+        assert_eq!(registry.slide_plugins().len(), 25);
+        // Verify ordering by priority (StyleShowcase=999 should be first, cover=100 second)
+        assert_eq!(registry.slide_plugins()[0].id(), "builtin.style_showcase");
+        assert_eq!(registry.slide_plugins()[1].id(), "builtin.cover");
+        assert_eq!(registry.slide_plugins()[24].id(), "builtin.closing");
     }
 }

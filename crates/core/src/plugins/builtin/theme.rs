@@ -38,259 +38,8 @@ pub mod colors {
 }
 
 /// CSS classes for brand styling - Updated Axur.com design system
-pub const BRAND_CSS: &str = r#"
-<style>
-/* Axur Brand Theme - Based on axur.com design analysis */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
-:root {
-  --axur-orange: #FF5824;
-  --axur-orange-glow: rgba(255, 88, 36, 0.4);
-  --axur-orange-subtle: rgba(255, 88, 36, 0.15);
-  --axur-black: #000000;
-  --axur-dark-bg: #121212;
-  --axur-charcoal: #1A1A1A;
-  --axur-surface: #27272A;
-  --axur-surface-light: #3F3F46;
-  --axur-text-light: #F2F2F2;
-  --axur-text-muted: #A1A1AA;
-}
-
-/* Global Font */
-.inter-font {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-
-/* Glow Effects */
-.glow-orange {
-  box-shadow: 0 0 30px var(--axur-orange-glow), 0 0 60px rgba(255, 88, 36, 0.2);
-}
-
-.glow-orange-subtle {
-  box-shadow: 0 0 20px rgba(255, 88, 36, 0.25);
-}
-
-.glow-orange-text {
-  text-shadow: 0 0 30px rgba(255, 88, 36, 0.5);
-}
-
-.glow-red {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-}
-
-/* Pill Badge - Axur.com style (200px border radius) */
-.pill-badge {
-  background: linear-gradient(135deg, #FF5824 0%, #FF7A4D 100%);
-  padding: 0.5rem 1.5rem;
-  border-radius: 200px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 15px rgba(255, 88, 36, 0.3);
-  font-family: 'Inter', sans-serif;
-}
-
-.pill-badge-ghost {
-  background: transparent;
-  border: 1px solid var(--axur-surface-light);
-  padding: 0.5rem 1.5rem;
-  border-radius: 200px;
-  font-weight: 500;
-  color: var(--axur-text-muted);
-}
-
-/* Stat Cards with Glow - Axur.com style */
-.stat-card {
-  background: var(--axur-charcoal);
-  border: 1px solid var(--axur-surface-light);
-  border-radius: 12px;
-  padding: 2rem;
-  transition: all 0.3s ease;
-  font-family: 'Inter', sans-serif;
-}
-
-.stat-card:hover {
-  border-color: var(--axur-orange);
-  box-shadow: 0 0 25px rgba(255, 88, 36, 0.2);
-  transform: translateY(-2px);
-}
-
-.stat-card .value {
-  font-size: 4rem;
-  font-weight: 800;
-  color: var(--axur-orange);
-  text-shadow: 0 0 40px rgba(255, 88, 36, 0.5);
-  line-height: 1;
-}
-
-.stat-card .value-lg {
-  font-size: 5rem;
-}
-
-.stat-card .label {
-  font-size: 0.875rem;
-  color: var(--axur-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-top: 0.75rem;
-}
-
-/* Feature Cards - Axur.com style */
-.feature-card {
-  background: var(--axur-charcoal);
-  border: 1px solid var(--axur-surface-light);
-  border-radius: 12px;
-  padding: 2rem;
-  transition: all 0.3s ease;
-}
-
-.feature-card:hover {
-  border-color: var(--axur-orange);
-  box-shadow: 0 0 20px rgba(255, 88, 36, 0.15);
-}
-
-.feature-card .icon-circle {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 50%;
-  background: var(--axur-orange-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-}
-
-.feature-card .icon-circle svg {
-  width: 2rem;
-  height: 2rem;
-  color: var(--axur-orange);
-}
-
-/* Section Headers - ALL CAPS Bold */
-.section-header {
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #FFFFFF;
-  font-family: 'Inter', sans-serif;
-}
-
-.section-badge {
-  background: var(--axur-orange);
-  padding: 0.5rem 1.25rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: white;
-  display: inline-block;
-}
-
-/* Wireframe Background Pattern */
-.wireframe-bg {
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 50px 50px;
-}
-
-/* Orange Wireframe */
-.wireframe-orange {
-  background-image: 
-    linear-gradient(rgba(255, 88, 36, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 88, 36, 0.05) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-/* Gradient Backgrounds */
-.bg-gradient-dark {
-  background: linear-gradient(180deg, #121212 0%, #1A1A1A 100%);
-}
-
-.bg-gradient-radial {
-  background: radial-gradient(ellipse at center top, #27272A 0%, #121212 70%);
-}
-
-.bg-gradient-orange {
-  background: linear-gradient(135deg, #FF5824 0%, #FF7A4D 100%);
-}
-
-/* Bar Chart Styles */
-.chart-bar {
-  background: linear-gradient(90deg, #FF5824 0%, #FF7A4D 100%);
-  border-radius: 4px;
-  box-shadow: 0 0 10px rgba(255, 88, 36, 0.3);
-}
-
-/* Horizontal Bar for stats */
-.h-bar {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--axur-surface);
-  overflow: hidden;
-}
-
-.h-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #FF5824 0%, #FF7A4D 100%);
-  border-radius: 4px;
-  transition: width 0.5s ease;
-}
-
-/* Critical Alert */
-.alert-critical {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-left: 4px solid #EF4444;
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
-  50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
-}
-
-/* Logo styling with triple slash */
-.axur-logo {
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  font-family: 'Inter', sans-serif;
-}
-
-.axur-logo::before {
-  /* content: '///'; Removed to prevent duplication with explicit HTML */
-  color: var(--axur-orange);
-  margin-right: 0.25rem;
-}
-
-/* Tag/Badge styles for threat types */
-.threat-tag {
-  background: var(--axur-surface);
-  color: var(--axur-text-light);
-  padding: 0.375rem 0.875rem;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  display: inline-block;
-}
-
-.threat-tag-orange {
-  background: var(--axur-orange-subtle);
-  color: var(--axur-orange);
-}
-
-/* Number counter animation */
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.animate-count {
-  animation: countUp 0.5s ease-out forwards;
-}
-</style>
-"#;
+/// NOTE: Styles are now injected globally in `html.rs`. This constant is kept for compatibility but empty.
+pub const BRAND_CSS: &str = "";
 
 /// Generate the Axur logo HTML with proper styling
 pub fn axur_logo_styled(size: &str) -> String {
@@ -313,11 +62,11 @@ pub fn axur_logo_styled(size: &str) -> String {
 
 /// Generate a stat card with glow effect - large number Axur.com style
 pub fn stat_card_glow(value: &str, label: &str, glow: bool) -> String {
-    let glow_class = if glow { "glow-orange-subtle" } else { "" };
+    let glow_class = if glow { "text-glow" } else { "" };
     format!(
-        r#"<div class="stat-card {glow_class}">
-            <p class="value">{value}</p>
-            <p class="label">{label}</p>
+        r#"<div class="glass-panel p-8 flex flex-col justify-between h-full transition-transform hover:scale-[1.02] duration-300">
+            <p class="text-5xl font-light text-white {glow_class} display-text">{value}</p>
+            <p class="label-text text-zinc-400 mt-2">{label}</p>
         </div>"#,
         glow_class = glow_class,
         value = value,
@@ -328,12 +77,13 @@ pub fn stat_card_glow(value: &str, label: &str, glow: bool) -> String {
 /// Generate a large stat card (5xl value)
 pub fn stat_card_large(value: &str, label: &str, sublabel: Option<&str>) -> String {
     let sublabel_html = sublabel
-        .map(|s| format!(r#"<p class="text-xs text-zinc-500 mt-1">{}</p>"#, s))
+        .map(|s| format!(r#"<p class="text-xs text-zinc-500 mt-2">{}</p>"#, s))
         .unwrap_or_default();
     format!(
-        r#"<div class="stat-card glow-orange-subtle">
-            <p class="value value-lg">{value}</p>
-            <p class="label">{label}</p>
+        r#"<div class="glass-panel p-10 flex flex-col justify-center h-full relative overflow-hidden group">
+            <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <p class="text-7xl font-light text-white display-text relative z-10">{value}</p>
+            <p class="label-text text-orange-500 mt-4 relative z-10">{label}</p>
             {sublabel}
         </div>"#,
         value = value,
@@ -344,20 +94,26 @@ pub fn stat_card_large(value: &str, label: &str, sublabel: Option<&str>) -> Stri
 
 /// Generate a pill badge for percentages - Axur.com 200px radius style
 pub fn pill_badge(text: &str) -> String {
-    format!(r#"<span class="pill-badge text-white">{}</span>"#, text)
+    format!(
+        r#"<span class="pill-badge text-white shadow-lg shadow-orange-900/20">{}</span>"#,
+        text
+    )
 }
 
 /// Generate a ghost pill badge
 pub fn pill_badge_ghost(text: &str) -> String {
-    format!(r#"<span class="pill-badge-ghost">{}</span>"#, text)
+    format!(
+        r#"<span class="pill-badge-ghost backdrop-blur-sm">{}</span>"#,
+        text
+    )
 }
 
 /// Generate section header with badge
 pub fn section_header(badge: &str, title: &str) -> String {
     format!(
-        r#"<div class="mb-8">
-            <span class="section-badge">{badge}</span>
-            <h2 class="section-header text-4xl mt-4">{title}</h2>
+        r#"<div class="mb-12">
+            <span class="section-badge mb-4">{badge}</span>
+            <h2 class="section-header text-5xl leading-tight display-text">{title}</h2>
         </div>"#,
         badge = badge,
         title = title
@@ -367,9 +123,11 @@ pub fn section_header(badge: &str, title: &str) -> String {
 /// Generate a feature card with icon circle
 pub fn feature_card(icon_svg: &str, title: &str, description: &str) -> String {
     format!(
-        r#"<div class="feature-card">
-            <div class="icon-circle">{icon}</div>
-            <h3 class="text-xl font-bold text-white mb-2">{title}</h3>
+        r#"<div class="glass-panel p-8 hover:bg-white/5 transition-colors">
+            <div class="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center mb-6 text-orange-500 border border-orange-500/20">
+                {icon}
+            </div>
+            <h3 class="text-xl font-bold text-white mb-3 tracking-tight">{title}</h3>
             <p class="text-zinc-400 text-sm leading-relaxed">{desc}</p>
         </div>"#,
         icon = icon_svg,
@@ -381,9 +139,9 @@ pub fn feature_card(icon_svg: &str, title: &str, description: &str) -> String {
 /// Generate a threat category tag
 pub fn threat_tag(text: &str, orange: bool) -> String {
     let class = if orange {
-        "threat-tag threat-tag-orange"
+        "threat-tag threat-tag-orange border border-orange-500/30"
     } else {
-        "threat-tag"
+        "threat-tag border border-zinc-700"
     };
     format!(
         r#"<span class="{class}">{text}</span>"#,
@@ -392,19 +150,40 @@ pub fn threat_tag(text: &str, orange: bool) -> String {
     )
 }
 
-/// Generate a horizontal progress bar
+/// Generate a horizontal progress bar (default orange)
 pub fn progress_bar(percentage: f64, label: Option<&str>) -> String {
+    progress_bar_colored(percentage, label, "orange")
+}
+
+/// Generate a colored progress bar
+/// colors: "orange", "blue", "green"
+pub fn progress_bar_colored(percentage: f64, label: Option<&str>, color: &str) -> String {
     let label_html = label
-        .map(|l| format!(r#"<span class="text-xs text-zinc-400 ml-2">{}</span>"#, l))
+        .map(|l| {
+            format!(
+                r#"<span class="label-text text-zinc-400 ml-4">{}</span>"#,
+                l
+            )
+        })
         .unwrap_or_default();
+
+    let (gradient, shadow_color) = match color {
+        "blue" => ("from-blue-500 to-blue-400", "rgba(59, 130, 246, 0.3)"),
+        "green" => ("from-[#22C55E] to-emerald-400", "rgba(34, 197, 94, 0.3)"),
+        _ => ("from-[#FF5824] to-[#FF7A4D]", "rgba(255, 88, 36, 0.3)"),
+    };
+
     format!(
         r#"<div class="flex items-center">
-            <div class="h-bar flex-grow">
-                <div class="h-bar-fill" style="width: {pct}%;"></div>
+            <div class="h-2 rounded-full bg-zinc-800 flex-grow overflow-hidden relative">
+                <div class="absolute inset-0 bg-white/5"></div>
+                <div class="h-full bg-gradient-to-r {} rounded-full relative" style="width: {}%; box-shadow: 0 0 10px {};"></div>
             </div>
-            {label}
+            {}
         </div>"#,
-        pct = percentage.min(100.0),
-        label = label_html
+        gradient,
+        percentage.min(100.0),
+        shadow_color,
+        label_html
     )
 }

@@ -37,7 +37,7 @@ impl SlidePlugin for InsightsSlidePlugin {
         // Build insight cards HTML
         let insight_cards: String = insights
             .iter()
-            .map(|insight| render_insight_card(insight))
+            .map(render_insight_card)
             .collect::<Vec<_>>()
             .join("\n");
 

@@ -112,15 +112,36 @@ pub async fn login(Json(payload): Json<LoginRequest>) -> Result<Json<LoginRespon
         .await?;
 
     // Read full body first
+    let status = resp.status();
     let body_bytes = resp
         .bytes()
         .await
         .map_err(|e| ApiError::Internal(e.to_string()))?;
     let body_str = String::from_utf8_lossy(&body_bytes);
 
+    // Log the raw response for debugging
+    tracing::debug!("Axur Login Response: Status={} Body={}", status, body_str);
+
+    if !status.is_success() {
+        tracing::warn!("Axur Login Failed: Status={} Body={}", status, body_str);
+
+        if status.as_u16() == 401 || status.as_u16() == 403 {
+            return Err(ApiError::Unauthorized("Invalid credentials".into()));
+        } else {
+            // Return a snippet of the error for the frontend
+            let snippet: String = body_str.chars().take(200).collect();
+            return Err(ApiError::ExternalApi(format!(
+                "Axur API Error ({}): {}",
+                status, snippet
+            )));
+        }
+    }
+
     // Re-parse from string
-    let mut data: AxurAuthResponse = serde_json::from_str(&body_str)
-        .map_err(|e| ApiError::Internal(format!("Failed to parse Axur response: {}", e)))?;
+    let mut data: AxurAuthResponse = serde_json::from_str(&body_str).map_err(|e| {
+        tracing::error!("Failed to parse Axur response: {} - Body: {}", e, body_str);
+        ApiError::Internal(format!("Failed to parse Axur response: {}", e))
+    })?;
 
     // Helper to extract correlation from JWT if missing
     if data.correlation.is_none() {

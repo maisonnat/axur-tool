@@ -28,7 +28,7 @@ impl SlidePlugin for MetricsSlidePlugin {
         let t = ctx.translations;
         let roi = &data.roi_metrics;
 
-        // Use ROI metrics for consistent calculations (5 min/ticket from constant)
+        // Use ROI metrics for consistent calculations
         let hours_saved = roi.hours_saved_total;
         let analysts_saved = roi.analysts_equivalent_monthly;
         let person_days = roi.person_days_saved;
@@ -43,90 +43,86 @@ impl SlidePlugin for MetricsSlidePlugin {
         let title_metrics = t.get("metrics_title");
         let title_tickets = t.get("metrics_total_tickets");
 
+        // Format analysts value
+        let analysts_display = if analysts_saved >= 1.0 {
+            format!("{:.1}", analysts_saved)
+        } else {
+            format!("{:.0}%", analysts_saved * 100.0)
+        };
+
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-black text-white">
-<div class="flex-grow h-full overflow-hidden">
-<div class="h-full flex flex-col">
-  <!-- Header -->
-  <div class="mb-4">
-    <span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RESULTADOS</span>
-  </div>
-  <h2 class="text-4xl font-black mb-6 uppercase tracking-tight">{title_metrics}</h2>
-  
-  <!-- Stat Cards Grid -->
-  <div class="grid grid-cols-3 gap-5 mb-6">
-    <!-- Main Stat - Tickets -->
-    <div class="stat-card glow-orange-subtle">
-      <p class="text-5xl font-black text-[#FF4B00]" style="text-shadow: 0 0 30px rgba(255,75,0,0.5)">{tickets}</p>
-      <p class="text-sm font-bold text-white mt-3 uppercase tracking-wider">{title_tickets}</p>
-    </div>
-    
-    <!-- Hours Saved -->
-    <div class="stat-card">
-      <p class="text-5xl font-black text-white">{hours:.0}<span class="text-2xl text-zinc-400 ml-1">h</span></p>
-      <p class="text-sm text-zinc-400 uppercase mt-3">Horas Ahorradas</p>
-    </div>
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative text-white overflow-hidden">
+                <!-- Background is Global -->
+                {bg_pattern}
 
-    <!-- FTE Equivalent -->
-    <div class="stat-card">
-      <p class="text-5xl font-black text-[#22C55E]">{analysts}</p>
-      <p class="text-sm text-zinc-400 uppercase mt-3">FTE Equivalente</p>
-      <p class="text-xs text-zinc-600 mt-1">{days:.0} persona-días</p>
-    </div>
-  </div>
+                <!-- Header -->
+                {header}
+                
+                <div class="grid grid-cols-2 gap-12 flex-grow mb-8 text-center">
+                    <!-- ANCHOR: The "Before" State (Chaos/Inerta) -->
+                    <div class="p-8 rounded-2xl border border-zinc-800 bg-zinc-900/30 flex flex-col justify-center items-center relative group/chaos">
+                        <div class="absolute inset-0 bg-red-500/5 opacity-0 group-hover/chaos:opacity-100 transition-opacity rounded-2xl"></div>
+                        <h3 class="text-zinc-500 font-bold tracking-widest text-sm mb-6 uppercase">Manual Process (Legacy)</h3>
+                        
+                        <div class="mb-8">
+                            <p class="text-6xl font-extralight text-zinc-600 group-hover/chaos:text-zinc-500 transition-colors">{total_tickets}</p>
+                            <p class="text-sm text-zinc-600 mt-2">Incidents Processed</p>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 text-red-900/50 fill-current">
+                             <svg class="w-5 h-5" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                             <span class="text-xs font-mono uppercase">High Operations Risk</span>
+                        </div>
+                    </div>
 
-  <!-- Operational Breakdown -->
-  <div class="bg-zinc-900/50 p-5 rounded-lg border border-zinc-800 flex-grow">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-base font-bold text-white">Desglose de Ahorro Operacional</h3>
-      <span class="text-xs text-zinc-500 bg-zinc-800 px-3 py-1 rounded-full">5 min/ticket · 2 min/credencial · 2h/takedown</span>
-    </div>
-    <div class="space-y-3">
-      <!-- Validation -->
-      <div class="flex items-center gap-3">
-        <span class="w-28 text-xs text-zinc-400 truncate">Validación</span>
-        <div class="flex-grow h-5 bg-zinc-800 rounded-full overflow-hidden">
-          <div class="h-full bg-gradient-to-r from-[#FF5824] to-[#FF7A4D] rounded-full" style="width: {val_pct:.0}%; box-shadow: 0 0 10px rgba(255,88,36,0.3);"></div>
-        </div>
-        <span class="w-14 text-right text-sm font-bold text-[#FF5824]">{val_hours:.0}h</span>
-      </div>
-      <!-- Credentials -->
-      <div class="flex items-center gap-3">
-        <span class="w-28 text-xs text-zinc-400 truncate">Credenciales</span>
-        <div class="flex-grow h-5 bg-zinc-800 rounded-full overflow-hidden">
-          <div class="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full" style="width: {cred_pct:.0}%;"></div>
-        </div>
-        <span class="w-14 text-right text-sm font-bold text-blue-400">{cred_hours:.0}h</span>
-      </div>
-      <!-- Takedowns -->
-      <div class="flex items-center gap-3">
-        <span class="w-28 text-xs text-zinc-400 truncate">Takedowns</span>
-        <div class="flex-grow h-5 bg-zinc-800 rounded-full overflow-hidden">
-          <div class="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full" style="width: {td_pct:.0}%;"></div>
-        </div>
-        <span class="w-14 text-right text-sm font-bold text-green-400">{td_hours:.0}h</span>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-{footer}
-</div></div>"#,
-            title_metrics = title_metrics,
-            tickets = format_number(data.total_tickets),
-            title_tickets = title_tickets,
-            hours = hours_saved,
-            analysts = if analysts_saved >= 1.0 {
-                format!("{:.1}", analysts_saved)
-            } else {
-                format!("{:.0}%", analysts_saved * 100.0)
-            },
-            days = person_days,
-            val_pct = val_pct,
+                    <!-- CONTRAST: The "After" State (Axur/Order) -->
+                    <div class="glass-panel p-8 flex flex-col justify-center items-center relative overflow-hidden border-orange-500/30">
+                        <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent"></div>
+                        <div class="absolute -top-10 -right-10 w-40 h-40 bg-orange-500/20 blur-3xl rounded-full"></div>
+                        
+                        <h3 class="text-orange-500 font-bold tracking-widest text-sm mb-6 uppercase flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+                            With Axur Automation
+                        </h3>
+
+                        <div class="mb-8 relative z-10">
+                            <p class="text-7xl font-thin text-white text-glow display-text">{hours_saved:.0}h</p>
+                            <p class="text-sm text-zinc-300 mt-2">Productivity Returned to Team</p>
+                        </div>
+
+                        <!-- Gap Selling: FTE Equivalent -->
+                        <div class="bg-zinc-900/50 rounded-lg p-4 border border-zinc-700/50 backdrop-blur-md relative z-10 flex items-center gap-4">
+                            <div class="bg-green-500/20 p-2 rounded-full text-green-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            </div>
+                            <div class="text-left">
+                                <p class="text-xl font-bold text-white leading-none">{analysts_saved:.1} FTE</p>
+                                <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Workforce Equivalent</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Breakdown Footer (Less emphasized now) -->
+                <div class="flex justify-center gap-8 text-sm text-zinc-500 border-t border-zinc-800/50 pt-6">
+                    <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Validation: <b>{val_hours:.0}h</b></span>
+                    <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Credentials: <b>{cred_hours:.0}h</b></span>
+                    <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Takedowns: <b>{td_hours:.0}h</b></span>
+                </div>
+
+                <!-- Footer -->
+                {footer}
+            </div></div>"#,
+            bg_pattern = crate::plugins::builtin::helpers::geometric_pattern(),
+            header = crate::plugins::builtin::theme::section_header(
+                "EFFICIENCY IMPACT",
+                "Why Automation Matters"
+            ),
+            total_tickets = format_number(data.total_tickets),
+            hours_saved = hours_saved,
+            analysts_saved = analysts_saved,
             val_hours = roi.hours_saved_validation,
-            cred_pct = cred_pct,
             cred_hours = roi.hours_saved_credentials,
-            td_pct = td_pct,
             td_hours = roi.hours_saved_takedowns,
             footer = footer_dark(6, &t.get("footer_text")),
         );

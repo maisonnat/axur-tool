@@ -3,17 +3,14 @@ use std::fmt;
 use std::str::FromStr;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Default)]
 pub enum Language {
+    #[default]
     En,
     Es,
     PtBr,
 }
 
-impl Default for Language {
-    fn default() -> Self {
-        Language::En
-    }
-}
 
 impl fmt::Display for Language {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

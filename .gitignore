@@ -84,3 +84,4 @@ knowledge/
 *.pptx
 restore_script.js
 docs/temp_docs.md
+.aim/

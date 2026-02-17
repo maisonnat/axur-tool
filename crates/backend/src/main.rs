@@ -9,9 +9,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load .env definitions
     dotenv::dotenv().ok();
 
-    // Initialize tracing with explicit stdout and debug level
+    // Initialize tracing with file output
+    let file_appender = tracing_appender::rolling::daily("debug_logs", "backend.log");
+    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
+        .with_writer(non_blocking)
         .with_target(false)
         .init();
 

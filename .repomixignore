@@ -1,0 +1,27 @@
+# Documentation Archive & Features
+docs/archive/**
+docs/features/**
+docs/modular-architecture/MILESTONES.md
+docs/modular-architecture/DESIGN.md
+docs/modular-architecture/DECISIONS.md
+docs/client-side-language-switching.md
+docs/onboarding/ARCHITECTURE.md
+
+# Large/Reference Documentation
+docs/SECURITY_AUDIT.md
+docs/Error-Codes.md
+docs/SETUP.md
+
+# Large Agent Memory
+.agent/memory/context_packet.txt
+.agent/memory/context_test.txt
+.agent/memories/**
+
+# Assets
+img/**
+*.png
+*.jpg
+*.svg
+
+# Build Artifacts
+repomix-output.xml

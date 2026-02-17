@@ -38,17 +38,17 @@ impl SlidePlugin for CoverSlidePlugin {
             t.get("cover_title_static")
         };
 
-        // Include brand CSS in first slide
-        let brand_css = theme::BRAND_CSS;
+        // Global CSS is now injected by html.rs
+        // let brand_css = theme::BRAND_CSS; (Deprecated)
 
         let html = format!(
-            r##"{css}<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex shadow-lg mb-8 relative bg-black text-white overflow-hidden">
+            r##"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex shadow-lg mb-8 relative bg-black text-white overflow-hidden">
 <!-- Left Panel - Content -->
-<div class="w-5/12 h-full flex flex-col p-14 z-10 bg-black">
+<div class="w-5/12 h-full flex flex-col p-14 z-10 bg-black/80 backdrop-blur-md border-r border-white/10">
   <!-- TLP Badge -->
   <div>
     <div class="inline-block">
-      <div class="inline-flex items-center gap-2 px-4 py-2 bg-[#FF4B00] text-white" style="box-shadow: 0 0 15px rgba(255,75,0,0.3)">
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-[#FF4B00] text-white shadow-[0_0_15px_rgba(255,75,0,0.3)]">
         <span class="font-bold text-lg tracking-wider">{tlp_lbl}{tlp}</span>
       </div>
     </div>
@@ -57,11 +57,11 @@ impl SlidePlugin for CoverSlidePlugin {
   
   <!-- Title -->
   <div class="flex-grow flex flex-col justify-center">
-    <h1 class="text-5xl font-black leading-tight uppercase tracking-tight">{title}</h1>
+    <h1 class="text-6xl font-black leading-tight display-text uppercase">{title}</h1>
     <div class="mt-8 space-y-4">
       <div>
-        <p class="text-[#FF4B00] font-semibold uppercase tracking-wider text-sm">{company_lbl}</p>
-        <p class="text-3xl font-bold">{company}</p>
+        <p class="text-[#FF4B00] font-semibold uppercase tracking-wider text-sm mb-1">{company_lbl}</p>
+        <p class="text-3xl font-bold display-text text-white">{company}</p>
       </div>
       {partner}
     </div>
@@ -73,12 +73,12 @@ impl SlidePlugin for CoverSlidePlugin {
 
 <!-- Right Panel - Orange Smoke Image -->
 <div class="w-7/12 h-full relative">
-  <img src="data:image/png;base64,{image}" alt="Cover" class="absolute inset-0 w-full h-full object-cover object-center" style="filter: contrast(1.1)"/>
-  <!-- Gradient overlay for text readability -->
-  <div class="absolute inset-0 bg-gradient-to-r from-black via-black/50 to-transparent"></div>
+  <img src="data:image/png;base64,{image}" alt="Cover" class="absolute inset-0 w-full h-full object-cover object-center" style="filter: contrast(1.1) brightness(0.8)"/>
+  <!-- Mesh overlay for text readability -->
+  <div class="absolute inset-0 bg-gradient-to-r from-black via-black/40 to-transparent"></div>
+  <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
 </div>
 </div></div>"##,
-            css = brand_css,
             tlp_lbl = t.get("label_tlp"),
             tlp = data.tlp_level,
             tlp_desc = t.get("label_tlp_desc"),

@@ -29,7 +29,32 @@ impl SlidePlugin for IntroSlidePlugin {
         };
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full w-full flex flex-col"><div class="h-[25%] w-full flex justify-end flex-shrink-0"><div class="w-7/12 h-full"><div class="w-full h-full relative"><div class="absolute bg-white" style="top:25%;left:10%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:20%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:20%;width:20%;height:30%"></div><div class="absolute bg-black" style="top:0%;left:40%;width:10%;height:25%"></div><div class="absolute bg-white" style="top:25%;left:40%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:55%;left:40%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:0%;left:60%;width:10%;height:55%"></div><div class="absolute bg-black" style="top:55%;left:60%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:70%;width:20%;height:25%"></div><div class="absolute bg-black" style="top:25%;left:70%;width:10%;height:30%"></div><div class="absolute bg-white" style="top:55%;left:70%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:25%;left:80%;width:10%;height:30%"></div><div class="absolute bg-black" style="top:55%;left:80%;width:10%;height:30%"></div><div class="absolute bg-orange-500" style="top:0%;left:90%;width:10%;height:85%"></div></div></div></div><div class="flex-grow grid grid-cols-5 gap-x-12 items-start pt-8"><div class="col-span-2"><h2 class="text-4xl font-bold leading-tight text-orange-500">{title}</h2></div><div class="col-span-3 text-zinc-300 space-y-6 text-base leading-relaxed"><p>{text}</p><p>{closing}</p></div></div></div></div>{footer}</div></div>"#,
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative text-white overflow-hidden">
+                <!-- Background is Global -->
+                
+                <div class="flex-grow grid grid-cols-12 gap-8 h-full relative z-10">
+                    <!-- Left: Title -->
+                    <div class="col-span-4 flex flex-col justify-center">
+                         <div class="w-20 h-1 bg-orange-500 mb-8 shadow-[0_0_15px_#FF5824]"></div>
+                         <h2 class="text-6xl font-black leading-tight display-text uppercase tracking-tight">{title}</h2>
+                    </div>
+                    
+                    <!-- Right: Text Content in Glass -->
+                    <div class="col-span-8 flex flex-col justify-center pl-10">
+                        <div class="glass-panel p-10 backdrop-blur-md bg-zinc-900/40 relative">
+                             <!-- Decorative accent -->
+                             <div class="absolute -top-6 -right-6 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                             
+                             <div class="text-zinc-200 text-xl leading-relaxed font-light space-y-6 relative z-10">
+                                <p>{text}</p>
+                                <p class="text-white font-medium">{closing}</p>
+                             </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {footer}
+            </div></div>"#,
             title = t.get("intro_title"),
             text = text,
             closing = t.get("intro_text_closing"),

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axur Senior Design Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        axur: {
+                            orange: '#FF5500', // Deep Axur Orange
+                            dark: '#050505',
+                            darker: '#020202',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* GLOBAL ATMOSPHERE */
+        body {
+            background-color: #020202;
+            color: #e4e4e7;
+            /* zinc-200 */
+        }
+
+        .axur-gradient-bg {
+            background:
+                radial-gradient(circle at 15% 50%, rgba(255, 85, 0, 0.08) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(76, 29, 149, 0.15) 0%, transparent 25%),
+                /* Subtle Purple for depth */
+                linear-gradient(180deg, #050505 0%, #000000 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Subtle Grid Overlay */
+        .grid-overlay {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100px 100px;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* GLASS MORPHISM */
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow:
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            /* Top highlight */
+            border-radius: 1rem;
+            /* xl */
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(255, 85, 0, 0.3);
+            box-shadow: 0 0 15px rgba(255, 85, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* TEXT GLOW */
+        .text-glow {
+            text-shadow: 0 0 20px rgba(255, 85, 0, 0.5);
+        }
+
+        /* EDITORIAL TYPOGRAPHY */
+        .display-text {
+            letter-spacing: -0.05em;
+            /* tracking-tighter */
+            line-height: 0.95;
+        }
+
+        .label-text {
+            letter-spacing: 0.2em;
+            /* tracking-widest */
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            /* xs */
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="axur-gradient-bg h-screen w-screen flex items-center justify-center p-20">
+    <div class="grid-overlay"></div>
+
+    <!-- MOCK SLIDE CONTAINER -->
+    <div class="glass-panel w-full h-full relative z-10 p-16 flex flex-col">
+
+        <!-- HEADER -->
+        <div class="flex justify-between items-start mb-16">
+            <div>
+                <span class="label-text text-orange-500 mb-2 block">Executive Report</span>
+                <h1 class="text-6xl font-black display-text text-white">Digital Risk<br>Snapshot</h1>
+            </div>
+            <!-- AXUR LOGO -->
+            <div class="flex items-center gap-2">
+                <span class="text-orange-500 text-3xl font-black">///</span>
+                <span class="text-2xl font-bold tracking-widest text-zinc-300">AXUR</span>
+            </div>
+        </div>
+
+        <!-- CONTENT GRID -->
+        <div class="grid grid-cols-3 gap-8 flex-grow">
+            <!-- METRIC CARD 1 -->
+            <div
+                class="glass-panel p-8 flex flex-col justify-between group cursor-pointer hover:bg-white/5 transition-colors">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="label-text text-zinc-500">Total Incidents</span>
+                        <div class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(255,85,0,0.8)]"></div>
+                    </div>
+                </div>
+                <div>
+                    <span
+                        class="text-6xl font-light text-white group-hover:text-glow transition-all duration-500">1,248</span>
+                    <p class="text-zinc-400 mt-2 text-sm leading-relaxed">
+                        Significant increase detected in <br><strong class="text-white">Phishing Campaigns</strong>
+                        targeting executive accounts.
+                    </p>
+                </div>
+            </div>
+
+            <!-- METRIC CARD 2 -->
+            <div
+                class="glass-panel p-8 flex flex-col justify-between group cursor-pointer hover:bg-white/5 transition-colors">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="label-text text-zinc-500">Takedown Time</span>
+                        <div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+                    </div>
+                </div>
+                <div>
+                    <span
+                        class="text-6xl font-light text-white group-hover:text-shadow transition-all duration-500">2.4<span
+                            class="text-2xl text-zinc-500 ml-1">hrs</span></span>
+                    <p class="text-zinc-400 mt-2 text-sm leading-relaxed">
+                        Average response time remains <strong class="text-white">95% faster</strong> than industry
+                        standard.
+                    </p>
+                </div>
+            </div>
+
+            <!-- DECORATIVE / CHART PLACEHOLDER -->
+            <div class="glass-panel p-8 flex items-center justify-center relative overflow-hidden group">
+                <div
+                    class="absolute inset-0 bg-gradient-to-tr from-orange-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                </div>
+                <div class="text-center relative z-10">
+                    <span class="text-zinc-600 text-sm">Visual Data Area</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="mt-16 flex justify-between items-end border-t border-white/5 pt-8">
+            <div class="text-xs text-zinc-500">
+                Generated for <span class="text-white font-semibold">Magazine Luiza S.A.</span>
+            </div>
+            <div class="text-xs text-zinc-600">
+                CONFIDENTIAL - TLP:AMBER
+            </div>
+        </div>
+
+    </div>
+</body>
+
+</html>

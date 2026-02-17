@@ -107,7 +107,7 @@ pub fn generate_full_report_html(
 
     // Add Deep Investigation slide if we have investigated tickets
     if !data.deep_investigations.is_empty() {
-        slides.push(render_deep_investigation_slide(data, dict));
+        slides.push(render_deep_investigation_slide(data, &**dict));
     }
 
     // Always add closing slide
@@ -179,10 +179,12 @@ pub fn generate_full_report_html(
         .printable-slide {{
             aspect-ratio: 16/9;
         }}
+        
+        {css_styles}
     </style>
     {chart}
 </head>
-<body class="bg-zinc-950 text-zinc-200">
+<body class="bg-zinc-950 text-zinc-200 axur-gradient-bg">
     {lang_selector}
     <div id="report-content" class="p-4 md:p-8">
         {slides}
@@ -198,6 +200,7 @@ pub fn generate_full_report_html(
         chart = chart_script,
         lang_selector = lang_selector_ui,
         lang_scripts = lang_scripts,
+        css_styles = axur_design_system_css(),
     )
 }
 
@@ -268,10 +271,12 @@ pub fn generate_report_with_plugins(
             .printable-slide {{ width: 16in; height: 9in; box-sizing: border-box; aspect-ratio: 16/9 !important; padding: 0.75in !important; box-shadow: none !important; border-radius: 0 !important; break-inside: avoid; break-after: page; page-break-after: always; margin: 0 !important; }}
         }}
         .printable-slide {{ aspect-ratio: 16/9; }}
+        
+        {css_styles}
     </style>
     {chart}
 </head>
-<body class="bg-zinc-950 text-zinc-200">
+<body class="bg-zinc-950 text-zinc-200 axur-gradient-bg">
     {lang_selector}
     <div id="report-content" class="p-4 md:p-8">
         {slides}
@@ -287,7 +292,161 @@ pub fn generate_report_with_plugins(
         chart = chart_script,
         lang_selector = lang_selector_ui,
         lang_scripts = lang_scripts,
+        css_styles = axur_design_system_css(),
     )
+}
+
+fn axur_design_system_css() -> &'static str {
+    r#"
+        /* AXUR DESIGN SYSTEM - SENIOR UPGRADE */
+        .axur-gradient-bg {
+            background: 
+                radial-gradient(circle at 15% 50%, rgba(255, 85, 0, 0.08) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(76, 29, 149, 0.15) 0%, transparent 25%),
+                linear-gradient(180deg, #050505 0%, #000000 100%);
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Grid Overlay Pattern */
+        .axur-gradient-bg::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 100px 100px;
+            mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 80%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+                0 2px 4px -1px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+        }
+
+        .text-glow {
+            text-shadow: 0 0 20px rgba(255, 85, 0, 0.5);
+        }
+
+        .display-text {
+            letter-spacing: -0.05em;
+            line-height: 0.95;
+        }
+        
+        .label-text {
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* --- MIGRATED FROM THEME.RS --- */
+        
+        /* Pill Badge */
+        .pill-badge {
+            background: linear-gradient(135deg, #FF5824 0%, #FF7A4D 100%);
+            padding: 0.5rem 1.5rem;
+            border-radius: 200px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px rgba(255, 88, 36, 0.3);
+            font-family: 'Inter', sans-serif;
+            color: white;
+        }
+
+        .pill-badge-ghost {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1.5rem;
+            border-radius: 200px;
+            font-weight: 500;
+            color: #A1A1AA; /* text-muted */
+        }
+
+        /* Section Components */
+        .section-header {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #FFFFFF;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .section-badge {
+            background: #FF5824;
+            padding: 0.5rem 1.25rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: white;
+            display: inline-block;
+        }
+
+        /* Horizontal Bar for stats */
+        .h-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: #27272A; /* surface */
+            overflow: hidden;
+        }
+
+        .h-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF5824 0%, #FF7A4D 100%);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        /* Critical Alert */
+        .alert-critical {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-left: 4px solid #EF4444;
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+        }
+
+        /* Threat Tags */
+        .threat-tag {
+            background: #27272A;
+            color: #F2F2F2;
+            padding: 0.375rem 0.875rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .threat-tag-orange {
+            background: rgba(255, 88, 36, 0.15);
+            color: #FF5824;
+        }
+
+        /* Logo */
+        .axur-logo {
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            font-family: 'Inter', sans-serif;
+        }
+    "#
 }
 
 // =====================
@@ -1345,12 +1504,12 @@ fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
     // Sort ISPs
     let mut sorted_isps: Vec<(&String, &u64)> = isps.iter().collect();
     sorted_isps.sort_by(|a, b| b.1.cmp(a.1));
-    let top_isps: Vec<(&String, &u64)> = sorted_isps.iter().take(6).map(|&x| x).collect();
+    let top_isps: Vec<(&String, &u64)> = sorted_isps.iter().take(6).copied().collect();
 
     // Sort Registrars
     let mut sorted_registrars: Vec<(&String, &u64)> = registrars.iter().collect();
     sorted_registrars.sort_by(|a, b| b.1.cmp(a.1));
-    let top_registrars: Vec<(&String, &u64)> = sorted_registrars.iter().take(6).map(|&x| x).collect();
+    let top_registrars: Vec<(&String, &u64)> = sorted_registrars.iter().take(6).copied().collect();
 
     // If no data, render "No Data" state
     if top_countries.is_empty() && top_isps.is_empty() && top_registrars.is_empty() {
@@ -2183,7 +2342,7 @@ fn render_threat_intelligence_slide(data: &PocReportData, dict: &Box<dyn Diction
             .top_access_urls
             .iter()
             .take(2)
-            .map(|u| u.split('/').last().unwrap_or(u).to_string())
+            .map(|u| u.split('/').next_back().unwrap_or(u).to_string())
             .collect::<Vec<_>>()
             .join(", ")
     );
@@ -2257,7 +2416,7 @@ fn render_threat_intelligence_slide(data: &PocReportData, dict: &Box<dyn Diction
 }
 
 /// Render the Timeline Deep Investigation slide with enriched data
-fn render_deep_investigation_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) -> String {
+fn render_deep_investigation_slide(data: &PocReportData, _dict: &dyn Dictionary) -> String {
     if data.deep_investigations.is_empty() {
         return String::new();
     }
@@ -3320,7 +3479,7 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
 
                     // Off-hours: < 8 or > 18 (roughly) or Weekend (Sat=6, Sun=7)
                     let is_weekend = dt.weekday().number_from_monday() >= 6;
-                    if is_weekend || hour < 8 || hour >= 19 {
+                    if is_weekend || !(8..19).contains(&hour) {
                         off_hours_count += 1;
                     }
                 }
@@ -3331,7 +3490,7 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
                     hour_counts[hour] += 1;
                     total_with_time += 1;
                     let is_weekend = dt.weekday().number_from_monday() >= 6;
-                    if is_weekend || hour < 8 || hour >= 19 {
+                    if is_weekend || !(8..19).contains(&hour) {
                         off_hours_count += 1;
                     }
                 }
@@ -3348,7 +3507,7 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
     // Generate simple colors for the chart: Off-hours = RED, Business = Gray
     let mut background_colors = Vec::new();
     for h in 0..24 {
-        if h < 8 || h >= 19 {
+        if !(8..19).contains(&h) {
             background_colors.push("#ef4444"); // Red-500
         } else {
             background_colors.push("#e4e4e7"); // Zinc-200 (Gray)

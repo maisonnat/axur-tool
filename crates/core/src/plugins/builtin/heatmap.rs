@@ -207,10 +207,10 @@ fn generate_simulated_heatmap(total_tickets: u64) -> [[u32; 24]; 7] {
 
     let base = (total_tickets / 168) as u32; // Average per hour
 
-    for day in 0..7 {
+    for (day, day_row) in heatmap.iter_mut().enumerate() {
         let day_multiplier = if day < 5 { 1.2 } else { 0.6 }; // Weekdays vs weekends
 
-        for hour in 0..24 {
+        for (hour, cell) in day_row.iter_mut().enumerate() {
             let hour_multiplier = match hour {
                 0..=5 => 0.3,   // Night (low)
                 6..=8 => 0.8,   // Early morning
@@ -225,7 +225,7 @@ fn generate_simulated_heatmap(total_tickets: u64) -> [[u32; 24]; 7] {
             let noise = ((day * 24 + hour) % 5) as f64 * 0.1;
             let value = (base as f64 * day_multiplier * hour_multiplier * (1.0 + noise)) as u32;
 
-            heatmap[day][hour] = value.max(if total_tickets > 100 { 1 } else { 0 });
+            *cell = value.max(if total_tickets > 100 { 1 } else { 0 });
         }
     }
 

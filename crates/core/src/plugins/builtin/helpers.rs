@@ -38,12 +38,11 @@ pub fn axur_logo() -> &'static str {
 /// Geometric pattern: Tech grid with subtle glow nodes
 /// Based on Axur.com aesthetic - minimal grid with orange accent dots
 pub fn geometric_pattern() -> &'static str {
-    r##"<div class="absolute inset-0 overflow-hidden">
-        <!-- Dark gradient background -->
-        <div class="absolute inset-0 bg-gradient-to-br from-zinc-900 via-zinc-950 to-black"></div>
+    r##"<div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <!-- Background removed to allow global axur-gradient-bg to show -->
         
         <!-- Tech grid pattern -->
-        <svg class="absolute inset-0 w-full h-full opacity-30" xmlns="http://www.w3.org/2000/svg">
+        <svg class="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
             <defs>
                 <pattern id="techGrid" width="40" height="40" patternUnits="userSpaceOnUse">
                     <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
@@ -58,7 +57,7 @@ pub fn geometric_pattern() -> &'static str {
         <div class="absolute bottom-1/4 right-1/2 w-1 h-1 bg-orange-300 rounded-full" style="box-shadow: 0 0 10px rgba(255,75,0,0.5)"></div>
         
         <!-- Large diagonal slash accent -->
-        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <svg class="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 100 100" preserveAspectRatio="none">
             <line x1="70" y1="0" x2="100" y2="100" stroke="rgba(255,75,0,0.15)" stroke-width="8"/>
             <line x1="80" y1="0" x2="110" y2="100" stroke="rgba(255,75,0,0.08)" stroke-width="6"/>
         </svg>

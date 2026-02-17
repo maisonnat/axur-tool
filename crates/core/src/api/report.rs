@@ -1065,7 +1065,7 @@ pub struct ThreatHuntingPreview {
 impl ThreatHuntingPreview {
     pub fn compute_estimated_credits(&mut self) {
         // Each page of 10 results = 1 credit
-        let pages = |count: u64| -> u64 { (count + 9) / 10 };
+        let pages = |count: u64| -> u64 { count.div_ceil(10) };
         self.estimated_credits = pages(self.signal_lake_count)
             + pages(self.credential_count)
             + pages(self.chat_message_count)
@@ -3235,11 +3235,11 @@ async fn fetch_latest_incidents(
                                 .attachments
                                 .iter()
                                 .find(|a| {
-                                    a.url.as_ref().map_or(false, |u| {
+                                    a.url.as_ref().is_some_and(|u| {
                                         u.ends_with(".png")
                                             || u.ends_with(".jpg")
                                             || u.ends_with(".jpeg")
-                                    }) || a.name.as_ref().map_or(false, |n| {
+                                    }) || a.name.as_ref().is_some_and(|n| {
                                         n.ends_with(".png")
                                             || n.ends_with(".jpg")
                                             || n.ends_with(".jpeg")
@@ -3381,7 +3381,7 @@ async fn fetch_credential_leaks_summary(
         // Unique emails
         if let Some(u) = &d.user {
             unique_emails.insert(u.to_string());
-            if let Some(domain) = u.split('@').last() {
+            if let Some(domain) = u.split('@').next_back() {
                 *domain_counts.entry(domain.to_string()).or_insert(0) += 1;
             }
         }
@@ -4371,8 +4371,7 @@ fn extract_enrichment_data(items: &[SignalLakeDataItem]) -> EnrichedSignalData {
     // Find the "richest" item (prefer ones with screenshots and AI data)
     let best_item = items
         .iter()
-        .filter(|item| item.screenshot_url.is_some() || item.ai_content_type.is_some())
-        .next()
+        .find(|item| item.screenshot_url.is_some() || item.ai_content_type.is_some())
         .or_else(|| items.first());
 
     if let Some(item) = best_item {
@@ -5201,10 +5200,9 @@ async fn fetch_risk_score_metrics(
 
     // 3. Critical Hygiene (Credential Leaks Count)
     // Filter for specific types if desired, but "total" endpoint is efficient
-    let leaks_url =
-        format!(
-        "{}/exposure-api/credentials/total?created=ge:{}&created=le:{}&customer={}&timezone=-03:00",
-        API_URL, format!("{}T00:00:00", start_date), format!("{}T23:59:59", end_date), customer_key
+    let leaks_url = format!(
+        "{}/exposure-api/credentials/total?created=ge:{}T00:00:00&created=le:{}T23:59:59&customer={}&timezone=-03:00",
+        API_URL, start_date, end_date, customer_key
     );
 
     // 4. Efficiency (Takedown Stats)
