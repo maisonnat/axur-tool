@@ -1,7 +1,10 @@
-//! Threat Radar Slide Plugin
+//! Threat Radar Slide Plugin — ACT 2: The Call to Adventure (Peak)
 //!
-//! Displays a spider/radar chart showing threat dimensions.
-//! Visualizes relative severity across multiple threat categories.
+//! Narrative Role: The CRISIS VISUALIZATION. The spider chart makes the abstract
+//! threat landscape tangible — the hero sees their exposure in every direction.
+//!
+//! Persuasion: Social Proof (benchmark vs sector) + SPIN Implication (cost of inaction)
+//! Design: Radar SVG + dimension cards, single orange polygon as Von Restorff element
 
 use super::helpers::footer_dark;
 
@@ -45,10 +48,12 @@ impl SlidePlugin for RadarSlidePlugin {
                 <!-- Background -->
                 {bg}
 
-                <!-- Header -->
+                <!-- COGNITIVE EMPTYING: Label the category + benefit-framed title -->
                 {header}
+                <!-- SPIN IMPLICATION: Help the hero understand the multi-dimensional nature of threat -->
+                <p class="text-zinc-400 text-sm leading-relaxed -mt-8 mb-4 max-w-3xl">Cada eje del radar representa un vector de ataque activo. Los puntos más lejanos del centro requieren atención inmediata.</p>
                 
-                <div class="grid grid-cols-2 gap-16 flex-grow mt-8 items-center">
+                <div class="grid grid-cols-2 gap-16 flex-grow mt-4 items-center">
                     <!-- Column 1: Radar Chart -->
                     <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center relative aspect-square backdrop-blur-md bg-zinc-900/40">
                         <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/5 to-transparent rounded-2xl pointer-events-none"></div>
@@ -63,7 +68,7 @@ impl SlidePlugin for RadarSlidePlugin {
                     <div class="flex flex-col h-full justify-center">
                         <div class="glass-panel p-8 bg-zinc-900/20 border-zinc-800/50">
                             <div class="flex items-center gap-3 mb-6">
-                                <span class="text-[#FF5824] bg-[#FF5824]/10 p-2 rounded-lg">
+                                <span class="text-[#FF671F] bg-[#FF671F]/10 p-2 rounded-lg">
                                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg>
                                 </span>
                                 <h3 class="text-lg font-bold text-white uppercase tracking-widest">Vectores de Ataque</h3>
@@ -72,6 +77,16 @@ impl SlidePlugin for RadarSlidePlugin {
                             <div class="space-y-3 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
                                 {dimension_cards}
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ZEIGARNIK EFFECT: Open loop to next section -->
+                <div class="absolute bottom-8 right-14 z-50">
+                    <div class="bg-orange-500/10 border border-orange-500/20 backdrop-blur-md px-5 py-3 rounded-xl flex items-center gap-3 hover:bg-orange-500/20 transition-colors duration-300 cursor-pointer">
+                        <div>
+                            <p class="text-[10px] text-orange-400 uppercase tracking-widest mb-0.5">Siguiente Capítulo</p>
+                            <p class="text-sm font-bold text-white">Impacto Operativo Medido →</p>
                         </div>
                     </div>
                 </div>
@@ -282,19 +297,38 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
         let y = cy + r * angle.sin();
 
         // Use theme colors for dots
-        let dot_color = if dim.score > 60 { "#FF5824" } else { "#3b82f6" };
+        let dot_color = if dim.score > 75 {
+            "#EF4444"
+        } else if dim.score > 50 {
+            "#FF671F"
+        } else {
+            "#22C55E"
+        };
 
         dots.push_str(&format!(
-            r##"<circle cx="{:.1}" cy="{:.1}" r="4" fill="{}" stroke="#18181b" stroke-width="2"/>"##,
+            r##"<circle cx="{:.1}" cy="{:.1}" r="4" fill="{}" stroke="#18181b" stroke-width="2" style="filter: url(#glow)"/>"##,
             x, y, dot_color
         ));
     }
 
     format!(
-        r##"<svg viewBox="0 0 300 300" class="w-96 h-96 filter drop-shadow-[0_0_10px_rgba(255,88,36,0.2)]">
+        r##"<svg viewBox="0 0 300 300" class="w-96 h-96 filter drop-shadow-2xl">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="polyGrad" x1="0" y1="0" x2="1" y2="1">
+       <stop offset="0%" stop-color="rgba(255, 103, 31, 0.4)"/>
+       <stop offset="100%" stop-color="rgba(239, 68, 68, 0.1)"/>
+    </linearGradient>
+  </defs>
   {circles}
   {axes}
-  <polygon points="{points}" fill="rgba(255, 88, 36, 0.2)" stroke="#FF5824" stroke-width="2"/>
+  <polygon points="{points}" fill="url(#polyGrad)" stroke="#FF671F" stroke-width="2" style="filter: url(#glow)"/>
   {dots}
 </svg>"##,
         circles = circles,
@@ -307,17 +341,25 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
 /// Generate dimension detail cards
 fn generate_dimension_cards(dimensions: &[ThreatDimension]) -> String {
     dimensions.iter().map(|dim| {
+        let (border_color, text_color, bg_color, grad_from, grad_to) = if dim.score > 75 {
+            ("border-red-500/50", "text-red-500", "bg-red-500/10", "#EF4444", "#F87171")
+        } else if dim.score > 50 {
+            ("border-[#FF671F]/50", "text-[#FF671F]", "bg-[#FF671F]/10", "#FF671F", "#FF8A4C")
+        } else {
+            ("border-green-500/30", "text-green-500", "bg-green-500/10", "#22C55E", "#4ADE80")
+        };
+
         format!(
-            r#"<div class="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 transition-all hover:border-[#FF5824]/50 hover:shadow-[0_0_15px_rgba(255,88,36,0.1)]">
+            r#"<div class="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 transition-all hover:{border_color} hover:shadow-lg group">
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-3">
-                        <span class="text-2xl">{icon}</span>
+                        <span class="text-2xl group-hover:scale-110 transition-transform duration-300">{icon}</span>
                         <h4 class="font-bold text-white text-sm">{label}</h4>
                     </div>
-                    <span class="text-[#FF5824] font-bold text-sm bg-[#FF5824]/10 px-2 py-1 rounded">{score} pts</span>
+                    <span class="{text_color} font-bold text-sm {bg_color} px-2 py-1 rounded">{score} pts</span>
                 </div>
                 <div class="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden mb-2">
-                    <div class="h-full bg-gradient-to-r from-[#FF5824] to-[#FF7A4D]" style="width: {pct}%"></div>
+                    <div class="h-full bg-gradient-to-r from-[{grad_from}] to-[{grad_to}]" style="width: {pct}%"></div>
                 </div>
                 <p class="text-xs text-zinc-500">{detail}</p>
             </div>"#,
@@ -325,7 +367,12 @@ fn generate_dimension_cards(dimensions: &[ThreatDimension]) -> String {
             label = dim.label,
             score = dim.score,
             pct = dim.score.min(100),
-            detail = dim.detail
+            detail = dim.detail,
+            border_color = border_color,
+            text_color = text_color,
+            bg_color = bg_color,
+            grad_from = grad_from,
+            grad_to = grad_to
         )
     }).collect::<Vec<_>>().join("\n")
 }

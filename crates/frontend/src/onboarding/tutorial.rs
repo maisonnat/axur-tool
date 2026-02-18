@@ -80,13 +80,9 @@ impl TutorialStep {
             ("duplicate", UiLanguage::En) => "Select an object and press Ctrl+D",
             ("duplicate", UiLanguage::Pt) => "Selecione um objeto e pressione Ctrl+D",
             // Step: export
-            ("export", UiLanguage::Es) => {
-                "Haz clic en el botón 'Exportar' para generar tu reporte"
-            }
+            ("export", UiLanguage::Es) => "Haz clic en el botón 'Exportar' para generar tu reporte",
             ("export", UiLanguage::En) => "Click the 'Export' button to generate your report",
-            ("export", UiLanguage::Pt) => {
-                "Clique no botão 'Exportar' para gerar seu relatório"
-            }
+            ("export", UiLanguage::Pt) => "Clique no botão 'Exportar' para gerar seu relatório",
             // Default
             _ => "Complete this step",
         }

@@ -47,7 +47,7 @@ impl SlidePlugin for InsightsSlidePlugin {
 <div class="h-full flex flex-col">
   <!-- Header -->
   <div class="mb-4">
-    <span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RECOMENDACIONES</span>
+    <span class="bg-[#FF671F] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RECOMENDACIONES</span>
   </div>
   <h2 class="text-4xl font-black mb-6 uppercase tracking-tight">{title}</h2>
   
@@ -59,7 +59,7 @@ impl SlidePlugin for InsightsSlidePlugin {
   <!-- Summary Footer -->
   <div class="mt-4 bg-zinc-900/30 p-4 rounded-lg border border-zinc-800">
     <p class="text-zinc-400 text-sm">
-      <span class="text-[#FF4B00] font-bold">💡 Próximos Pasos:</span> 
+      <span class="text-[#FF671F] font-bold">💡 Próximos Pasos:</span> 
       {summary}
     </p>
   </div>
@@ -89,7 +89,7 @@ impl InsightsSlidePlugin {
         format!(
             r##"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center">
 <div class="flex items-center font-black tracking-wider select-none text-white h-5">
-  <span class="text-[#FF4B00] text-2xl -mr-1">///</span>
+  <span class="text-[#FF671F] text-2xl -mr-1">///</span>
   <span class="text-xl">AXUR</span>
 </div>
 <div class="flex items-center text-xs text-zinc-500">
@@ -314,7 +314,7 @@ fn render_insight_card(insight: &Insight) -> String {
       </div>
       <p class="text-xs text-zinc-400 mb-2">{desc}</p>
       <div class="flex items-center gap-1 text-xs">
-        <span class="text-[#FF4B00]">→</span>
+        <span class="text-[#FF671F]">→</span>
         <span class="text-zinc-300">{action}</span>
       </div>
     </div>

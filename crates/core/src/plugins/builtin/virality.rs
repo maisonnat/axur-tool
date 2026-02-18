@@ -1,6 +1,10 @@
-//! Virality Slide Plugin
+//! Virality Slide Plugin — ACT 3: The Abyss (Spread)
 //!
-//! Shows threat spread across platforms.
+//! Narrative Role: Show HOW FAR the threat has spread. After seeing the exposure,
+//! the hero now sees the threats propagating across platforms. Maximum urgency.
+//!
+//! Persuasion: SPIN Implication (cost of viral spread) + Cognitive Emptying (dynamic insight)
+//! Design: Triple Stat layout with dynamic executive summary card
 
 use super::helpers::footer_dark;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
@@ -58,13 +62,13 @@ impl SlidePlugin for ViralitySlidePlugin {
                 <!-- Background is Global -->
                 
                 <div class="flex-grow flex flex-col z-10 relative">
-                    <!-- Header -->
+                    <!-- COGNITIVE EMPTYING: Label the fear category + provocative title -->
                     <div class="flex items-center justify-between mb-12">
                          <div>
-                            <span class="text-orange-500 font-bold tracking-[0.3em] text-sm uppercase mb-2 block">Análisis de Impacto</span>
+                            <span class="text-orange-500 font-bold tracking-[0.3em] text-sm uppercase mb-2 block">Propagación de Amenazas</span>
                             <h2 class="text-5xl font-black display-text uppercase tracking-tight">{title}</h2>
                          </div>
-                         <!-- Dynamic Executive Summary Card -->
+                         <!-- RECIPROCITY: Dynamic insight card — free analysis -->
                          <div class="glass-panel p-6 max-w-md border-l-4 border-l-orange-500">
                             <h4 class="text-sm font-bold {insight_color} uppercase tracking-wider mb-2 flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -111,11 +115,11 @@ impl SlidePlugin for ViralitySlidePlugin {
                     </div>
 
                     <!-- ZEIGARNIK EFFECT: Open Loop Teaser -->
-                    <div class="absolute bottom-4 right-0 transform translate-y-full hover:translate-y-0 transition-transform duration-500 ease-out p-6 cursor-pointer z-50">
-                        <div class="bg-orange-500/10 border border-orange-500/20 backdrop-blur-md p-4 rounded-xl flex items-center gap-4">
+                    <div class="absolute bottom-8 right-14 z-50">
+                        <div class="bg-orange-500/10 border border-orange-500/20 backdrop-blur-md px-5 py-3 rounded-xl flex items-center gap-3 hover:bg-orange-500/20 transition-colors duration-300 cursor-pointer">
                             <div>
                                 <p class="text-[10px] text-orange-400 uppercase tracking-widest mb-0.5">Siguiente Capítulo</p>
-                                <p class="text-sm font-bold text-white">Geospatial Intelligence -></p>
+                                <p class="text-sm font-bold text-white">Análisis de Riesgo Completo →</p>
                             </div>
                         </div>
                     </div>

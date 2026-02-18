@@ -86,7 +86,7 @@ impl SlidePlugin for ThreatsSlidePlugin {
                         <div class="bg-zinc-900/50 p-8 rounded-xl border border-zinc-800 backdrop-blur-sm flex flex-col flex-grow justify-between">
                             <div>
                                 <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                                    <span class="text-[#FF5824] bg-[#FF5824]/10 p-2 rounded-lg">
+                                    <span class="text-[#FF671F] bg-[#FF671F]/10 p-2 rounded-lg">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                                     </span>
                                     AMENAZAS CONFIRMADAS
@@ -103,8 +103,8 @@ impl SlidePlugin for ThreatsSlidePlugin {
                         </div>
 
                         <!-- Top Threat Mention -->
-                        <div class="p-6 rounded-xl border border-[#FF5824]/20 bg-[#FF5824]/5 flex-none">
-                            <h4 class="text-[#FF5824] uppercase text-xs font-bold tracking-wider mb-2">PRINCIPAL VECTOR</h4>
+                        <div class="p-6 rounded-xl border border-[#FF671F]/20 bg-[#FF671F]/5 flex-none">
+                            <h4 class="text-[#FF671F] uppercase text-xs font-bold tracking-wider mb-2">PRINCIPAL VECTOR</h4>
                             <div class="flex items-end gap-3">
                                 <span class="text-3xl font-bold text-white">{top_name}</span>
                                 <span class="text-xl text-zinc-500 mb-1">{top_count} incidentes</span>

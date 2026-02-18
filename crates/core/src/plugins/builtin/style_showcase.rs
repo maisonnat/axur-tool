@@ -95,7 +95,7 @@ impl SlidePlugin for StyleShowcasePlugin {
             tag2 = theme::threat_tag("NORMAL", false),
             // Features
             feat1 = theme::feature_card(
-                r#"<svg class="w-8 h-8 text-[#FF5824]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>"#,
+                r#"<svg class="w-8 h-8 text-[#FF671F]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>"#,
                 "Feature Card",
                 "Demonstrates the standard feature card layout with icon circle and description."
             ),

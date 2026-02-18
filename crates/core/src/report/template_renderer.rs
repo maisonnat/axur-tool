@@ -100,7 +100,8 @@ pub fn get_mock_placeholder_values() -> HashMap<String, String> {
                 <span>🇺🇸 USA <b style="color:#6366F1;">23</b></span>
                 <span>🇦🇷 Argentina <b style="color:#6366F1;">12</b></span>
             </div>
-        </div>"#.to_string(),
+        </div>"#
+            .to_string(),
     );
 
     // Media

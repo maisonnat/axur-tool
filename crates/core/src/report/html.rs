@@ -73,7 +73,9 @@ pub fn generate_full_report_html(
         // Executive Summary (After Evidence)
         if data.deep_analytics.has_any_data() {
             render_deep_analytics_slide(data, dict)
-        } else { String::new() },
+        } else {
+            String::new()
+        },
     ];
 
     // Filter out empty strings from conditional slides in the initial vec
@@ -81,7 +83,13 @@ pub fn generate_full_report_html(
 
     // Only add takedown slides if there is takedown data
     if has_takedown_data(data) {
-        slides.push(render_narrative_slide(dict.narrative_takedown_title(), dict.narrative_takedown_pain(), dict.narrative_takedown_solution(), "takedown", dict));
+        slides.push(render_narrative_slide(
+            dict.narrative_takedown_title(),
+            dict.narrative_takedown_pain(),
+            dict.narrative_takedown_solution(),
+            "takedown",
+            dict,
+        ));
         slides.push(render_takedowns_realizados_slide(data, dict));
         slides.push(render_impact_roi_slide(data, dict));
     }
@@ -95,10 +103,6 @@ pub fn generate_full_report_html(
     if !data.resolved_takedowns.is_empty() {
         slides.push(render_takedown_examples_slide(data, dict));
     }
-
-
-
-
 
     // Only add Threat Intelligence slide if data was fetched
     if data.threat_intelligence.data_available {
@@ -116,7 +120,9 @@ pub fn generate_full_report_html(
     let all_slides = slides.join("\n");
 
     // Choose assets based on offline mode
-    let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) = offline_assets {
+    let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) =
+        offline_assets
+    {
         (
             format!("<script>{}</script>", assets.tailwind_js),
             format!("<script>{}</script>", assets.chart_js),
@@ -136,7 +142,8 @@ pub fn generate_full_report_html(
 
     // Generate language switching components
     use super::language_switcher;
-    let (_, lang_selector_ui, lang_scripts) = language_switcher::generate_language_switching_components("es");
+    let (_, lang_selector_ui, lang_scripts) =
+        language_switcher::generate_language_switching_components("es");
 
     format!(
         r#"<!DOCTYPE html>
@@ -205,7 +212,7 @@ pub fn generate_full_report_html(
 }
 
 /// Generate report HTML using the plugin system
-/// 
+///
 /// This is the new modular approach that uses PluginRegistry.
 /// It coexists with `generate_full_report_html` for backward compatibility.
 pub fn generate_report_with_plugins(
@@ -216,7 +223,7 @@ pub fn generate_report_with_plugins(
 ) -> String {
     // Create registry with all builtin plugins
     let registry = PluginRegistry::with_builtins();
-    
+
     // Build the plugin context with provided config or default
     let plugin_config = config.unwrap_or_default();
     let ctx = PluginContext {
@@ -225,17 +232,24 @@ pub fn generate_report_with_plugins(
         tenant_name: &data.company_name,
         config: plugin_config,
     };
-    
+
     // Generate all slides from plugins
     let slides = registry.generate_slides(&ctx);
-    let all_slides_html: String = slides.iter().map(|s| s.html.as_str()).collect::<Vec<_>>().join("\n");
-    
+    let all_slides_html: String = slides
+        .iter()
+        .map(|s| s.html.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
+
     // Generate language switching components
     use super::language_switcher;
-    let (_, lang_selector_ui, lang_scripts) = language_switcher::generate_language_switching_components("es");
-    
+    let (_, lang_selector_ui, lang_scripts) =
+        language_switcher::generate_language_switching_components("es");
+
     // Choose assets based on offline mode
-    let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) = offline_assets {
+    let (tailwind_script, chart_script, font_links, font_family) = if let Some(assets) =
+        offline_assets
+    {
         (
             format!("<script>{}</script>", assets.tailwind_js),
             format!("<script>{}</script>", assets.chart_js),
@@ -252,7 +266,7 @@ pub fn generate_report_with_plugins(
             "Inter, sans-serif",
         )
     };
-    
+
     format!(
         r#"<!DOCTYPE html>
 <html lang="es">
@@ -301,7 +315,7 @@ fn axur_design_system_css() -> &'static str {
         /* AXUR DESIGN SYSTEM - SENIOR UPGRADE */
         .axur-gradient-bg {
             background: 
-                radial-gradient(circle at 15% 50%, rgba(255, 85, 0, 0.08) 0%, transparent 25%),
+                radial-gradient(circle at 15% 50%, rgba(255, 103, 31, 0.08) 0%, transparent 25%),
                 radial-gradient(circle at 85% 30%, rgba(76, 29, 149, 0.15) 0%, transparent 25%),
                 linear-gradient(180deg, #050505 0%, #000000 100%);
             position: relative;
@@ -323,6 +337,11 @@ fn axur_design_system_css() -> &'static str {
             z-index: 0;
         }
 
+        /* FORCE BOTTOM PADDING FOR FOOTER CLEARANCE */
+        .printable-slide {
+            padding-bottom: 5rem !important; /* 80px to clear the absolute footer */
+        }
+
         .glass-panel {
             background: rgba(20, 20, 20, 0.6);
             backdrop-filter: blur(16px);
@@ -336,7 +355,7 @@ fn axur_design_system_css() -> &'static str {
         }
 
         .text-glow {
-            text-shadow: 0 0 20px rgba(255, 85, 0, 0.5);
+            text-shadow: 0 0 20px rgba(255, 103, 31, 0.5);
         }
 
         .display-text {
@@ -355,14 +374,14 @@ fn axur_design_system_css() -> &'static str {
         
         /* Pill Badge */
         .pill-badge {
-            background: linear-gradient(135deg, #FF5824 0%, #FF7A4D 100%);
+            background: linear-gradient(135deg, #FF671F 0%, #FF8A4C 100%);
             padding: 0.5rem 1.5rem;
             border-radius: 200px;
             font-weight: 600;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 15px rgba(255, 88, 36, 0.3);
+            box-shadow: 0 0 15px rgba(255, 103, 31, 0.3);
             font-family: 'Inter', sans-serif;
             color: white;
         }
@@ -386,7 +405,7 @@ fn axur_design_system_css() -> &'static str {
         }
 
         .section-badge {
-            background: #FF5824;
+            background: #FF671F;
             padding: 0.5rem 1.25rem;
             font-size: 0.75rem;
             font-weight: 700;
@@ -406,7 +425,7 @@ fn axur_design_system_css() -> &'static str {
 
         .h-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #FF5824 0%, #FF7A4D 100%);
+            background: linear-gradient(90deg, #FF671F 0%, #FF8A4C 100%);
             border-radius: 4px;
             transition: width 0.5s ease;
         }
@@ -436,8 +455,8 @@ fn axur_design_system_css() -> &'static str {
         }
 
         .threat-tag-orange {
-            background: rgba(255, 88, 36, 0.15);
-            color: #FF5824;
+            background: rgba(255, 103, 31, 0.15);
+            color: #FF671F;
         }
 
         /* Logo */
@@ -445,6 +464,334 @@ fn axur_design_system_css() -> &'static str {
             font-weight: 900;
             letter-spacing: 0.1em;
             font-family: 'Inter', sans-serif;
+        }
+
+        /* ============================================ */
+        /* PHASE 1: ANIMATION ENGINE + PREMIUM CLASSES  */
+        /* ============================================ */
+
+        /* --- KEYFRAME ANIMATIONS --- */
+
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+
+        @keyframes pulse-orange {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 103, 31, 0.15), 0 0 60px rgba(255, 103, 31, 0.05); }
+            50% { box-shadow: 0 0 30px rgba(255, 103, 31, 0.3), 0 0 80px rgba(255, 103, 31, 0.1); }
+        }
+
+        @keyframes gradient-shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        @keyframes scale-in {
+            0% { transform: scale(0.85); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { text-shadow: 0 0 20px rgba(255, 103, 31, 0.4), 0 0 40px rgba(255, 103, 31, 0.1); }
+            50% { text-shadow: 0 0 30px rgba(255, 103, 31, 0.6), 0 0 60px rgba(255, 103, 31, 0.2); }
+        }
+
+        @keyframes line-expand {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        @keyframes fade-in-up {
+            0% { opacity: 0; transform: translateY(12px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- HERO NUMBER CLASSES --- */
+
+        .hero-number {
+            font-size: 5rem;
+            font-weight: 200;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            color: white;
+            position: relative;
+            text-shadow: 0 0 30px rgba(255, 103, 31, 0.4), 0 0 60px rgba(255, 103, 31, 0.15);
+            animation: glow-pulse 3s ease-in-out infinite;
+        }
+
+        .hero-number-xl {
+            font-size: 7rem;
+            font-weight: 100;
+            line-height: 1;
+            letter-spacing: -0.05em;
+            color: white;
+            position: relative;
+            text-shadow: 0 0 40px rgba(255, 103, 31, 0.5), 0 0 80px rgba(255, 103, 31, 0.2);
+            animation: glow-pulse 3s ease-in-out infinite;
+        }
+
+        .hero-number-green {
+            font-size: 5rem;
+            font-weight: 200;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            color: #22C55E;
+            text-shadow: 0 0 30px rgba(34, 197, 94, 0.4), 0 0 60px rgba(34, 197, 94, 0.15);
+        }
+
+        .hero-number-red {
+            font-size: 5rem;
+            font-weight: 200;
+            line-height: 1;
+            letter-spacing: -0.04em;
+            color: #EF4444;
+            text-shadow: 0 0 30px rgba(239, 68, 68, 0.4), 0 0 60px rgba(239, 68, 68, 0.15);
+        }
+
+        /* Shimmer overlay for hero numbers */
+        .shimmer-text {
+            background: linear-gradient(
+                90deg,
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,0.08) 40%,
+                rgba(255,255,255,0.15) 50%,
+                rgba(255,255,255,0.08) 60%,
+                rgba(255,255,255,0) 100%
+            );
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shimmer 4s ease-in-out infinite;
+        }
+
+        /* --- ACCENT LINE --- */
+
+        .accent-line {
+            height: 3px;
+            background: linear-gradient(90deg, #FF671F 0%, #FF8A4C 40%, transparent 100%);
+            border-radius: 2px;
+            margin-top: 12px;
+            margin-bottom: 8px;
+            animation: line-expand 1s ease-out forwards;
+        }
+
+        .accent-line-thin {
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255,103,31,0.6) 0%, rgba(255,103,31,0.1) 60%, transparent 100%);
+            margin-top: 8px;
+        }
+
+        /* --- PREMIUM GLASS PANEL UPGRADE --- */
+
+        .glass-panel-premium {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            border-radius: 1rem;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-panel-premium:hover {
+            border-color: rgba(255, 103, 31, 0.15);
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                0 2px 8px rgba(0, 0, 0, 0.2),
+                0 0 30px rgba(255, 103, 31, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            transform: translateY(-2px);
+        }
+
+        /* --- SEVERITY CARDS --- */
+
+        .card-critical {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-left: 3px solid #EF4444;
+            border-radius: 1rem;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.08);
+            animation: pulse-glow 3s ease-in-out infinite;
+            transition: all 0.3s ease;
+        }
+
+        .card-critical:hover {
+            border-color: rgba(239, 68, 68, 0.4);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.15);
+        }
+
+        .card-warning {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-left: 3px solid #F59E0B;
+            border-radius: 1rem;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.06);
+        }
+
+        .card-success {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-left: 3px solid #22C55E;
+            border-radius: 1rem;
+            box-shadow: 0 0 15px rgba(34, 197, 94, 0.06);
+        }
+
+        .card-success:hover {
+            border-color: rgba(34, 197, 94, 0.4);
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.12);
+        }
+
+        /* --- ICON CIRCLE --- */
+
+        .icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 103, 31, 0.1);
+            border: 1px solid rgba(255, 103, 31, 0.2);
+            color: #FF671F;
+            flex-shrink: 0;
+        }
+
+        .icon-circle-red {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: #EF4444;
+        }
+
+        .icon-circle-green {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.2);
+            color: #22C55E;
+        }
+
+        .icon-circle-lg {
+            width: 64px;
+            height: 64px;
+        }
+
+        /* --- SEVERITY BAR --- */
+
+        .severity-bar {
+            height: 4px;
+            width: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, 
+                #22C55E 0%, #22C55E 30%,
+                #F59E0B 30%, #F59E0B 60%,
+                #EF4444 60%, #EF4444 80%,
+                #DC2626 80%, #DC2626 100%);
+            position: relative;
+        }
+
+        .severity-bar-indicator {
+            position: absolute;
+            top: -6px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #EF4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+            transform: translateX(-50%);
+        }
+
+        /* --- NEXT CHAPTER TEASER (Zeigarnik) --- */
+
+        .next-chapter {
+            background: rgba(255, 103, 31, 0.06);
+            border: 1px solid rgba(255, 103, 31, 0.15);
+            backdrop-filter: blur(12px);
+            padding: 12px 20px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .next-chapter:hover {
+            background: rgba(255, 103, 31, 0.12);
+            border-color: rgba(255, 103, 31, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* --- FOOTER PREMIUM --- */
+
+        .footer-premium {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 12px;
+        }
+
+        .footer-premium .footer-brand {
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .footer-premium:hover .footer-brand {
+            opacity: 1;
+        }
+
+        /* --- METRIC CONTEXT LABEL --- */
+
+        .metric-context {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #71717A;
+            font-weight: 600;
+        }
+
+        .metric-delta-positive {
+            color: #22C55E;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .metric-delta-negative {
+            color: #EF4444;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* --- BACKGROUND DEPTH LAYERS --- */
+
+        .bg-orb-orange {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,103,31,0.15) 0%, transparent 70%);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .bg-orb-purple {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%);
+            filter: blur(60px);
+            pointer-events: none;
+        }
+
+        .bg-orb-red {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(239,68,68,0.08) 0%, transparent 70%);
+            filter: blur(60px);
+            pointer-events: none;
         }
     "#
 }
@@ -461,7 +808,7 @@ fn render_custom_template_report(
 ) -> String {
     let mut slides_html = String::new();
     let mut init_scripts = String::new();
-    
+
     // Date formatting (simple)
     let date_str = data.end_date.clone();
 
@@ -469,16 +816,16 @@ fn render_custom_template_report(
         // Basic placeholder replacement
         // Advanced placeholder replacement
         let processed_json = inject_report_data(json, data);
-                                 
+
         let canvas_id = format!("slide-canvas-{}", i);
-        
+
         slides_html.push_str(&format!(
             r#"<div class="printable-slide aspect-[16/9] w-full shadow-lg mb-8 bg-white relative overflow-hidden" style="page-break-after: always; display: flex; align-items: center; justify-content: center;">
                  <canvas id="{}" width="1280" height="720" style="width: 100%; height: auto; max-height: 100%;"></canvas>
                </div>"#, 
             canvas_id
         ));
-        
+
         // JS to render this slide
         init_scripts.push_str(&format!(
             r#"
@@ -548,7 +895,7 @@ fn render_custom_template_report(
             json_data = processed_json
         ));
     }
-    
+
     let fabric_script = if let Some(assets) = offline_assets {
         format!("<script>{}</script>", assets.fabric_js)
     } else {
@@ -588,7 +935,6 @@ fn render_custom_template_report(
         })();
     </script>
     "#;
-
 
     format!(
         r##"<!DOCTYPE html>
@@ -662,15 +1008,28 @@ fn geometric_pattern() -> &'static str {
     r#"<div class="absolute inset-0 overflow-hidden" style="opacity:1"><div class="absolute -top-10 -left-10 w-40 h-40 bg-orange-500"></div><div class="absolute top-1/4 right-1/4 w-60 h-60 bg-zinc-900"></div><div class="absolute -bottom-10 -right-10 w-52 h-52 bg-orange-500"></div><div class="absolute bottom-1/2 right-10 w-24 h-24 bg-white"></div><div class="absolute top-10 right-20 w-32 h-32 bg-white"></div><div class="absolute bottom-10 left-10 w-48 h-48 bg-zinc-900"></div><div class="absolute top-1/3 left-1/4 w-20 h-20 bg-orange-500"></div><div class="absolute -right-20 top-1/2 w-48 h-48 bg-zinc-900"></div><div class="absolute right-1/3 bottom-1/3 w-32 h-32 bg-white"></div><div class="absolute h-full w-20 bg-orange-500 right-0 top-1/4"></div><div class="absolute w-full h-10 bg-zinc-900 bottom-0 left-1/3"></div></div>"#
 }
 
-fn render_context_slide(title: String, text: String, icon_type: &str, dict: &Box<dyn Dictionary>) -> String {
+fn render_context_slide(
+    title: String,
+    text: String,
+    icon_type: &str,
+    dict: &Box<dyn Dictionary>,
+) -> String {
     let icon_svg = match icon_type {
-        "risk" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"></path></svg>"#,
-        "stealer" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>"#,
-        "leak" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75v-4.5m0 4.5h4.5m-4.5 0l6-6m-3 18c-8.284 0-15-6.716-15-15V4.5A2.25 2.25 0 014.5 2.25h1.372c.516 0 .966.351 1.091.852l1.106 4.423c.11.44-.054.902-.417 1.173l-1.293.97a1.062 1.062 0 00-.38 1.21 12.035 12.035 0 007.143 7.143c.441.162.928-.004 1.21-.38l.97-1.293a1.125 1.125 0 011.173-.417l4.423 1.106c.5.125.852.575.852 1.091V19.5a2.25 2.25 0 01-2.25 2.25h-2.25z"></path></svg>"#, // Fallback icon, maybe telephone was wrong copy/paste. Let's use Code brackets logic or similar
-        "takedown" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>"#,
+        "risk" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"></path></svg>"#
+        }
+        "stealer" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>"#
+        }
+        "leak" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75v-4.5m0 4.5h4.5m-4.5 0l6-6m-3 18c-8.284 0-15-6.716-15-15V4.5A2.25 2.25 0 014.5 2.25h1.372c.516 0 .966.351 1.091.852l1.106 4.423c.11.44-.054.902-.417 1.173l-1.293.97a1.062 1.062 0 00-.38 1.21 12.035 12.035 0 007.143 7.143c.441.162.928-.004 1.21-.38l.97-1.293a1.125 1.125 0 011.173-.417l4.423 1.106c.5.125.852.575.852 1.091V19.5a2.25 2.25 0 01-2.25 2.25h-2.25z"></path></svg>"#
+        } // Fallback icon, maybe telephone was wrong copy/paste. Let's use Code brackets logic or similar
+        "takedown" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>"#
+        }
         _ => "",
     };
-    
+
     // Override leak icon with actual code brackets
     let final_icon = if icon_type == "leak" {
         r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path></svg>"#
@@ -687,13 +1046,29 @@ fn render_context_slide(title: String, text: String, icon_type: &str, dict: &Box
     )
 }
 
-fn render_narrative_slide(title: String, pain: String, solution: String, icon_type: &str, dict: &Box<dyn Dictionary>) -> String {
+fn render_narrative_slide(
+    title: String,
+    pain: String,
+    solution: String,
+    icon_type: &str,
+    dict: &Box<dyn Dictionary>,
+) -> String {
     let icon_svg = match icon_type {
-        "stealer" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>"#,
-        "leak" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path></svg>"#,
-        "takedown" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>"#,
-        "phishing" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"></path></svg>"#,
-        "virality" => r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"></path></svg>"#,
+        "stealer" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"></path></svg>"#
+        }
+        "leak" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"></path></svg>"#
+        }
+        "takedown" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>"#
+        }
+        "phishing" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"></path></svg>"#
+        }
+        "virality" => {
+            r#"<svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-64 h-64 text-orange-500 opacity-80"><path stroke-linecap="round" stroke-linejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"></path></svg>"#
+        }
         _ => "",
     };
 
@@ -842,17 +1217,17 @@ fn render_general_metrics_slide(data: &PocReportData, dict: &Box<dyn Dictionary>
 fn render_ai_intent_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
     // 1. Aggregate types into New Categories
     let mut intents: HashMap<String, u64> = HashMap::new();
-    
-    // Initialize specific categories with 0 to ensure consistent colors/ordering if needed, 
+
+    // Initialize specific categories with 0 to ensure consistent colors/ordering if needed,
     // or just let them populate dynamically. Let's populate dynamically but define order later.
     let categories = [
-        "trust", // Ataques a la Confianza
-        "chat", // Chat Intelligence
+        "trust",       // Ataques a la Confianza
+        "chat",        // Chat Intelligence
         "compromised", // Dispositivos Comprometidos
-        "data_leak", // Fuga de Datos
-        "vip", // Protección VIP
-        "dark_web", // Deep & Dark Web
-        "fraud", // Fraude Comercial
+        "data_leak",   // Fuga de Datos
+        "vip",         // Protección VIP
+        "dark_web",    // Deep & Dark Web
+        "fraud",       // Fraude Comercial
     ];
 
     for cat in &categories {
@@ -878,7 +1253,11 @@ fn render_ai_intent_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> S
         }
     }
 
-    let percent = if total_count > 0 { (max_count * 100) / total_count } else { 0 };
+    let percent = if total_count > 0 {
+        (max_count * 100) / total_count
+    } else {
+        0
+    };
 
     let (narrative, _is_primary) = if total_count > 0 {
         let intent_name = match top_intent {
@@ -888,7 +1267,7 @@ fn render_ai_intent_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> S
             "data_leak" => dict.intent_cat_data_leak(),
             "vip" => dict.intent_cat_vip(),
             "dark_web" => dict.intent_cat_dark_web(),
-             _ => dict.intent_cat_fraud(),
+            _ => dict.intent_cat_fraud(),
         };
         (dict.intent_fmt_primary(&intent_name, percent), true)
     } else {
@@ -905,8 +1284,10 @@ fn render_ai_intent_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> S
     let mut colors = Vec::new();
 
     for (k, v) in sorted_intents {
-        if *v == 0 { continue; } // Skip empty categories
-        
+        if *v == 0 {
+            continue;
+        } // Skip empty categories
+
         let label = match k.as_str() {
             "trust" => dict.intent_cat_trust(),
             "chat" => dict.intent_cat_chat(),
@@ -916,24 +1297,24 @@ fn render_ai_intent_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> S
             "dark_web" => dict.intent_cat_dark_web(),
             _ => dict.intent_cat_fraud(),
         };
-        
+
         labels.push(label);
         values.push(*v);
-        
+
         // Color mapping
         let color = match k.as_str() {
-            "trust" => "#f97316", // Orange (Brand)
-            "chat" => "#3b82f6", // Blue (Telegram/Chat)
+            "trust" => "#f97316",       // Orange (Brand)
+            "chat" => "#3b82f6",        // Blue (Telegram/Chat)
             "compromised" => "#ef4444", // Red (Critical/Infection)
-            "data_leak" => "#eab308", // Yellow (Warning)
-            "vip" => "#a855f7", // Purple (VIP)
-            "dark_web" => "#1f2937", // Dark Gray (Dark Web)
-            _ => "#6b7280", // Gray
+            "data_leak" => "#eab308",   // Yellow (Warning)
+            "vip" => "#a855f7",         // Purple (VIP)
+            "dark_web" => "#1f2937",    // Dark Gray (Dark Web)
+            _ => "#6b7280",             // Gray
         };
         colors.push(color);
     }
 
-    // If empty (no threats), add a placeholder to avoid breaking chart? 
+    // If empty (no threats), add a placeholder to avoid breaking chart?
     // Actually if total_count is 0, we might want to hide chart or show "No Data".
     // For now, let's just leave it empty, the chart logic handles empty arrays fine usually.
 
@@ -1085,7 +1466,6 @@ fn render_data_exposure_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) 
         title = dict.exposure_title(),
         lbl_sub_code = dict.exposure_sub_code(),
         lbl_sub_stealer = dict.exposure_sub_stealer(),
-        
         // Code Leak Data
         secrets = format_number(data.secrets_total),
         lbl_secrets = dict.code_leak_box_secrets(),
@@ -1094,7 +1474,6 @@ fn render_data_exposure_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) 
         prod = format_number(data.production_secrets),
         lbl_prod = dict.code_leak_box_prod(),
         action_code = dict.code_leak_action(),
-
         // Stealer Data
         critical_alert = critical_html,
         creds = format_number(data.credentials_total),
@@ -1102,7 +1481,6 @@ fn render_data_exposure_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) 
         hosts = format_number(data.unique_hosts),
         lbl_hosts = dict.stealer_box_hosts(),
         action_stealer = dict.stealer_action(), // Reusing existing action text
-
         footer = footer_dark(8, dict),
     )
 }
@@ -1322,13 +1700,13 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
         (
             dict.roi_precise_title(),
             format!("{} min", mins),
-            dict.roi_precise_text_primary(mins)
+            dict.roi_precise_text_primary(mins),
         )
     } else {
         (
             dict.op_response_title(),
             "180x".to_string(),
-            dict.roi_precise_text_fallback()
+            dict.roi_precise_text_fallback(),
         )
     };
 
@@ -1366,7 +1744,7 @@ fn render_impact_roi_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
 
 fn map_threat_to_intent(threat_type: &str) -> &'static str {
     let t = threat_type.to_lowercase();
-    
+
     // 1. Chat Intelligence (Messages & Dark Web Activity)
     // Matches: data-sale-message, suspicious-activity-message, dw-activity, etc.
     if t.contains("message") || t == "dw-activity" {
@@ -1379,21 +1757,23 @@ fn map_threat_to_intent(threat_type: &str) -> &'static str {
     }
 
     // 3. Ataques a la Confianza (High volume brand attacks)
-    if t == "phishing" 
-        || t == "fraudulent-brand-use" 
-        || t == "fake-mobile-app" 
-        || t == "fake-social-media-profile" 
-        || t == "similar-domain-name" 
-        || t == "paid-search" 
-        || t == "malware" {
+    if t == "phishing"
+        || t == "fraudulent-brand-use"
+        || t == "fake-mobile-app"
+        || t == "fake-social-media-profile"
+        || t == "similar-domain-name"
+        || t == "paid-search"
+        || t == "malware"
+    {
         return "trust";
     }
 
     // 4. Fuga de Datos (Corporate/Secrets)
-    if t == "corporate-credential-leak" 
-        || t == "code-secret-leak" 
-        || t == "database-exposure" 
-        || t == "other-sensitive-data" {
+    if t == "corporate-credential-leak"
+        || t == "code-secret-leak"
+        || t == "database-exposure"
+        || t == "other-sensitive-data"
+    {
         return "data_leak";
     }
 
@@ -1403,9 +1783,8 @@ fn map_threat_to_intent(threat_type: &str) -> &'static str {
     }
 
     // 6. Deep & Dark Web (Infrastructure & Advanced)
-    if t == "ransomware-attack" 
-        || t == "infrastructure-exposure" 
-        || t.contains("website") { // data-sale-website, etc.
+    if t == "ransomware-attack" || t == "infrastructure-exposure" || t.contains("website") {
+        // data-sale-website, etc.
         return "dark_web";
     }
 
@@ -1419,14 +1798,28 @@ fn calculate_median_takedown_minutes(takedowns: &[ResolvedTakedown]) -> Option<i
         .filter_map(|td| {
             if let (Some(request_date), Some(res_date)) = (&td.request_date, &td.resolution_date) {
                 // Try parsing dates. API usually returns ISO 8601.
-                if let (Ok(start), Ok(end)) = (DateTime::parse_from_rfc3339(request_date), DateTime::parse_from_rfc3339(res_date)) {
-                     let dur = end.signed_duration_since(start).num_minutes();
-                     if dur > 0 { Some(dur) } else { None }
-                } 
-                // Fallback for other formats if needed
-                else if let (Ok(start), Ok(end)) = (DateTime::parse_from_rfc2822(request_date), DateTime::parse_from_rfc2822(res_date)) {
+                if let (Ok(start), Ok(end)) = (
+                    DateTime::parse_from_rfc3339(request_date),
+                    DateTime::parse_from_rfc3339(res_date),
+                ) {
                     let dur = end.signed_duration_since(start).num_minutes();
-                    if dur > 0 { Some(dur) } else { None }
+                    if dur > 0 {
+                        Some(dur)
+                    } else {
+                        None
+                    }
+                }
+                // Fallback for other formats if needed
+                else if let (Ok(start), Ok(end)) = (
+                    DateTime::parse_from_rfc2822(request_date),
+                    DateTime::parse_from_rfc2822(res_date),
+                ) {
+                    let dur = end.signed_duration_since(start).num_minutes();
+                    if dur > 0 {
+                        Some(dur)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -1455,12 +1848,12 @@ fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
             *countries.entry(td.country.clone()).or_insert(0) += 1;
         }
         if let Some(isp) = &td.isp {
-             if !isp.is_empty() && isp != "-" {
+            if !isp.is_empty() && isp != "-" {
                 *isps.entry(isp.clone()).or_insert(0) += 1;
             }
         }
         if let Some(reg) = &td.registrar {
-             if !reg.is_empty() && reg != "-" {
+            if !reg.is_empty() && reg != "-" {
                 *registrars.entry(reg.clone()).or_insert(0) += 1;
             }
         }
@@ -1567,18 +1960,25 @@ fn render_geospatial_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> 
     // Narrative
     let total_countries = countries.len();
     let (narrative, _is_primary) = if total_countries > 0 {
-        let top_country = if !top_countries.is_empty() { top_countries[0].0.as_str() } else { "Unknown" };
+        let top_country = if !top_countries.is_empty() {
+            top_countries[0].0.as_str()
+        } else {
+            "Unknown"
+        };
         (dict.geo_fmt_primary(total_countries, top_country), true)
     } else {
         (dict.geo_fmt_fallback(), false)
     };
 
     // Chart Data - Add flags to labels
-    let labels: Vec<String> = top_countries.iter().map(|(k, _)| {
-        let flag = country_to_flag(k);
-        format!("{} {}", flag, k)
-    }).collect();
-    
+    let labels: Vec<String> = top_countries
+        .iter()
+        .map(|(k, _)| {
+            let flag = country_to_flag(k);
+            format!("{} {}", flag, k)
+        })
+        .collect();
+
     let values: Vec<u64> = top_countries.iter().map(|(_, v)| **v).collect();
     let json_labels = serde_json::to_string(&labels).unwrap_or_default();
     let json_data = serde_json::to_string(&values).unwrap_or_default();
@@ -1847,16 +2247,19 @@ fn detect_campaign(tickets: &[crate::api::report::StoryTicket]) -> Option<Campai
         let dates: Vec<&str> = indices
             .iter()
             .filter_map(|&i| {
-                tickets[i].incident_date.as_deref()
+                tickets[i]
+                    .incident_date
+                    .as_deref()
                     .or(tickets[i].open_date.as_deref())
             })
             .collect();
-        
+
         let start = dates.iter().min().unwrap_or(&"Unknown").to_string();
         let end = dates.iter().max().unwrap_or(&"Unknown").to_string();
 
         // Extract common IP prefix (first 2 octets)
-        let ip_prefix = tickets.get(*indices.first().unwrap_or(&0))
+        let ip_prefix = tickets
+            .get(*indices.first().unwrap_or(&0))
             .and_then(|t| t.ip.as_ref())
             .and_then(|ip| {
                 let parts: Vec<&str> = ip.split('.').collect();
@@ -1890,7 +2293,10 @@ fn detect_campaign(tickets: &[crate::api::report::StoryTicket]) -> Option<Campai
     // Strategy 2: Fallback - group by dominant threat type
     let mut type_counts: HashMap<String, Vec<usize>> = HashMap::new();
     for (i, ticket) in tickets.iter().enumerate() {
-        type_counts.entry(ticket.threat_type.clone()).or_default().push(i);
+        type_counts
+            .entry(ticket.threat_type.clone())
+            .or_default()
+            .push(i);
     }
 
     let dominant = type_counts
@@ -1898,14 +2304,17 @@ fn detect_campaign(tickets: &[crate::api::report::StoryTicket]) -> Option<Campai
         .max_by_key(|(_, indices)| indices.len())?;
 
     if dominant.1.len() >= 3 {
-        let dates: Vec<&str> = dominant.1
+        let dates: Vec<&str> = dominant
+            .1
             .iter()
             .filter_map(|&i| {
-                tickets[i].incident_date.as_deref()
+                tickets[i]
+                    .incident_date
+                    .as_deref()
                     .or(tickets[i].open_date.as_deref())
             })
             .collect();
-        
+
         let start = dates.iter().min().unwrap_or(&"Unknown").to_string();
         let end = dates.iter().max().unwrap_or(&"Unknown").to_string();
 
@@ -1942,54 +2351,71 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
 
     // Detect campaign for smarter grouping
     let campaign = detect_campaign(&data.story_tickets);
-    
+
     // Filter tickets based on campaign or use all
-    let (filtered_tickets, campaign_title, campaign_subtitle, infra_html): (Vec<_>, String, String, String) = 
-        if let Some(ref c) = campaign {
-            let tickets: Vec<_> = c.tickets.iter()
-                .filter_map(|&i| data.story_tickets.get(i))
-                .collect();
-            
-            // Infrastructure badge
-            let infra = if let Some(isp) = &c.common_isp {
-                let ip_str = c.common_ip_prefix.as_deref().unwrap_or("*.*");
-                format!(
-                    r#"<div class="flex items-center gap-4 text-xs text-zinc-400 mb-4 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800">
+    let (filtered_tickets, campaign_title, campaign_subtitle, infra_html): (
+        Vec<_>,
+        String,
+        String,
+        String,
+    ) = if let Some(ref c) = campaign {
+        let tickets: Vec<_> = c
+            .tickets
+            .iter()
+            .filter_map(|&i| data.story_tickets.get(i))
+            .collect();
+
+        // Infrastructure badge
+        let infra = if let Some(isp) = &c.common_isp {
+            let ip_str = c.common_ip_prefix.as_deref().unwrap_or("*.*");
+            format!(
+                r#"<div class="flex items-center gap-4 text-xs text-zinc-400 mb-4 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800">
                         <span class="flex items-center gap-1">🌐 <strong class="text-white">{}</strong></span>
                         <span class="flex items-center gap-1">🔗 IP: <code class="text-orange-400">{}</code></span>
                         <span class="flex items-center gap-1">📅 {} → {}</span>
                     </div>"#,
-                    isp, ip_str, 
-                    if c.date_range.0.len() >= 10 { &c.date_range.0[5..10] } else { &c.date_range.0 },
-                    if c.date_range.1.len() >= 10 { &c.date_range.1[5..10] } else { &c.date_range.1 }
-                )
-            } else {
-                String::new()
-            };
-            
-            (
-                tickets,
-                format!("🎯 {}", c.name),
-                format!("{} coordinated incidents detected", c.tickets.len()),
-                infra
+                isp,
+                ip_str,
+                if c.date_range.0.len() >= 10 {
+                    &c.date_range.0[5..10]
+                } else {
+                    &c.date_range.0
+                },
+                if c.date_range.1.len() >= 10 {
+                    &c.date_range.1[5..10]
+                } else {
+                    &c.date_range.1
+                }
             )
         } else {
-            (
-                data.story_tickets.iter().collect(),
-                dict.story_title(),
-                dict.story_subtitle(data.story_tickets.len()),
-                String::new()
-            )
+            String::new()
         };
+
+        (
+            tickets,
+            format!("🎯 {}", c.name),
+            format!("{} coordinated incidents detected", c.tickets.len()),
+            infra,
+        )
+    } else {
+        (
+            data.story_tickets.iter().collect(),
+            dict.story_title(),
+            dict.story_subtitle(data.story_tickets.len()),
+            String::new(),
+        )
+    };
 
     // Timeline Data Aggregation (use filtered tickets)
     let mut timeline: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
     for ticket in &filtered_tickets {
-        let date_str = ticket.incident_date.as_deref()
+        let date_str = ticket
+            .incident_date
+            .as_deref()
             .or(ticket.open_date.as_deref())
             .map(|d| if d.len() >= 10 { &d[0..10] } else { d })
             .unwrap_or("Unknown");
-        
+
         if date_str != "Unknown" {
             *timeline.entry(date_str.to_string()).or_insert(0) += 1;
         }
@@ -2005,14 +2431,16 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
     // Evidence/Cards Logic: Take 3 items from filtered tickets
     for ticket in filtered_tickets.iter().take(3) {
         // Try to find matching deep investigation data for enrichment
-        let enrichment = data.deep_investigations.iter()
+        let enrichment = data
+            .deep_investigations
+            .iter()
             .find(|inv| inv.ticket_key == ticket.ticket_key)
             .map(|inv| &inv.enrichment);
 
         // Screenshot image logic
         let img_html = if let Some(enr) = enrichment {
             if let Some(base64) = &enr.screenshot_base64 {
-                 format!(
+                format!(
                     r#"<div class="relative h-40 w-full bg-zinc-900 rounded-lg overflow-hidden border border-zinc-700 mb-3 group-hover:border-orange-500/50 transition-colors">
                         <img src="{}" class="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500" />
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
@@ -2036,7 +2464,7 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
                 </div>"#.to_string()
             }
         } else if let Some(url) = &ticket.screenshot_url {
-             format!(
+            format!(
                 r#"<div class="relative h-40 w-full bg-zinc-900 rounded-lg overflow-hidden border border-zinc-700 mb-3">
                     <img src="{}" class="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500" />
                     <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
@@ -2060,9 +2488,17 @@ fn render_incident_story_slide(data: &PocReportData, dict: &Box<dyn Dictionary>)
         };
 
         // Format date
-        let display_date = ticket.incident_date.as_ref()
+        let display_date = ticket
+            .incident_date
+            .as_ref()
             .or(ticket.open_date.as_ref())
-            .map(|d| if d.len() >= 10 { format!("{}/{}/{}", &d[8..10], &d[5..7], &d[0..4]) } else { d.clone() })
+            .map(|d| {
+                if d.len() >= 10 {
+                    format!("{}/{}/{}", &d[8..10], &d[5..7], &d[0..4])
+                } else {
+                    d.clone()
+                }
+            })
             .unwrap_or_else(|| "N/A".to_string());
 
         cards_html.push_str(&format!(
@@ -2654,12 +3090,12 @@ fn render_deep_investigation_slide(data: &PocReportData, _dict: &dyn Dictionary)
 
 fn render_credential_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) -> String {
     let mut rows = String::new();
-    
+
     // Create rows for table
     for cred in data.credential_exposures.iter().take(8) {
         let user = cred.user.as_deref().unwrap_or("N/A");
         let source_date = cred.leak_date.clone().unwrap_or_else(|| "N/A".to_string());
-        
+
         let leak_name = cred.leak_name.clone().unwrap_or_default();
         let short_leak = if leak_name.len() > 30 {
             format!("{}...", &leak_name[0..27])
@@ -2667,7 +3103,11 @@ fn render_credential_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) ->
             leak_name
         };
 
-        let url = cred.access_url.as_deref().or(cred.access_domain.as_deref()).unwrap_or("-");
+        let url = cred
+            .access_url
+            .as_deref()
+            .or(cred.access_domain.as_deref())
+            .unwrap_or("-");
         let short_url = if url.len() > 40 {
             format!("{}...", &url[0..37])
         } else {
@@ -2696,7 +3136,7 @@ fn render_credential_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) ->
     let count = data.credential_exposures.len();
     if count < 8 {
         for _ in 0..(8 - count) {
-             rows.push_str(r#"<tr class="border-b border-zinc-900/50 text-sm"><td class="py-3 pl-4">&nbsp;</td><td></td><td></td><td></td></tr>"#);
+            rows.push_str(r#"<tr class="border-b border-zinc-900/50 text-sm"><td class="py-3 pl-4">&nbsp;</td><td></td><td></td><td></td></tr>"#);
         }
     }
 
@@ -2746,8 +3186,7 @@ fn render_credential_slide(data: &PocReportData, _dict: &Box<dyn Dictionary>) ->
                  <span>SENSITIVE DATA - DO NOT DISTRIBUTE</span>
             </div>
         </div></div>"#,
-        count,
-        rows
+        count, rows
     )
 }
 
@@ -2999,9 +3438,13 @@ fn country_to_flag(country: &str) -> String {
         // Fallback: try to convert 2-letter code
         _ => {
             if country.len() == 2 && country.chars().all(|c| c.is_alphabetic()) {
-                country.chars()
+                country
+                    .chars()
                     .filter(|c| c.is_alphabetic())
-                    .map(|c| char::from_u32(0x1F1E6 + c.to_ascii_uppercase() as u32 - 'A' as u32).unwrap_or('🏳'))
+                    .map(|c| {
+                        char::from_u32(0x1F1E6 + c.to_ascii_uppercase() as u32 - 'A' as u32)
+                            .unwrap_or('🏳')
+                    })
                     .collect()
             } else {
                 "🌐".to_string()
@@ -3484,7 +3927,7 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
                     }
                 }
             } else if let Ok(dt) = DateTime::parse_from_rfc2822(date_str) {
-                 // Fallback for other formats if any
+                // Fallback for other formats if any
                 let hour = dt.hour() as usize;
                 if hour < 24 {
                     hour_counts[hour] += 1;
@@ -3503,7 +3946,7 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
     } else {
         35 // Fallback default
     };
-    
+
     // Generate simple colors for the chart: Off-hours = RED, Business = Gray
     let mut background_colors = Vec::new();
     for h in 0..24 {
@@ -3514,7 +3957,12 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
         }
     }
 
-    let json_labels = serde_json::to_string(&(0..24).map(|h| format!("{:02}h", h)).collect::<Vec<String>>()).unwrap_or_default();
+    let json_labels = serde_json::to_string(
+        &(0..24)
+            .map(|h| format!("{:02}h", h))
+            .collect::<Vec<String>>(),
+    )
+    .unwrap_or_default();
     let json_data = serde_json::to_string(&hour_counts).unwrap_or_default();
     let json_colors = serde_json::to_string(&background_colors).unwrap_or_default();
 
@@ -3582,36 +4030,53 @@ fn render_timeline_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
         // ... (existing mapped args)
         title = dict.narrative_timeline_title(),
         text = dict.narrative_timeline_text(percent_off_hours),
-        labels = (0..24).map(|h| format!("\"{:02}h\"", h)).collect::<Vec<_>>().join(","),
-        data = hour_counts.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(","),
-        colors = background_colors.iter().map(|c| format!("\"{}\"", c)).collect::<Vec<_>>().join(","),
+        labels = (0..24)
+            .map(|h| format!("\"{:02}h\"", h))
+            .collect::<Vec<_>>()
+            .join(","),
+        data = hour_counts
+            .iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        colors = background_colors
+            .iter()
+            .map(|c| format!("\"{}\"", c))
+            .collect::<Vec<_>>()
+            .join(","),
         off_percent = percent_off_hours,
         business_percent = 100 - percent_off_hours,
     )
 }
 
 fn render_virality_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> String {
-    let viral_count = data.threat_intelligence.chat_group_shares + data.threat_intelligence.dark_web_mentions;
-    
+    let viral_count =
+        data.threat_intelligence.chat_group_shares + data.threat_intelligence.dark_web_mentions;
+
     // Choose Primary or Fallback
     let (pain, solution) = if viral_count > 0 {
         let source_count = if !data.threat_intelligence.dark_web_sources.is_empty() {
-             data.threat_intelligence.dark_web_sources.len() 
-        } else { 1 };
-        
+            data.threat_intelligence.dark_web_sources.len()
+        } else {
+            1
+        };
+
         // Safely extract top source
-        let top_source = data.threat_intelligence.dark_web_sources.first()
+        let top_source = data
+            .threat_intelligence
+            .dark_web_sources
+            .first()
             .map(|s| s.as_str())
             .unwrap_or("Telegram Fraud Groups");
-            
+
         (
             dict.narrative_virality_pain_primary(viral_count, source_count, top_source),
-            dict.narrative_virality_solution_primary()
+            dict.narrative_virality_solution_primary(),
         )
     } else {
         (
             dict.narrative_virality_pain_fallback(),
-            dict.narrative_virality_solution_fallback()
+            dict.narrative_virality_solution_fallback(),
         )
     };
 
@@ -3620,14 +4085,18 @@ fn render_virality_slide(data: &PocReportData, dict: &Box<dyn Dictionary>) -> St
         pain,
         solution,
         "virality",
-        dict
+        dict,
     )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::report::{PocReportData, ThreatTypeCount, ResolvedTakedown, RoiMetrics, DeepAnalyticsData, ThreatIntelligence, NameValuePair, CredentialLeaksSummary, TakedownExample, PocEvidence, IncidentTypeCount, StoryTicket, IncidentExample, CredentialExposure};
+    use crate::api::report::{
+        CredentialExposure, CredentialLeaksSummary, DeepAnalyticsData, IncidentExample,
+        IncidentTypeCount, NameValuePair, PocEvidence, PocReportData, ResolvedTakedown, RoiMetrics,
+        StoryTicket, TakedownExample, ThreatIntelligence, ThreatTypeCount,
+    };
     use crate::i18n::Language;
     use std::fs::File;
     use std::io::Write;
@@ -3635,7 +4104,7 @@ mod tests {
     #[test]
     fn test_generate_report_html_output() {
         let dict = crate::i18n::get_dictionary(Language::En);
-        
+
         let data = PocReportData {
             company_name: "Test Company".to_string(),
             start_date: "2023-01-01".to_string(),
@@ -3643,37 +4112,37 @@ mod tests {
             is_dynamic_window: false,
             partner_name: None,
             tlp_level: "AMBER".to_string(),
-            
+
             // Fix: Add missing risk_score field
             risk_score: crate::api::report::RiskScore::default(),
-            
+
             brands_count: 5,
             brands: vec!["TestBrand".to_string()],
             executives_count: 2,
             ips_count: 10,
             bins_count: 20,
             domains_count: 50,
-            
+
             threat_hunting_credits: 100,
             threat_intelligence_assets: 10,
-            
+
             total_tickets: 1000,
             total_incidents: 100,
             total_threats: 500,
             validation_hours: 10.0,
-            
+
             credentials_total: 30,
             unique_hosts: 5,
             high_risk_users: 2,
             malware_breakdown: vec![],
             top_services: vec![],
-            
+
             secrets_total: 15,
             unique_repos: 3,
             production_secrets: 1,
             platform_breakdown: vec![],
             secret_types: vec![],
-            
+
             credential_leaks_summary: CredentialLeaksSummary {
                 total_credentials: 100,
                 unique_emails: 50,
@@ -3683,10 +4152,12 @@ mod tests {
                 top_affected_domains: vec![],
             },
 
-            incidents_by_type: vec![
-                 IncidentTypeCount { incident_type: "Phishing".to_string(), detections: 200, incidents: 25 },
-            ],
-            
+            incidents_by_type: vec![IncidentTypeCount {
+                incident_type: "Phishing".to_string(),
+                detections: 200,
+                incidents: 25,
+            }],
+
             takedown_resolved: 40,
             takedown_pending: 5,
             takedown_aborted: 2,
@@ -3695,76 +4166,162 @@ mod tests {
             takedown_median_time_to_notify: "10 min".to_string(),
             takedown_median_uptime: "2 hrs".to_string(),
             takedowns_by_type: vec![],
-            
+
             threats_by_type: vec![
-                ThreatTypeCount { threat_type: "phishing".to_string(), count: 200 },
-                ThreatTypeCount { threat_type: "infostealer-credential".to_string(), count: 100 },
+                ThreatTypeCount {
+                    threat_type: "phishing".to_string(),
+                    count: 200,
+                },
+                ThreatTypeCount {
+                    threat_type: "infostealer-credential".to_string(),
+                    count: 100,
+                },
             ],
-            
-            poc_examples: vec![
-                 PocEvidence {
-                    ticket_key: "POC-123".to_string(),
-                    evidence_type: "Phishing".to_string(),
-                    reference_url: "http://example.com".to_string(),
-                    domain: Some("malicious.com".to_string()),
-                    status: "incident".to_string(),
-                    screenshot_url: Some("http://example.com/poc.png".to_string()),
-                    ip: None,
-                    isp: None,
-                    reported_date: None,
-                    risk_score: Some(0.78),
-                    brand_confidence: Some(0.65),
-                    detection_minutes: Some(4),
-                    has_login_form: Some(true),
-                }
-            ],
-            
+
+            poc_examples: vec![PocEvidence {
+                ticket_key: "POC-123".to_string(),
+                evidence_type: "Phishing".to_string(),
+                reference_url: "http://example.com".to_string(),
+                domain: Some("malicious.com".to_string()),
+                status: "incident".to_string(),
+                screenshot_url: Some("http://example.com/poc.png".to_string()),
+                ip: None,
+                isp: None,
+                reported_date: None,
+                risk_score: Some(0.78),
+                brand_confidence: Some(0.65),
+                detection_minutes: Some(4),
+                has_login_form: Some(true),
+            }],
+
             takedown_examples: vec![],
 
             resolved_takedowns: vec![
                 ResolvedTakedown {
-                    ticket_key: "TK-1".to_string(), name: "US Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Google".to_string(), ip: "1.1.1.1".to_string(), country: "USA".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Google".to_string()),
+                    ticket_key: "TK-1".to_string(),
+                    name: "US Takedown".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "Google".to_string(),
+                    ip: "1.1.1.1".to_string(),
+                    country: "USA".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("Google".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-2".to_string(), name: "BR Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Locaweb".to_string(), ip: "2.2.2.2".to_string(), country: "Brazil".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Locaweb".to_string()),
+                    ticket_key: "TK-2".to_string(),
+                    name: "BR Takedown".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "Locaweb".to_string(),
+                    ip: "2.2.2.2".to_string(),
+                    country: "Brazil".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("Locaweb".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-3".to_string(), name: "CN Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Alibaba".to_string(), ip: "3.3.3.3".to_string(), country: "China".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Alibaba".to_string()),
+                    ticket_key: "TK-3".to_string(),
+                    name: "CN Takedown".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "Alibaba".to_string(),
+                    ip: "3.3.3.3".to_string(),
+                    country: "China".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("Alibaba".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-4".to_string(), name: "RU Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Yandex".to_string(), ip: "4.4.4.4".to_string(), country: "Russia".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Yandex".to_string()),
+                    ticket_key: "TK-4".to_string(),
+                    name: "RU Takedown".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "Yandex".to_string(),
+                    ip: "4.4.4.4".to_string(),
+                    country: "Russia".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("Yandex".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-5".to_string(), name: "DE Takedown".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "Hetzner".to_string(), ip: "5.5.5.5".to_string(), country: "Germany".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("Hetzner".to_string()),
+                    ticket_key: "TK-5".to_string(),
+                    name: "DE Takedown".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "Hetzner".to_string(),
+                    ip: "5.5.5.5".to_string(),
+                    country: "Germany".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("Hetzner".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-6".to_string(), name: "BR Takedown 2".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "UOL".to_string(), ip: "6.6.6.6".to_string(), country: "Brasil".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("UOL".to_string()),
+                    ticket_key: "TK-6".to_string(),
+                    name: "BR Takedown 2".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "UOL".to_string(),
+                    ip: "6.6.6.6".to_string(),
+                    country: "Brasil".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("UOL".to_string()),
                 },
                 ResolvedTakedown {
-                    ticket_key: "TK-7".to_string(), name: "US Takedown 2".to_string(), ticket_type: "phishing".to_string(), status: "resolved".to_string(), host: "AWS".to_string(), ip: "7.7.7.7".to_string(), country: "USA".to_string(), request_date: None, resolution_date: None, url: "".to_string(), screenshot_url: None, registrar: None, isp: Some("AWS".to_string()),
+                    ticket_key: "TK-7".to_string(),
+                    name: "US Takedown 2".to_string(),
+                    ticket_type: "phishing".to_string(),
+                    status: "resolved".to_string(),
+                    host: "AWS".to_string(),
+                    ip: "7.7.7.7".to_string(),
+                    country: "USA".to_string(),
+                    request_date: None,
+                    resolution_date: None,
+                    url: "".to_string(),
+                    screenshot_url: None,
+                    registrar: None,
+                    isp: Some("AWS".to_string()),
                 },
             ],
-            
-            latest_incidents: vec![
-                IncidentExample {
-                     ticket_key: "INC-123".to_string(),
-                     name: "Test Incident".to_string(),
-                     ticket_type: "Phishing".to_string(),
-                     status: "active".to_string(),
-                     open_date: Some("2023-01-01".to_string()),
-                     incident_date: Some("2023-01-01".to_string()),
-                     host: "Cloudflare".to_string(),
-                     ip: "1.1.1.1".to_string(),
-                     isp: "Cloudflare".to_string(),
-                     url: "http://fake-login.com".to_string(),
-                     country: "USA".to_string(),
-                     registrar: None,
-                     screenshot_url: None,
-                }
-            ],
-            
+
+            latest_incidents: vec![IncidentExample {
+                ticket_key: "INC-123".to_string(),
+                name: "Test Incident".to_string(),
+                ticket_type: "Phishing".to_string(),
+                status: "active".to_string(),
+                open_date: Some("2023-01-01".to_string()),
+                incident_date: Some("2023-01-01".to_string()),
+                host: "Cloudflare".to_string(),
+                ip: "1.1.1.1".to_string(),
+                isp: "Cloudflare".to_string(),
+                url: "http://fake-login.com".to_string(),
+                country: "USA".to_string(),
+                registrar: None,
+                screenshot_url: None,
+            }],
+
             deep_analytics: DeepAnalyticsData::default(),
-            
+
             roi_metrics: RoiMetrics {
                 hours_saved_total: 100.0,
                 person_days_saved: 12.5,
@@ -3816,9 +4373,9 @@ mod tests {
                     ip: None,
                     time_to_incident_hours: None,
                     incident_age_hours: None,
-                }
+                },
             ],
-            
+
             threat_intelligence: ThreatIntelligence::default(),
             deep_investigations: vec![],
             credential_exposures: vec![],
@@ -3833,19 +4390,21 @@ mod tests {
                     user: Some("finance@corporate.com".to_string()),
                     password: Some("CorporatePass123".to_string()),
                     ..Default::default()
-                }
+                },
             ],
             // Comparison data for comparative analysis
             comparison: None,
         };
-        
+
         let html = generate_full_report_html(&data, None, None, &dict);
-        
+
         // Write to a file in a location we can access
         // Use an absolute path to avoid confusion about CWD
-        let path = "c:/Users/maiso/.gemini/antigravity/workspace/axur-web/crates/core/debug_report.html";
+        let path =
+            "c:/Users/maiso/.gemini/antigravity/workspace/axur-web/crates/core/debug_report.html";
         let mut file = File::create(path).expect("Could not create debug file");
-        file.write_all(html.as_bytes()).expect("Could not write to file");
+        file.write_all(html.as_bytes())
+            .expect("Could not write to file");
     }
 }
 
@@ -3859,12 +4418,24 @@ fn inject_report_data(json: &str, data: &PocReportData) -> String {
         .replace("{{date}}", &data.end_date)
         .replace("{{total_incidents}}", &data.total_threats.to_string())
         .replace("{{total_takedowns}}", &data.takedown_resolved.to_string())
-        .replace("{{avg_takedown_time}}", &format!("{}h", data.deep_analytics.avg_takedown_time_hours.unwrap_or(0.0)))
+        .replace(
+            "{{avg_takedown_time}}",
+            &format!(
+                "{}h",
+                data.deep_analytics.avg_takedown_time_hours.unwrap_or(0.0)
+            ),
+        )
         .replace("{{risk_score}}", &format!("{:.1}", data.risk_score.current))
         // Executive Summary Metrics
         .replace("{{signals}}", &data.total_tickets.to_string())
         .replace("{{incidents}}", &data.total_threats.to_string())
-        .replace("{{threats}}", &data.total_threats.saturating_sub(data.takedown_resolved).to_string())
+        .replace(
+            "{{threats}}",
+            &data
+                .total_threats
+                .saturating_sub(data.takedown_resolved)
+                .to_string(),
+        )
         .replace("{{credentials}}", &data.credentials_total.to_string())
         .replace("{{takedowns}}", &data.takedown_resolved.to_string())
         .replace("{{code_leaks}}", &data.secrets_total.to_string());

@@ -108,9 +108,7 @@ impl SlidePlugin for TocSlidePlugin {
             r#"<div class="relative group">
                 <div class="printable-slide aspect-[16/9] w-full flex shadow-lg mb-8 relative text-white overflow-hidden">
                     <!-- Background: Global Gradient + Pattern -->
-                    <div class="absolute inset-0 z-0">
-                        <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle, #3f3f46 1px, transparent 1px); background-size: 32px 32px;"></div>
-                    </div>
+                    {bg_pattern}
 
                     <!-- Content Section -->
                     <div class="w-7/12 p-14 flex flex-col z-10 pl-20">
@@ -141,7 +139,7 @@ impl SlidePlugin for TocSlidePlugin {
                         <div class="absolute bottom-20 left-10 right-10 text-right">
                             <p class="text-3xl font-thin italic text-white/90 leading-tight display-text">"La visibilidad es el<br>primer paso hacia<br>la seguridad."</p>
                             <div class="flex justify-end mt-6">
-                                <div class="w-12 h-1 bg-[#FF5824] shadow-[0_0_15px_#FF5824]"></div>
+                                <div class="w-12 h-1 bg-[#FF671F] shadow-[0_0_15px_#FF671F]"></div>
                             </div>
                         </div>
                     </div>
@@ -151,6 +149,7 @@ impl SlidePlugin for TocSlidePlugin {
                 </div>
             </div>"#,
             title = t.get("toc_title"),
+            bg_pattern = crate::plugins::builtin::helpers::geometric_pattern(),
             items = items_html,
             image = TOC_IMAGE_BASE64.trim(),
             footer = footer_light(4, &t.get("footer_text")),

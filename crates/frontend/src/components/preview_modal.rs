@@ -3,8 +3,7 @@
 use leptos::*;
 
 /// Props for the preview modal
-#[derive(Clone)]
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct PreviewData {
     pub signal_lake_count: u64,
     pub credential_count: u64,
@@ -14,7 +13,6 @@ pub struct PreviewData {
     pub estimated_credits: u64,
     pub tickets_count: usize,
 }
-
 
 /// Streaming progress state
 #[derive(Clone, Default)]

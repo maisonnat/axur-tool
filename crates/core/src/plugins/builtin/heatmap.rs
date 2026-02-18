@@ -106,7 +106,7 @@ impl SlidePlugin for HeatmapSlidePlugin {
 <div class="h-full flex flex-col">
   <!-- Header -->
   <div class="mb-4">
-    <span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">PATRONES</span>
+    <span class="bg-[#FF671F] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">PATRONES</span>
   </div>
   <h2 class="text-4xl font-black mb-2 uppercase tracking-tight">{title}</h2>
   <p class="text-lg text-zinc-400 mb-6 max-w-4xl">{desc}</p>
@@ -183,7 +183,7 @@ impl HeatmapSlidePlugin {
         format!(
             r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center">
 <div class="flex items-center font-black tracking-wider select-none text-white h-5">
-  <span class="text-[#FF4B00] text-2xl -mr-1">///</span>
+  <span class="text-[#FF671F] text-2xl -mr-1">///</span>
   <span class="text-xl">AXUR</span>
 </div>
 <div class="flex items-center text-xs text-zinc-500">

@@ -1087,14 +1087,14 @@ where
         ("📋 General", vec![
             ("company_name", "Nombre de Empresa", "<span style='font-size:32px;font-weight:bold;color:white;'>Banco Ejemplo S.A.</span>"),
             ("partner_name", "Nombre de Partner", "<span style='font-size:18px;color:#a1a1aa;'>MSSP Security Partner</span>"),
-            ("tlp_level", "Nivel TLP", "<span style='background:#FF4B00;color:white;padding:4px 12px;font-weight:bold;'>AMBER</span>"),
+            ("tlp_level", "Nivel TLP", "<span style='background:#FF671F;color:white;padding:4px 12px;font-weight:bold;'>AMBER</span>"),
             ("date_range", "Rango de Fechas", "<span style='font-size:18px;color:#a1a1aa;'>Ene 2025 - Mar 2025</span>"),
             ("start_date", "Fecha Inicio", "<span style='color:#a1a1aa;'>01 Ene 2025</span>"),
             ("end_date", "Fecha Fin", "<span style='color:#a1a1aa;'>31 Mar 2025</span>"),
         ]),
         // Métricas
         ("📊 Métricas", vec![
-            ("total_tickets", "Total Tickets", "<div style='text-align:center;'><span style='font-size:72px;font-weight:900;color:#FF4B00;text-shadow:0 0 30px rgba(255,75,0,0.5);'>1,247</span><div style='color:#71717a;font-size:14px;text-transform:uppercase;'>Amenazas procesadas</div></div>"),
+            ("total_tickets", "Total Tickets", "<div style='text-align:center;'><span style='font-size:72px;font-weight:900;color:#FF671F;text-shadow:0 0 30px rgba(255,75,0,0.5);'>1,247</span><div style='color:#71717a;font-size:14px;text-transform:uppercase;'>Amenazas procesadas</div></div>"),
             ("total_threats", "Total Amenazas", "<span style='font-size:48px;font-weight:bold;color:white;'>892</span>"),
             ("hours_saved", "Horas Ahorradas", "<div><span style='font-size:48px;font-weight:bold;color:white;'>312</span><span style='font-size:24px;color:#a1a1aa;'>h</span></div>"),
             ("analysts_equivalent", "FTE Equivalente", "<span style='font-size:36px;font-weight:bold;color:#22C55E;'>1.9</span>"),
@@ -1102,11 +1102,11 @@ where
         ]),
         // Amenazas
         ("🎯 Amenazas", vec![
-            ("threats_by_type", "Distribución por Tipo", "<div style='background:#18181b;padding:16px;border-radius:8px;'><div style='display:flex;align-items:center;gap:8px;margin-bottom:8px;'><span style='color:#a1a1aa;width:100px;'>Phishing</span><div style='flex:1;height:24px;background:#27272a;border-radius:4px;overflow:hidden;'><div style='width:78%;height:100%;background:#FF5824;'></div></div><span style='color:#FF5824;font-weight:bold;'>312</span></div></div>"),
+            ("threats_by_type", "Distribución por Tipo", "<div style='background:#18181b;padding:16px;border-radius:8px;'><div style='display:flex;align-items:center;gap:8px;margin-bottom:8px;'><span style='color:#a1a1aa;width:100px;'>Phishing</span><div style='flex:1;height:24px;background:#27272a;border-radius:4px;overflow:hidden;'><div style='width:78%;height:100%;background:#FF671F;'></div></div><span style='color:#FF671F;font-weight:bold;'>312</span></div></div>"),
             ("top_threat_1_name", "Top Amenaza #1", "<span style='font-size:18px;color:white;'>Phishing</span>"),
-            ("top_threat_1_count", "Top #1 Cantidad", "<span style='font-size:36px;font-weight:bold;color:#FF5824;'>312</span>"),
+            ("top_threat_1_count", "Top #1 Cantidad", "<span style='font-size:36px;font-weight:bold;color:#FF671F;'>312</span>"),
             ("top_threat_2_name", "Top Amenaza #2", "<span style='font-size:18px;color:white;'>Fake Mobile App</span>"),
-            ("top_threat_2_count", "Top #2 Cantidad", "<span style='font-size:36px;font-weight:bold;color:#FF5824;'>156</span>"),
+            ("top_threat_2_count", "Top #2 Cantidad", "<span style='font-size:36px;font-weight:bold;color:#FF671F;'>156</span>"),
         ]),
         // Credenciales
         ("🔐 Credenciales", vec![
@@ -1118,7 +1118,7 @@ where
         ]),
         // Takedowns
         ("✅ Takedowns", vec![
-            ("takedown_total", "Total Takedowns", "<div style='text-align:center;'><span style='font-size:64px;font-weight:900;color:#FF5824;'>423</span></div>"),
+            ("takedown_total", "Total Takedowns", "<div style='text-align:center;'><span style='font-size:64px;font-weight:900;color:#FF671F;'>423</span></div>"),
             ("takedown_resolved", "Resueltos", "<span style='font-size:48px;font-weight:bold;color:#22C55E;'>367</span>"),
             ("takedown_pending", "En Progreso", "<span style='font-size:36px;font-weight:bold;color:#F59E0B;'>38</span>"),
             ("takedown_success_rate", "Tasa de Éxito", "<div style='text-align:center;'><span style='font-size:56px;font-weight:900;color:#22C55E;'>87.5%</span></div>"),
@@ -1126,9 +1126,9 @@ where
         ]),
         // ROI
         ("💰 ROI", vec![
-            ("roi_hours_total", "Horas Ahorradas Total", "<div><span style='font-size:56px;font-weight:900;color:#FF5824;'>312</span><span style='font-size:24px;color:#a1a1aa;margin-left:8px;'>horas</span></div>"),
-            ("roi_person_days", "Person-Days Ahorrados", "<div><span style='font-size:48px;font-weight:bold;color:#FF5824;'>39</span><span style='font-size:18px;color:#a1a1aa;margin-left:8px;'>person-days</span></div>"),
-            ("roi_analysts_monthly", "Analistas Equivalente", "<span style='font-size:48px;font-weight:bold;color:#FF5824;'>1.9</span>"),
+            ("roi_hours_total", "Horas Ahorradas Total", "<div><span style='font-size:56px;font-weight:900;color:#FF671F;'>312</span><span style='font-size:24px;color:#a1a1aa;margin-left:8px;'>horas</span></div>"),
+            ("roi_person_days", "Person-Days Ahorrados", "<div><span style='font-size:48px;font-weight:bold;color:#FF671F;'>39</span><span style='font-size:18px;color:#a1a1aa;margin-left:8px;'>person-days</span></div>"),
+            ("roi_analysts_monthly", "Analistas Equivalente", "<span style='font-size:48px;font-weight:bold;color:#FF671F;'>1.9</span>"),
         ]),
         // Risk Score
         ("⚠️ Risk Score", vec![

@@ -123,7 +123,7 @@ impl IndustryTemplate {
     /// Primary accent color (hex)
     pub fn accent_color(&self) -> &'static str {
         match self {
-            Self::General => "#FF5824",    // Axur orange
+            Self::General => "#FF671F",    // Axur orange
             Self::Fintech => "#10B981",    // Emerald green (trust/money)
             Self::Retail => "#8B5CF6",     // Purple (brand)
             Self::Healthcare => "#0EA5E9", // Blue (medical)

@@ -1,6 +1,10 @@
-//! Takedowns Slide Plugin
+//! Takedowns Slide Plugin — ACT 4: The Guide Resolves (Action)
 //!
-//! Displays takedown statistics and status with Axur.com dark theme aesthetics.
+//! Narrative Role: After showing the impact/savings (metrics.rs), this slide
+//! proves Axur is ACTIVELY eliminating threats. The hero sees the guide in action.
+//!
+//! Persuasion: Social Proof (success rate) + Quick Win (Day 1 Impact badge)
+//! Design: Dual-column with KPIs + progress bars, green success emphasis
 
 use super::helpers::{footer_dark, format_number};
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
@@ -51,11 +55,21 @@ impl SlidePlugin for TakedownsSlidePlugin {
         let aborted_pct = calc_pct(data.takedown_aborted);
         let unresolved_pct = calc_pct(data.takedown_unresolved);
 
-        // Translations
-        let title = t.get("takedowns_title");
+        // Header
+        let header = crate::plugins::builtin::theme::section_header_premium(
+            "ELIMINACIÓN DE RIESGOS",
+            "Protección Activa de Marca",
+            Some("Axur eliminó amenazas activas en nombre de su organización. Cada takedown representa un riesgo que ya no existe.")
+        );
+
+        // Teaser
+        let next_teaser = crate::plugins::builtin::theme::next_chapter_teaser(
+            "Siguiente Capítulo",
+            "Próximos Pasos",
+        );
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative bg-zinc-950 text-white overflow-hidden">
                 <!-- Background -->
                 {bg}
                 
@@ -65,7 +79,7 @@ impl SlidePlugin for TakedownsSlidePlugin {
                 <div class="grid grid-cols-2 gap-12 flex-grow mt-4">
                     <!-- Left Column: KPIs (Time & Efficiency) -->
                     <div class="flex flex-col gap-6">
-                        <h3 class="text-xl font-bold text-white mb-2 border-b border-zinc-800 pb-2">EFICIENCIA OPERATIVA</h3>
+                        <h3 class="text-xs font-bold text-zinc-500 mb-2 uppercase tracking-widest border-b border-zinc-900 pb-2">Eficiencia Operativa</h3>
                         
                         <!-- Total Volume -->
                         {card_total}
@@ -82,52 +96,42 @@ impl SlidePlugin for TakedownsSlidePlugin {
                     
                     <!-- Right Column: Status Breakdown -->
                     <div class="flex flex-col gap-6">
-                        <h3 class="text-xl font-bold text-white mb-2 border-b border-zinc-800 pb-2">{status_title}</h3>
+                        <h3 class="text-xs font-bold text-zinc-500 mb-2 uppercase tracking-widest border-b border-zinc-900 pb-2">{status_title}</h3>
                         
-                        <div class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 backdrop-blur-sm space-y-6">
+                        <div class="bg-zinc-900/50 p-8 rounded-3xl border border-zinc-800 backdrop-blur-sm space-y-8 h-full flex flex-col justify-center">
                             <!-- Resolved (Green) -->
                             {progress_resolved}
                             
-                            <!-- Pending (Blue/Orange -> We use Orange for 'In Progress') -->
+                            <!-- Pending (Orange) -->
                             {progress_pending}
                             
-                            <!-- Aborted (Gray/Red -> We use generic or specific color if avail? Using Blue/Generic for now or Orange) -->
-                            <!-- Note: theme::progress_bar_colored supports orange, blue, green. -->
-                            <!-- Pending -> Orange (Attention) -->
-                            <!-- Aborted -> Blue (Neutral/Info) -->
+                            <!-- Aborted (Blue) -->
                             {progress_aborted}
                             
-                            <!-- Unresolved (Blue) -->
+                            <!-- Unresolved (Gray) -->
                             {progress_unresolved}
-                        </div>
-
-                        <!-- Summary Note -->
-                        <div class="p-4 rounded-lg bg-emerald-900/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium text-center">
-                            {rate:.1}% Tasa de Éxito Global
                         </div>
                     </div>
                 </div>
+
+                <!-- Open Loop -->
+                {next_teaser}
 
                 <!-- Footer -->
                 {footer}
             </div></div>"#,
             bg = crate::plugins::builtin::helpers::geometric_pattern(),
-            // FRICTION MINIMIZATION: Emphasize "Elimination" over "Takedowns"
-            header = crate::plugins::builtin::theme::section_header(
-                "ELIMINACIÓN DE RIESGOS",
-                "Protección Activa de Marca"
-            ),
+            header = header,
             // Left Column
-            card_total = crate::plugins::builtin::theme::stat_card_glow(
+            card_total = crate::plugins::builtin::theme::stat_card_hero(
                 &format_number(total_takedowns),
                 &t.get("takedowns_requested"),
-                true
+                None // Added missing sublabel
             ),
-            card_success = crate::plugins::builtin::theme::stat_card_large(
+            card_success = crate::plugins::builtin::theme::stat_card_success(
                 &format!("{:.1}%", data.takedown_success_rate),
                 "Tasa de Éxito",
-                // QUICK WIN: Green badge for immediate impact
-                Some("<span class='text-green-400 font-bold'>Day 1 Impact</span>")
+                None // Added missing sublabel
             ),
             card_uptime = crate::plugins::builtin::theme::stat_card_large(
                 &data.takedown_median_uptime,
@@ -171,9 +175,9 @@ impl SlidePlugin for TakedownsSlidePlugin {
                     t.get("takedowns_not_solved"),
                     data.takedown_unresolved
                 )),
-                "blue"
+                "gray"
             ),
-            rate = data.takedown_success_rate,
+            next_teaser = next_teaser,
             footer = footer_dark(11, &t.get("footer_text")),
         );
 

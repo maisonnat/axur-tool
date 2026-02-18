@@ -6,10 +6,10 @@
 /// Brand colors based on Axur.com analysis
 pub mod colors {
     /// Electric Orange - Primary brand color (from axur.com)
-    pub const ORANGE: &str = "#FF5824";
-    pub const ORANGE_LIGHT: &str = "#FF7A4D";
-    pub const ORANGE_DARK: &str = "#D94000";
-    pub const ORANGE_GLOW: &str = "rgba(255, 88, 36, 0.4)";
+    pub const ORANGE: &str = "#FF671F";
+    pub const ORANGE_LIGHT: &str = "#FF8A4C";
+    pub const ORANGE_DARK: &str = "#E55A1B";
+    pub const ORANGE_GLOW: &str = "rgba(255, 103, 31, 0.4)";
 
     /// Dark theme backgrounds (from axur.com)
     pub const BLACK: &str = "#000000";
@@ -52,7 +52,7 @@ pub fn axur_logo_styled(size: &str) -> String {
 
     format!(
         r#"<div class="flex items-center font-black tracking-wider select-none inter-font">
-            <span class="{slash_size} text-[#FF5824] -mr-1">///</span>
+            <span class="{slash_size} text-[#FF671F] -mr-1">///</span>
             <span class="{text_size}">AXUR</span>
         </div>"#,
         slash_size = slash_size,
@@ -170,7 +170,7 @@ pub fn progress_bar_colored(percentage: f64, label: Option<&str>, color: &str) -
     let (gradient, shadow_color) = match color {
         "blue" => ("from-blue-500 to-blue-400", "rgba(59, 130, 246, 0.3)"),
         "green" => ("from-[#22C55E] to-emerald-400", "rgba(34, 197, 94, 0.3)"),
-        _ => ("from-[#FF5824] to-[#FF7A4D]", "rgba(255, 88, 36, 0.3)"),
+        _ => ("from-[#FF671F] to-[#FF8A4C]", "rgba(255, 103, 31, 0.3)"),
     };
 
     format!(
@@ -185,5 +185,179 @@ pub fn progress_bar_colored(percentage: f64, label: Option<&str>, color: &str) -
         percentage.min(100.0),
         shadow_color,
         label_html
+    )
+}
+
+// ============================================
+// PHASE 2: PREMIUM COMPONENT FUNCTIONS
+// ============================================
+
+/// Hero stat card — massive glowing number with shimmer for highest-impact metrics
+pub fn stat_card_hero(value: &str, label: &str, sublabel: Option<&str>) -> String {
+    let sublabel_html = sublabel
+        .map(|s| format!(r#"<p class="metric-context mt-3">{}</p>"#, s))
+        .unwrap_or_default();
+    format!(
+        r#"<div class="glass-panel-premium p-10 flex flex-col justify-center relative overflow-hidden group">
+            <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-purple-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <div class="bg-orb-orange w-40 h-40 -top-10 -right-10"></div>
+            <p class="hero-number shimmer-text relative z-10">{value}</p>
+            <div class="accent-line w-24 relative z-10"></div>
+            <p class="label-text text-[#FF671F] mt-3 relative z-10">{label}</p>
+            {sublabel}
+        </div>"#,
+        value = value,
+        label = label,
+        sublabel = sublabel_html,
+    )
+}
+
+/// Hero XL stat card — even larger number for single dominant metrics (cover, ROI)
+pub fn stat_card_hero_xl(value: &str, label: &str) -> String {
+    format!(
+        r#"<div class="glass-panel-premium p-12 flex flex-col justify-center items-center text-center relative overflow-hidden">
+            <div class="bg-orb-orange w-60 h-60 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="position:absolute;"></div>
+            <p class="hero-number-xl shimmer-text relative z-10">{value}</p>
+            <div class="accent-line w-32 mx-auto relative z-10"></div>
+            <p class="label-text text-[#FF671F] mt-4 relative z-10 text-center">{label}</p>
+        </div>"#,
+        value = value,
+        label = label,
+    )
+}
+
+/// Critical severity stat card — red-pulsing for urgent/dangerous data
+pub fn stat_card_critical(value: &str, label: &str, sublabel: Option<&str>) -> String {
+    let sublabel_html = sublabel
+        .map(|s| format!(r#"<p class="metric-context mt-2">{}</p>"#, s))
+        .unwrap_or_default();
+    format!(
+        r#"<div class="card-critical p-8 flex flex-col justify-center relative overflow-hidden">
+            <div class="bg-orb-red w-32 h-32 -top-8 -right-8" style="position:absolute;"></div>
+            <p class="hero-number-red relative z-10">{value}</p>
+            <p class="label-text text-red-400 mt-3 relative z-10">{label}</p>
+            {sublabel}
+        </div>"#,
+        value = value,
+        label = label,
+        sublabel = sublabel_html,
+    )
+}
+
+/// Success stat card — green-accented for positive outcomes (takedowns, savings)
+pub fn stat_card_success(value: &str, label: &str, sublabel: Option<&str>) -> String {
+    let sublabel_html = sublabel
+        .map(|s| format!(r#"<p class="metric-context mt-2">{}</p>"#, s))
+        .unwrap_or_default();
+    format!(
+        r#"<div class="card-success p-8 flex flex-col justify-center relative overflow-hidden">
+            <div class="bg-orb-purple w-32 h-32 -bottom-8 -right-8" style="position:absolute;opacity:0.5;"></div>
+            <p class="hero-number-green relative z-10">{value}</p>
+            <p class="label-text text-green-400 mt-3 relative z-10">{label}</p>
+            {sublabel}
+        </div>"#,
+        value = value,
+        label = label,
+        sublabel = sublabel_html,
+    )
+}
+
+/// SVG risk gauge (semi-circle) — visual risk indicator 0-100
+pub fn risk_gauge_svg(score: u32, label: &str) -> String {
+    let clamped = score.min(100);
+    // Arc calculation: semi-circle from 180° to 0° (left to right)
+    let angle = 180.0 - (clamped as f64 * 1.8); // 0=left, 100=right
+    let rad = angle * std::f64::consts::PI / 180.0;
+    let cx = 100.0 + 80.0 * rad.cos();
+    let cy = 100.0 - 80.0 * rad.sin();
+
+    let color = if clamped >= 75 {
+        "#EF4444"
+    } else if clamped >= 50 {
+        "#F59E0B"
+    } else if clamped >= 25 {
+        "#FF671F"
+    } else {
+        "#22C55E"
+    };
+
+    let glow_color = if clamped >= 75 {
+        "rgba(239,68,68,0.4)"
+    } else if clamped >= 50 {
+        "rgba(245,158,11,0.4)"
+    } else {
+        "rgba(255,103,31,0.4)"
+    };
+
+    format!(
+        r##"<div class="flex flex-col items-center">
+            <svg width="200" height="120" viewBox="0 0 200 120">
+                <defs>
+                    <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#22C55E"/>
+                        <stop offset="40%" stop-color="#F59E0B"/>
+                        <stop offset="70%" stop-color="#FF671F"/>
+                        <stop offset="100%" stop-color="#EF4444"/>
+                    </linearGradient>
+                </defs>
+                <!-- Background arc -->
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#27272A" stroke-width="8" stroke-linecap="round"/>
+                <!-- Colored arc -->
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGrad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="{offset}" style="transition: stroke-dashoffset 1s ease;"/>
+                <!-- Indicator dot -->
+                <circle cx="{cx}" cy="{cy}" r="8" fill="{color}" style="filter: drop-shadow(0 0 8px {glow});">
+                    <animate attributeName="r" values="7;9;7" dur="2s" repeatCount="indefinite"/>
+                </circle>
+                <!-- Score text -->
+                <text x="100" y="95" text-anchor="middle" fill="white" font-size="32" font-weight="200" font-family="Inter, sans-serif">{score}</text>
+                <text x="100" y="112" text-anchor="middle" fill="#71717A" font-size="9" text-transform="uppercase" letter-spacing="2" font-family="Inter, sans-serif">{label}</text>
+            </svg>
+        </div>"##,
+        offset = 251.0 - (clamped as f64 * 2.51),
+        cx = cx,
+        cy = cy,
+        color = color,
+        glow = glow_color,
+        score = clamped,
+        label = label,
+    )
+}
+
+/// Enhanced section header with animated accent line
+pub fn section_header_premium(badge: &str, title: &str, subtitle: Option<&str>) -> String {
+    let subtitle_html = subtitle
+        .map(|s| {
+            format!(
+                r#"<p class="text-zinc-400 text-sm mt-2 max-w-2xl leading-relaxed">{}</p>"#,
+                s
+            )
+        })
+        .unwrap_or_default();
+    format!(
+        r#"<div class="mb-10 relative z-10">
+            <span class="section-badge mb-4">{badge}</span>
+            <h2 class="section-header text-5xl leading-tight display-text mt-3">{title}</h2>
+            <div class="accent-line w-48"></div>
+            {subtitle}
+        </div>"#,
+        badge = badge,
+        title = title,
+        subtitle = subtitle_html,
+    )
+}
+
+/// Next chapter teaser element (Zeigarnik effect — open loop)
+pub fn next_chapter_teaser(label: &str, title: &str) -> String {
+    format!(
+        r#"<div class="absolute bottom-8 right-14 z-50">
+            <div class="next-chapter flex items-center gap-3 cursor-pointer">
+                <div>
+                    <p class="text-[10px] text-orange-400 uppercase tracking-widest mb-0.5">{label}</p>
+                    <p class="text-sm font-bold text-white">{title} →</p>
+                </div>
+            </div>
+        </div>"#,
+        label = label,
+        title = title,
     )
 }

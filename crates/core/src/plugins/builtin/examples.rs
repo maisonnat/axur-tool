@@ -2,24 +2,30 @@
 //!
 //! Shows examples of detected threats and resolved takedowns.
 
+use super::helpers::footer_dark;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
-use super::helpers::{footer_dark};
 
 pub struct TakedownExamplesSlidePlugin;
 
 impl SlidePlugin for TakedownExamplesSlidePlugin {
-    fn id(&self) -> &'static str { "builtin.takedown_examples" }
-    fn name(&self) -> &'static str { "Takedown Examples" }
-    fn priority(&self) -> i32 { 25 }
-    
+    fn id(&self) -> &'static str {
+        "builtin.takedown_examples"
+    }
+    fn name(&self) -> &'static str {
+        "Takedown Examples"
+    }
+    fn priority(&self) -> i32 {
+        25
+    }
+
     fn is_enabled(&self, ctx: &PluginContext) -> bool {
         !ctx.data.takedown_examples.is_empty()
     }
-    
+
     fn generate_slides(&self, ctx: &PluginContext) -> Vec<SlideOutput> {
         let data = ctx.data;
         let t = ctx.translations;
-        
+
         // Take up to 4 examples
         let examples_html: String = data.takedown_examples.iter().take(4).map(|ex| {
             let status_color = match ex.status.to_lowercase().as_str() {
@@ -29,7 +35,7 @@ impl SlidePlugin for TakedownExamplesSlidePlugin {
             };
 
             format!(
-                r#"<div class="bg-zinc-900 rounded-lg border border-zinc-800 p-5 flex flex-col gap-3 hover:border-[#FF4B00]/40 transition-colors">
+                r#"<div class="bg-zinc-900 rounded-lg border border-zinc-800 p-5 flex flex-col gap-3 hover:border-[#FF671F]/40 transition-colors">
                     <div class="flex items-start justify-between">
                         <span class="text-xs font-bold px-2 py-1 rounded bg-zinc-800 text-zinc-400 uppercase tracking-wider">{type_}</span>
                         <span class="text-xs font-bold px-2 py-1 rounded border {status_class}">{status}</span>
@@ -49,49 +55,68 @@ impl SlidePlugin for TakedownExamplesSlidePlugin {
                 </div>"#, d)).unwrap_or_default()
             )
         }).collect();
-        
+
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 80% 80%, #FF4B00 0%, transparent 40%);"></div><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-[#FF4B00] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RESULTADOS</span></div><h2 class="text-4xl font-black mb-8 uppercase tracking-tight">{title}</h2><div class="grid grid-cols-2 gap-6 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 80% 80%, #FF671F 0%, transparent 40%);"></div><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-[#FF671F] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">RESULTADOS</span></div><h2 class="text-4xl font-black mb-8 uppercase tracking-tight">{title}</h2><div class="grid grid-cols-2 gap-6 flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
             title = t.get("examples_takedowns_title"),
             examples = examples_html,
             footer = footer_dark(13, &t.get("footer_text")),
         );
-        
-        vec![SlideOutput { id: "takedown_examples".into(), html }]
+
+        vec![SlideOutput {
+            id: "takedown_examples".into(),
+            html,
+        }]
     }
 }
 
 pub struct PocExamplesSlidePlugin;
 
 impl SlidePlugin for PocExamplesSlidePlugin {
-    fn id(&self) -> &'static str { "builtin.poc_examples" }
-    fn name(&self) -> &'static str { "PoC Evidence Examples" }
-    fn priority(&self) -> i32 { 20 }
-    
+    fn id(&self) -> &'static str {
+        "builtin.poc_examples"
+    }
+    fn name(&self) -> &'static str {
+        "PoC Evidence Examples"
+    }
+    fn priority(&self) -> i32 {
+        20
+    }
+
     fn is_enabled(&self, ctx: &PluginContext) -> bool {
         !ctx.data.poc_examples.is_empty()
     }
-    
+
     fn generate_slides(&self, ctx: &PluginContext) -> Vec<SlideOutput> {
         let data = ctx.data;
         let t = ctx.translations;
-        
+
         // Calculate metrics for executive summary
         let total_examples = data.poc_examples.len();
         let total_available = data.total_threats.max(total_examples as u64) as usize;
-        let high_risk_count = data.poc_examples.iter()
+        let high_risk_count = data
+            .poc_examples
+            .iter()
             .filter(|ex| ex.risk_score.unwrap_or(0.0) >= 0.6)
             .count();
-        let high_risk_pct = if total_examples > 0 { (high_risk_count * 100) / total_examples } else { 0 };
-        
+        let high_risk_pct = if total_examples > 0 {
+            (high_risk_count * 100) / total_examples
+        } else {
+            0
+        };
+
         // Average detection time
-        let detection_times: Vec<i64> = data.poc_examples.iter()
+        let detection_times: Vec<i64> = data
+            .poc_examples
+            .iter()
             .filter_map(|ex| ex.detection_minutes)
             .collect();
         let avg_detection_mins = if !detection_times.is_empty() {
             detection_times.iter().sum::<i64>() / detection_times.len() as i64
-        } else { 4 }; // Default fallback
-        
+        } else {
+            4
+        }; // Default fallback
+
         // Take up to 4 examples with executive-focused card design
         let examples_html: String = data.poc_examples.iter().take(4).map(|ex| {
             // Image or placeholder
@@ -146,16 +171,19 @@ impl SlidePlugin for PocExamplesSlidePlugin {
                 impact = impact_html,
             )
         }).collect();
-        
+
         let no_data_html = if data.poc_examples.is_empty() {
-            format!(r#"<div class="col-span-2 flex items-center justify-center h-full text-zinc-500 text-lg">{}</div>"#, t.get("example_no_data"))
+            format!(
+                r#"<div class="col-span-2 flex items-center justify-center h-full text-zinc-500 text-lg">{}</div>"#,
+                t.get("example_no_data")
+            )
         } else {
             String::new()
         };
-        
+
         let html = format!(
             r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
-<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 80% 20%, #FF4B00 0%, transparent 30%);"></div>
+<div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 80% 20%, #FF671F 0%, transparent 30%);"></div>
 <div class="relative flex-grow h-full overflow-hidden z-10"><div class="h-full flex flex-col">
 <div class="flex items-start justify-between mb-3">
     <div>
@@ -204,8 +232,10 @@ impl SlidePlugin for PocExamplesSlidePlugin {
             no_data = no_data_html,
             footer = footer_dark(14, &t.get("footer_text")),
         );
-        
-        vec![SlideOutput { id: "poc_examples".into(), html }]
+
+        vec![SlideOutput {
+            id: "poc_examples".into(),
+            html,
+        }]
     }
 }
-

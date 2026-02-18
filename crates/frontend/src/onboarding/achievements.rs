@@ -75,9 +75,7 @@ impl Achievement {
 
             ("first_export", UiLanguage::Es) => "Exportaste un reporte a Google Slides",
             ("first_export", UiLanguage::En) => "You exported a report to Google Slides",
-            ("first_export", UiLanguage::Pt) => {
-                "Você exportou um relatório para Google Slides"
-            }
+            ("first_export", UiLanguage::Pt) => "Você exportou um relatório para Google Slides",
 
             ("template_created", UiLanguage::Es) => "Creaste tu primer template personalizado",
             ("template_created", UiLanguage::En) => "You created your first custom template",
@@ -87,15 +85,11 @@ impl Achievement {
 
             ("threat_hunting", UiLanguage::Es) => "Usaste Threat Hunting en un reporte",
             ("threat_hunting", UiLanguage::En) => "You used Threat Hunting in a report",
-            ("threat_hunting", UiLanguage::Pt) => {
-                "Você usou Threat Hunting em um relatório"
-            }
+            ("threat_hunting", UiLanguage::Pt) => "Você usou Threat Hunting em um relatório",
 
             ("shortcut_master", UiLanguage::Es) => "Usaste 5 atajos de teclado diferentes",
             ("shortcut_master", UiLanguage::En) => "You used 5 different keyboard shortcuts",
-            ("shortcut_master", UiLanguage::Pt) => {
-                "Você usou 5 atalhos de teclado diferentes"
-            }
+            ("shortcut_master", UiLanguage::Pt) => "Você usou 5 atalhos de teclado diferentes",
 
             _ => "",
         }

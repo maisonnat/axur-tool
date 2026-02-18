@@ -87,7 +87,7 @@ impl SlidePlugin for TimelineSlidePlugin {
 
         let html = format!(
             r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
-<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 10% 90%, #FF4B00 0%, transparent 40%);"></div>
+<div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(circle at 10% 90%, #FF671F 0%, transparent 40%);"></div>
 <div class="relative flex-grow h-full overflow-hidden z-10"><div class="h-full flex flex-col">
 <div class="mb-4"><span class="bg-gradient-to-r from-orange-600 to-orange-500 px-4 py-1 text-sm font-bold tracking-wider uppercase">TIMELINE</span></div>
 <h2 class="text-4xl font-black mb-6 tracking-tight">{title}</h2>

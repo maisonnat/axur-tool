@@ -24,19 +24,6 @@ impl SlidePlugin for RoiSlidePlugin {
         let t = ctx.translations;
         let metrics = &data.roi_metrics;
 
-        // Format hours saved
-        let (hours_display, hours_unit) = if metrics.hours_saved_total >= 8.0 {
-            (
-                format!("{:.0}", metrics.person_days_saved),
-                t.get("op_unit_person_days"),
-            )
-        } else {
-            (
-                format!("{:.1}", metrics.hours_saved_total),
-                t.get("op_unit_hours"),
-            )
-        };
-
         // Format analysts equivalent
         let analysts_display = if metrics.analysts_equivalent_monthly >= 1.0 {
             format!("{:.1}", metrics.analysts_equivalent_monthly)
@@ -44,128 +31,103 @@ impl SlidePlugin for RoiSlidePlugin {
             format!("{:.0}%", metrics.analysts_equivalent_monthly * 100.0)
         };
 
+        // Premium Header
+        let header = crate::plugins::builtin::theme::section_header_premium(
+            "VALOR ESTRATÉGICO",
+            "El Retorno de su Inversión en Seguridad",
+            Some("Más allá de la protección, Axur devuelve recursos críticos a su organización. Transformamos el gasto en seguridad en eficiencia operativa.")
+        );
+
         let html = format!(
             r#"<div class="relative group">
-                <div class="printable-slide aspect-[16/9] w-full flex flex-col shadow-lg mb-8 relative bg-[#121212] text-white overflow-hidden">
-                    <!-- Wireframe background -->
-                    <div class="absolute inset-0 wireframe-orange opacity-30"></div>
+                <div class="printable-slide aspect-[16/9] w-full flex flex-col shadow-lg mb-8 relative bg-[#09090b] text-white overflow-hidden">
+                    <!-- Background -->
+                    {bg_pattern}
+                    <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent pointer-events-none"></div>
                     
                     <!-- Content -->
                     <div class="relative z-10 h-full flex flex-col p-14">
-                        <!-- Header -->
-                        <div class="mb-8">
-                            <span class="bg-[#FF5824] text-white px-5 py-2 text-xs font-bold tracking-wider uppercase">
-                                {badge}
-                            </span>
-                            <h2 class="text-4xl font-bold mt-4">{title}</h2>
-                        </div>
+                        {header}
                         
-                        <!-- Three Column Cards -->
-                        <div class="grid grid-cols-3 gap-6 flex-grow">
-                            <!-- Time Saved Card -->
-                            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col hover:border-[#FF5824]/50 transition-all hover:shadow-lg hover:shadow-[#FF5824]/10">
-                                <div class="bg-[#FF5824]/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
-                                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-[#FF5824]">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                    </svg>
-                                </div>
-                                <h3 class="text-xl font-bold mb-3">{eff_title}</h3>
-                                <div class="mb-4">
-                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">{hours}</span>
-                                    <span class="text-lg font-normal text-zinc-400 ml-2">{hours_unit}</span>
-                                </div>
-                                <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{eff_desc}</p>
-                                <div class="mt-4 pt-4 border-t border-zinc-800 text-xs text-zinc-500 space-y-1">
-                                    <p>• {lbl_validation}: {val_hours:.0}h</p>
-                                    <p>• {lbl_monitoring}: {cred_hours:.0}h</p>
-                                    <p>• {lbl_takedowns}: {td_hours:.0}h</p>
-                                </div>
-                            </div>
-                            
-                            <!-- Team Capacity Card -->
-                            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col hover:border-[#FF5824]/50 transition-all hover:shadow-lg hover:shadow-[#FF5824]/10">
-                                <div class="bg-[#FF5824]/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
-                                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-[#FF5824]">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"></path>
-                                    </svg>
-                                </div>
-                                <h3 class="text-xl font-bold mb-3">{team_title}</h3>
-                                <div class="mb-4">
-                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">{analysts}</span>
-                                </div>
-                                <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{team_desc}</p>
-                                <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
-                                    <div class="flex items-center gap-2 text-xs text-zinc-500">
-                                        <span class="w-3 h-3 rounded-full bg-green-500"></span>
-                                        <span>{tickets} {lbl_tickets}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-xs text-zinc-500">
-                                        <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-                                        <span>{creds} {lbl_creds}</span>
-                                    </div>
+                        <div class="grid grid-cols-12 gap-12 flex-grow mt-4">
+                            <!-- Left Column: The "Old Way" (Pain) -->
+                            <div class="col-span-5 flex flex-col justify-center">
+                                <div class="p-8 rounded-3xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm grayscale opacity-70 hover:grayscale-0 hover:opacity-100 transition-all duration-500 group/pain">
+                                    <h3 class="text-zinc-500 font-bold tracking-widest text-xs mb-6 uppercase flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                        Sin Automatización
+                                    </h3>
+                                    <ul class="space-y-4 text-zinc-400">
+                                        <li class="flex items-start gap-3">
+                                            <span class="text-red-900/50 mt-1">✖</span>
+                                            <span><strong>{tickets} incidentes</strong> revisados manualmente uno a uno.</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <span class="text-red-900/50 mt-1">✖</span>
+                                            <span>Tiempos de respuesta lentos (días, no minutos).</span>
+                                        </li>
+                                        <li class="flex items-start gap-3">
+                                            <span class="text-red-900/50 mt-1">✖</span>
+                                            <span>Fatiga de alertas y burnout del equipo SOC.</span>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
-                            
-                            <!-- Response Time Card -->
-                            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col hover:border-[#FF5824]/50 transition-all hover:shadow-lg hover:shadow-[#FF5824]/10">
-                                <div class="bg-[#FF5824]/20 p-4 rounded-full w-16 h-16 flex items-center justify-center mb-4">
-                                    <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-8 h-8 text-[#FF5824]">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"></path>
-                                    </svg>
+
+                            <!-- Center: Arrow -->
+                            <div class="col-span-2 flex items-center justify-center relative">
+                                <div class="w-full h-px bg-zinc-800 absolute top-1/2 left-0"></div>
+                                <div class="bg-zinc-900 border border-zinc-700 p-2 rounded-full relative z-10 text-orange-500">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                                 </div>
-                                <h3 class="text-xl font-bold mb-3">{resp_title}</h3>
-                                <div class="mb-4">
-                                    <span class="text-5xl font-black text-[#FF5824] glow-orange-text">{speed_mult}</span>
-                                </div>
-                                <p class="text-zinc-400 text-sm leading-relaxed flex-grow">{resp_desc}</p>
-                                <div class="mt-4 pt-4 border-t border-zinc-800 space-y-2">
-                                    <div class="flex justify-between text-xs">
-                                        <span class="text-zinc-500">{lbl_success}</span>
-                                        <span class="text-green-400 font-bold">{success_rate:.1}%</span>
+                            </div>
+
+                            <!-- Right Column: The "Axur Way" (Value) -->
+                            <div class="col-span-5 flex flex-col justify-center">
+                                <div class="glass-panel-premium p-8 h-full flex flex-col justify-center relative overflow-hidden ring-1 ring-orange-500/30 shadow-[0_0_40px_rgba(255,103,31,0.1)]">
+                                    <div class="absolute inset-0 bg-gradient-to-br from-orange-500/10 to-transparent"></div>
+                                    <div class="absolute -top-10 -right-10 w-32 h-32 bg-orange-500/20 blur-3xl rounded-full"></div>
+                                    
+                                    <h3 class="text-orange-500 font-bold tracking-widest text-xs mb-8 uppercase flex items-center gap-2">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                                        Eficiencia Axur
+                                    </h3>
+                                    
+                                    <div class="text-center mb-8 relative z-10">
+                                        <span class="hero-number shimmer-text">{analysts}</span>
+                                        <p class="text-sm font-bold text-white mt-2">Analistas Dedicados (Full-Time)</p>
+                                        <p class="text-xs text-zinc-400 mt-1">Equivalente en capacidad operativa ganada</p>
                                     </div>
-                                    <div class="flex justify-between text-xs">
-                                        <span class="text-zinc-500">{lbl_td_done}</span>
-                                        <span class="text-white font-bold">{takedowns}</span>
+
+                                    <div class="bg-zinc-950/50 rounded-xl p-4 border border-zinc-700/50 backdrop-blur-md relative z-10 text-center">
+                                        <p class="text-green-400 font-bold text-lg mb-1">{success_rate:.1}%</p>
+                                        <p class="text-[10px] text-zinc-500 uppercase tracking-widest">Tasa de Éxito en Takedowns</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Bottom CTA -->
+                        <div class="mt-8 bg-zinc-900/30 border border-zinc-800 rounded-2xl p-6 flex justify-between items-center group/cta hover:bg-zinc-900 hover:border-orange-500/30 transition-all">
+                            <div>
+                                <h4 class="text-white font-bold text-lg mb-1">Maximice su Protección</h4>
+                                <p class="text-zinc-500 text-sm">Nuestro equipo de expertos está listo para escalar estos resultados.</p>
+                            </div>
+                            <div class="bg-[#FF671F] text-white px-6 py-3 rounded-lg font-bold text-sm tracking-wide shadow-lg shadow-orange-900/20 group-hover/cta:shadow-orange-500/20 transition-all cursor-pointer">
+                                AGENDAR REVISIÓN ESTRATÉGICA
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        {footer}
                     </div>
-                    
-                    <!-- Footer -->
-                    {footer}
                 </div>
             </div>"#,
-            badge = t.get("op_badge"),
-            title = t.get("roi_title"),
-            eff_title = t.get("op_time_saved_title"),
-            hours = hours_display,
-            hours_unit = hours_unit,
-            eff_desc = t.get("op_time_saved_desc"),
-            lbl_validation = t.get("op_breakdown_validation"),
-            val_hours = metrics.hours_saved_validation,
-            lbl_monitoring = t.get("op_breakdown_monitoring"),
-            cred_hours = metrics.hours_saved_credentials,
-            lbl_takedowns = t.get("op_breakdown_takedowns"),
-            td_hours = metrics.hours_saved_takedowns,
-            team_title = t.get("op_capacity_title"),
-            analysts = analysts_display,
-            team_desc = t.get("op_capacity_desc"),
+            bg_pattern = crate::plugins::builtin::helpers::geometric_pattern(),
+            header = header,
             tickets = data.total_tickets,
-            lbl_tickets = t.get("op_tickets_processed"),
-            creds = data.credentials_total,
-            lbl_creds = t.get("op_credentials_monitored"),
-            resp_title = t.get("op_response_title"),
-            speed_mult = if metrics.response_speed_multiplier >= 2.0 {
-                format!("{:.0}x", metrics.response_speed_multiplier)
-            } else {
-                "N/A".to_string()
-            },
-            resp_desc = t.get("op_response_desc"),
-            lbl_success = t.get("op_success_rate"),
+            analysts = analysts_display,
             success_rate = data.takedown_success_rate,
-            lbl_td_done = t.get("op_takedowns_completed"),
-            takedowns = data.takedown_resolved,
             footer = footer_dark(12, &t.get("footer_text")),
         );
 

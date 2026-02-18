@@ -521,7 +521,7 @@ impl GoogleServices {
                             "fontSize": { "magnitude": 28, "unit": "PT" },
                             "foregroundColor": {
                                 "opaqueColor": {
-                                    "rgbColor": { "red": 1.0, "green": 0.294, "blue": 0.0 }  // #FF4B00
+                                    "rgbColor": { "red": 1.0, "green": 0.404, "blue": 0.122 }  // #FF671F
                                 }
                             }
                         },

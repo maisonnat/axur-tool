@@ -31,7 +31,7 @@ pub enum CliError {
 
     #[error("🔄 Request failed after {0} retries.\n   💡 Try: Check your connection and try again later")]
     RetryExhausted(u32),
-    
+
     #[error("❌ {0}")]
     Unknown(String),
 }
