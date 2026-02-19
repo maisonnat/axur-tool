@@ -40,6 +40,13 @@ At session end:
 ### [Short Title]
 - **Context:** What happened
 - **Lesson:** What to remember next time
+
+## Systematic Debugging Checklist (If bug was fixed)
+- [ ] **Reproduce**: Did we have a repro case?
+- [ ] **Locate**: Did we find the root cause (not just symptom)?
+- [ ] **Fix**: Is the fix robust?
+- [ ] **Verify**: Did we verify it's actually fixed?
+- [ ] **Resilience**: Did we add a test to prevent regression?
 ```
 
 ## Repomix Omniscient Mode

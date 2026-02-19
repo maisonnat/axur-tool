@@ -3,6 +3,7 @@
 //! Displays a 24x7 grid showing attack patterns by hour and day of week.
 //! Helps identify when attacks are most frequent.
 
+use super::helpers::footer_dark;
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 /// Plugin that generates the Attack Heatmap slide
@@ -60,7 +61,7 @@ impl SlidePlugin for HeatmapSlidePlugin {
                 };
 
                 cells_html.push_str(&format!(
-                    r#"<div class="aspect-square flex items-center justify-center text-xs font-medium rounded-sm" style="background: {}; color: {}" title="{} {}:00 - {} eventos">{}</div>"#,
+                    r#"<div class="aspect-square flex items-center justify-center text-xs font-medium rounded-sm hover:ring-1 hover:ring-orange-500 hover:z-10 transition-all cursor-default" style="background: {}; color: {}" title="{} {}:00 - {} eventos">{}</div>"#,
                     bg_color,
                     text_color,
                     days[day_idx],
@@ -100,16 +101,24 @@ impl SlidePlugin for HeatmapSlidePlugin {
             days[peak_day], peak_hour, peak_count
         );
 
+        // Premium Header
+        let header = crate::plugins::builtin::theme::section_header_premium(
+            "PATRONES",
+            &if title.is_empty() {
+                "Mapa de Calor de Ataques".to_string()
+            } else {
+                title
+            },
+            Some(&t.get("heatmap_desc")),
+        );
+
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-black text-white">
-<div class="flex-grow h-full overflow-hidden">
-<div class="h-full flex flex-col">
-  <!-- Header -->
-  <div class="mb-4">
-    <span class="bg-[#FF671F] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">PATRONES</span>
-  </div>
-  <h2 class="text-4xl font-black mb-2 uppercase tracking-tight">{title}</h2>
-  <p class="text-lg text-zinc-400 mb-6 max-w-4xl">{desc}</p>
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
+                <!-- Background -->
+                {bg_pattern}
+
+                <!-- Header -->
+                {header}
   
   <!-- Heatmap Container -->
   <div class="flex-grow flex items-center justify-center">
@@ -153,45 +162,28 @@ impl SlidePlugin for HeatmapSlidePlugin {
         </div>
       </div>
     </div>
+      </div>
+    </div>
   </div>
-</div>
-</div>
-{footer}
-</div></div>"#,
-            title = if title.is_empty() {
-                "Mapa de Calor de Ataques".to_string()
-            } else {
-                title
-            },
-            desc = t.get("heatmap_desc"),
+
+                <!-- Footer -->
+                {footer}
+            </div></div>"#,
+            bg_pattern = crate::plugins::builtin::helpers::geometric_pattern(),
+            header = header,
             hour_labels = hour_labels,
             day_labels = day_labels,
             cells = cells_html,
             peak_text = peak_text,
-            footer = Self::render_footer(t.get("footer_text")),
+            footer = footer_dark(14, &t.get("footer_text")),
         );
+
+        let html = html.replace("ring-orange-500", "ring-brand-primary");
 
         vec![SlideOutput {
             id: "heatmap".into(),
             html,
         }]
-    }
-}
-
-impl HeatmapSlidePlugin {
-    fn render_footer(footer_text: String) -> String {
-        format!(
-            r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center">
-<div class="flex items-center font-black tracking-wider select-none text-white h-5">
-  <span class="text-[#FF671F] text-2xl -mr-1">///</span>
-  <span class="text-xl">AXUR</span>
-</div>
-<div class="flex items-center text-xs text-zinc-500">
-  <span>{}</span>
-</div>
-</footer>"#,
-            footer_text
-        )
     }
 }
 
@@ -238,7 +230,8 @@ fn intensity_to_color(intensity: u32) -> String {
     if alpha < 0.05 {
         "rgba(39, 39, 42, 0.5)".to_string() // zinc-800 for zero/near-zero
     } else {
-        format!("rgba(255, 75, 0, {:.2})", alpha.min(1.0).max(0.1))
+        // Use brand primary RGB (255, 103, 31)
+        format!("rgba(255, 103, 31, {:.2})", alpha.min(1.0).max(0.1))
     }
 }
 

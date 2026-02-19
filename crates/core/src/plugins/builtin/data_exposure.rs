@@ -123,9 +123,6 @@ impl SlidePlugin for DataExposureSlidePlugin {
                     </div>
                 </div>
 
-                <!-- ZEIGARNIK EFFECT: Open loop to next section -->
-                {next_teaser}
-
                 <!-- Footer -->
                 {footer}
             </div></div>"#,
@@ -173,10 +170,6 @@ impl SlidePlugin for DataExposureSlidePlugin {
                 &format_number(risk_count),
                 &t.get("stealer_box_high_risk"),
                 Some("Usuarios VIP/Admin")
-            ),
-            next_teaser = crate::plugins::builtin::theme::next_chapter_teaser(
-                "Siguiente Capítulo",
-                "Propagación Viral de Amenazas"
             ),
             footer = footer_dark(8, &t.get("footer_text")),
         );

@@ -313,6 +313,19 @@ pub fn generate_report_with_plugins(
 fn axur_design_system_css() -> &'static str {
     r#"
         /* AXUR DESIGN SYSTEM - SENIOR UPGRADE */
+        
+        :root {
+            --color-primary: #FF671F;
+            --color-primary-rgb: 255, 103, 31;
+            --color-surface: #09090b;
+            --color-surface-rgb: 9, 9, 11;
+        }
+
+        .text-brand-primary { color: var(--color-primary); }
+        .bg-brand-primary { background-color: var(--color-primary); }
+        .border-brand-primary { border-color: var(--color-primary); }
+        .shadow-brand-glow { box-shadow: 0 0 15px rgba(255, 103, 31, 0.4); }
+
         .axur-gradient-bg {
             background: 
                 radial-gradient(circle at 15% 50%, rgba(255, 103, 31, 0.08) 0%, transparent 25%),
@@ -773,7 +786,7 @@ fn axur_design_system_css() -> &'static str {
         .bg-orb-orange {
             position: absolute;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,103,31,0.15) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(var(--color-primary-rgb),0.15) 0%, transparent 70%);
             filter: blur(60px);
             pointer-events: none;
         }

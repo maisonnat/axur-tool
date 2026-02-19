@@ -79,7 +79,7 @@ impl SlidePlugin for IncidentsSlidePlugin {
                 <div class="bg-orb-orange w-40 h-40 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="position:absolute;"></div>
                 <p class="text-6xl font-light text-white display-text relative z-10 text-glow">{value}</p>
                 <div class="accent-line w-24 mx-auto relative z-10"></div>
-                <p class="label-text text-[#FF671F] mt-3 relative z-10 text-center">{label}</p>
+                <p class="label-text text-brand-primary mt-3 relative z-10 text-center">{label}</p>
             </div>"#,
             value = format_number(incident_count),
             label = "Incidentes Validados",
@@ -104,8 +104,8 @@ impl SlidePlugin for IncidentsSlidePlugin {
                     <!-- Column 1: Incidents by Type (6 cols) -->
                     <div class="col-span-6 flex flex-col">
                         <div class="glass-panel-premium p-6 h-full flex flex-col">
-                            <h3 class="text-xs font-bold text-orange-500 mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_5px_#FF671F]"></span>
+                            <h3 class="text-xs font-bold text-brand-primary mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 bg-brand-primary rounded-full shadow-brand-glow"></span>
                                 Detecciones por Tipo
                             </h3>
                             <div class="overflow-y-auto pr-2 max-h-[full] space-y-4 flex-grow custom-scrollbar">
@@ -139,7 +139,7 @@ impl SlidePlugin for IncidentsSlidePlugin {
                                 
                                 <!-- Step 2: Incidents (Hero) -->
                                 <div class="flex items-center gap-3 transform translate-x-4">
-                                    <div class="w-12 h-12 rounded-full bg-[#FF671F] flex items-center justify-center text-white shadow-[0_0_15px_rgba(255,103,31,0.5)] animate-pulse">
+                                    <div class="w-12 h-12 rounded-full bg-brand-primary flex items-center justify-center text-white shadow-brand-glow animate-pulse">
                                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                                     </div>
                                     <div class="flex-grow">
@@ -164,9 +164,6 @@ impl SlidePlugin for IncidentsSlidePlugin {
                     </div>
                 </div>
 
-                <!-- ZEIGARNIK EFFECT: Open loop to next section -->
-                {next_teaser}
-
                 <!-- Footer -->
                 {footer}
             </div></div>"#,
@@ -181,10 +178,6 @@ impl SlidePlugin for IncidentsSlidePlugin {
             card_detections = card_detections,
             card_incidents = card_incidents,
             card_resolved = card_resolved,
-            next_teaser = crate::plugins::builtin::theme::next_chapter_teaser(
-                "Siguiente Capítulo",
-                "Datos Expuestos en la Red"
-            ),
             footer = footer_dark(10, &t.get("footer_text")),
         );
 

@@ -54,6 +54,8 @@ impl PluginRegistry {
         registry.register_slide(Box::new(RadarSlidePlugin)); // NEW: Threat radar
         registry.register_slide(Box::new(IncidentsSlidePlugin));
         registry.register_slide(Box::new(TakedownsSlidePlugin));
+        registry.register_slide(Box::new(KillChainSlidePlugin)); // NEW: Kill Chain Timeline
+        registry.register_slide(Box::new(VelocitySlidePlugin)); // NEW: Takedown Velocity
         registry.register_slide(Box::new(CredentialsSlidePlugin));
         registry.register_slide(Box::new(RoiSlidePlugin));
         registry.register_slide(Box::new(ThreatIntelSlidePlugin));
@@ -170,11 +172,11 @@ mod tests {
     #[test]
     fn test_registry_with_builtins() {
         let registry = PluginRegistry::with_builtins();
-        // 25 builtin slide plugins registered (incl. StyleShowcase)
-        assert_eq!(registry.slide_plugins().len(), 25);
+        // 27 builtin slide plugins registered (incl. StyleShowcase + KillChain + Velocity)
+        assert_eq!(registry.slide_plugins().len(), 27);
         // Verify ordering by priority (StyleShowcase=999 should be first, cover=100 second)
         assert_eq!(registry.slide_plugins()[0].id(), "builtin.style_showcase");
         assert_eq!(registry.slide_plugins()[1].id(), "builtin.cover");
-        assert_eq!(registry.slide_plugins()[24].id(), "builtin.closing");
+        assert_eq!(registry.slide_plugins()[26].id(), "builtin.closing");
     }
 }

@@ -43,50 +43,49 @@ impl SlidePlugin for RadarSlidePlugin {
 
         let title = t.get("radar_title");
 
+        // ─── Overall risk assessment ───
+        let total_score: u32 = dimensions.iter().map(|d| d.score).sum();
+        let avg_score = total_score / dimensions.len().max(1) as u32;
+        let (risk_label, risk_color) = if avg_score > 75 {
+            ("CRÍTICO", "red")
+        } else if avg_score > 50 {
+            ("ALTO", "orange")
+        } else if avg_score > 25 {
+            ("MODERADO", "yellow")
+        } else {
+            ("BAJO", "green")
+        };
+
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative text-white overflow-hidden">
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-12 mb-8 relative text-white overflow-hidden">
                 <!-- Background -->
                 {bg}
 
-                <!-- COGNITIVE EMPTYING: Label the category + benefit-framed title -->
+                <!-- Header -->
                 {header}
-                <!-- SPIN IMPLICATION: Help the hero understand the multi-dimensional nature of threat -->
-                <p class="text-zinc-400 text-sm leading-relaxed -mt-8 mb-4 max-w-3xl">Cada eje del radar representa un vector de ataque activo. Los puntos más lejanos del centro requieren atención inmediata.</p>
-                
-                <div class="grid grid-cols-2 gap-16 flex-grow mt-4 items-center">
-                    <!-- Column 1: Radar Chart -->
-                    <div class="glass-panel p-8 rounded-2xl flex flex-col items-center justify-center relative aspect-square backdrop-blur-md bg-zinc-900/40">
-                        <div class="absolute inset-0 bg-gradient-to-tr from-orange-500/5 to-transparent rounded-2xl pointer-events-none"></div>
-                        {svg}
-                        <p class="text-zinc-400 text-xs mt-6 text-center font-light tracking-wide max-w-xs">
-                            <strong class="text-orange-500">Vulnerabilidad Expuesta:</strong><br>
-                            Su superficie de ataque actual es <span class="text-white font-bold">3x mayor</span> al promedio del sector financiero.
-                        </p>
-                    </div>
-                    
-                    <!-- Column 2: Threat Vectors -->
-                    <div class="flex flex-col h-full justify-center">
-                        <div class="glass-panel p-8 bg-zinc-900/20 border-zinc-800/50">
-                            <div class="flex items-center gap-3 mb-6">
-                                <span class="text-[#FF671F] bg-[#FF671F]/10 p-2 rounded-lg">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"></path></svg>
-                                </span>
-                                <h3 class="text-lg font-bold text-white uppercase tracking-widest">Vectores de Ataque</h3>
-                            </div>
-                            
-                            <div class="space-y-3 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
-                                {dimension_cards}
-                            </div>
+
+                <div class="grid grid-cols-12 gap-6 flex-grow mt-2 items-start">
+                    <!-- Column 1: Radar Chart (5 cols) -->
+                    <div class="col-span-5 flex flex-col items-center justify-center h-full">
+                        <div class="bg-zinc-900/40 p-6 rounded-2xl border border-zinc-800/50 backdrop-blur-sm flex flex-col items-center justify-center w-full hover:border-orange-500/10 transition-all duration-300">
+                            {svg}
                         </div>
                     </div>
-                </div>
+                    
+                    <!-- Column 2: Dimension Cards + Risk Summary (7 cols) -->
+                    <div class="col-span-7 flex flex-col gap-3 h-full">
+                        <!-- Risk assessment badge -->
+                        <div class="flex items-center justify-between bg-{risk_color}-500/5 border border-{risk_color}-500/20 rounded-xl px-4 py-2.5">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2.5 h-2.5 rounded-full bg-{risk_color}-500 animate-pulse"></div>
+                                <span class="text-sm text-zinc-300">Nivel de Riesgo Global</span>
+                            </div>
+                            <span class="text-sm font-bold text-{risk_color}-400 bg-{risk_color}-500/10 px-3 py-1 rounded-full tracking-wider">{risk_label}</span>
+                        </div>
 
-                <!-- ZEIGARNIK EFFECT: Open loop to next section -->
-                <div class="absolute bottom-8 right-14 z-50">
-                    <div class="bg-orange-500/10 border border-orange-500/20 backdrop-blur-md px-5 py-3 rounded-xl flex items-center gap-3 hover:bg-orange-500/20 transition-colors duration-300 cursor-pointer">
-                        <div>
-                            <p class="text-[10px] text-orange-400 uppercase tracking-widest mb-0.5">Siguiente Capítulo</p>
-                            <p class="text-sm font-bold text-white">Impacto Operativo Medido →</p>
+                        <!-- Dimension cards in 2-col grid -->
+                        <div class="grid grid-cols-2 gap-2.5 flex-grow">
+                            {dimension_cards}
                         </div>
                     </div>
                 </div>
@@ -95,18 +94,27 @@ impl SlidePlugin for RadarSlidePlugin {
                 {footer}
             </div></div>"#,
             bg = crate::plugins::builtin::helpers::geometric_pattern(),
-            header = crate::plugins::builtin::theme::section_header(
+            header = crate::plugins::builtin::theme::section_header_premium(
                 "ANÁLISIS DE RIESGO",
                 if title.is_empty() {
                     "Radar de Amenazas"
                 } else {
                     &title
-                }
+                },
+                Some("Análisis multidimensional de los vectores de ataque activos. Los puntos más lejanos del centro requieren acción inmediata.")
             ),
             svg = svg,
+            risk_color = risk_color,
+            risk_label = risk_label,
             dimension_cards = generate_dimension_cards(&dimensions),
             footer = footer_dark(9, &t.get("footer_text")),
         );
+
+        let html = html
+            .replace("#FF671F", "var(--color-primary)")
+            .replace("bg-orange-500", "bg-brand-primary")
+            .replace("text-orange-400", "text-brand-primary") // text-brand-primary is roughly orange-400/500
+            .replace("border-orange-500", "border-brand-primary");
 
         vec![SlideOutput {
             id: "radar".into(),
@@ -178,7 +186,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             _id: "phishing",
             label: "Phishing",
             score: phishing_score,
-            icon: "🎣",
+            icon: "PH",
 
             detail: format!("{} detecciones", phishing_count),
         },
@@ -186,7 +194,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             _id: "credentials",
             label: "Credenciales",
             score: creds_score,
-            icon: "🔑",
+            icon: "CR",
 
             detail: format!("{} expuestas", data.credentials_total),
         },
@@ -194,7 +202,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             _id: "leaks",
             label: "Filtraciones",
             score: leaks_score,
-            icon: "📦",
+            icon: "FL",
 
             detail: format!("{} secretos", data.secrets_total),
         },
@@ -202,7 +210,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             _id: "social",
             label: "Redes Sociales",
             score: social_score,
-            icon: "👤",
+            icon: "RS",
 
             detail: format!("{} perfiles falsos", social_count),
         },
@@ -210,7 +218,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             _id: "brand",
             label: "Marca",
             score: brand_score,
-            icon: "🏷️",
+            icon: "MR",
 
             detail: format!("{} abusos", brand_count),
         },
@@ -218,7 +226,7 @@ fn calculate_dimensions(data: &crate::api::report::PocReportData) -> Vec<ThreatD
             _id: "exposure",
             label: "Exposición",
             score: efficiency_score,
-            icon: "⚠️",
+            icon: "EX",
 
             detail: format!("{}% sin resolver", efficiency_score),
         },
@@ -230,19 +238,32 @@ fn normalize_score(value: u64, max_expected: u64) -> u32 {
     ((value as f64 / max_expected as f64) * 100.0).min(100.0) as u32
 }
 
-/// Generate SVG radar chart
+/// Generate SVG radar chart with larger viewBox for labels
 fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
-    let cx = 150.0;
-    let cy = 150.0;
-    let radius = 120.0;
+    let cx = 200.0;
+    let cy = 200.0;
+    let radius = 130.0;
     let n = dimensions.len() as f64;
 
-    // Background circles
+    // Background circles (concentric rings)
     let mut circles = String::new();
-    for r in [0.25, 0.5, 0.75, 1.0] {
+    for (i, r) in [0.25, 0.5, 0.75, 1.0].iter().enumerate() {
         circles.push_str(&format!(
-            r##"<circle cx="{}" cy="{}" r="{}" fill="none" stroke="#27272a" stroke-width="1" stroke-dasharray="4 4"/>"##,
-            cx, cy, radius * r
+            r##"<circle cx="{}" cy="{}" r="{}" fill="none" stroke="#27272a" stroke-width="{}"/>"##,
+            cx,
+            cy,
+            radius * r,
+            if i == 3 { "1.5" } else { "0.5" }
+        ));
+    }
+
+    // Scale labels on the axis (25, 50, 75, 100)
+    for (val, r) in [(25, 0.25), (50, 0.5), (75, 0.75)] {
+        circles.push_str(&format!(
+            r##"<text x="{}" y="{}" fill="#3f3f46" font-size="8" text-anchor="end">{}</text>"##,
+            cx - 4.0,
+            cy - (radius * r) + 3.0,
+            val,
         ));
     }
 
@@ -250,18 +271,18 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
     let mut axes = String::new();
     for (i, dim) in dimensions.iter().enumerate() {
         let angle = (i as f64 / n) * 2.0 * std::f64::consts::PI - std::f64::consts::FRAC_PI_2;
-        let x_end = cx + radius * 1.25 * angle.cos();
-        let y_end = cy + radius * 1.25 * angle.sin();
+        let x_end = cx + radius * 1.22 * angle.cos();
+        let y_end = cy + radius * 1.22 * angle.sin();
         let x_line = cx + radius * angle.cos();
         let y_line = cy + radius * angle.sin();
 
         // Axis line
         axes.push_str(&format!(
-            r##"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#3f3f46" stroke-width="1"/>"##,
+            r##"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="#3f3f46" stroke-width="0.5"/>"##,
             cx, cy, x_line, y_line
         ));
 
-        // Label
+        // Label with score
         let anchor = if x_end < cx - 10.0 {
             "end"
         } else if x_end > cx + 10.0 {
@@ -269,9 +290,26 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
         } else {
             "middle"
         };
+
+        // Color based on score
+        let label_color = if dim.score > 75 {
+            "#EF4444"
+        } else if dim.score > 50 {
+            "#FF671F"
+        } else {
+            "#a1a1aa"
+        };
+
         axes.push_str(&format!(
-            r##"<text x="{}" y="{}" fill="#a1a1aa" font-size="10" font-weight="bold" text-anchor="{}" dominant-baseline="middle">{}</text>"##,
-            x_end, y_end, anchor, dim.label.to_uppercase()
+            r##"<text x="{}" y="{}" fill="{}" font-size="11" font-weight="700" text-anchor="{}" dominant-baseline="middle" letter-spacing="0.5">{}</text>"##,
+            x_end, y_end, label_color, anchor, dim.label.to_uppercase()
+        ));
+
+        // Score under label
+        let score_y = y_end + 14.0;
+        axes.push_str(&format!(
+            r##"<text x="{}" y="{}" fill="{}" font-size="10" font-weight="400" text-anchor="{}" dominant-baseline="middle" opacity="0.7">{} pts</text>"##,
+            x_end, score_y, label_color, anchor, dim.score
         ));
     }
 
@@ -288,7 +326,7 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
         points.push_str(&format!("{:.1},{:.1}", x, y));
     }
 
-    // Data points
+    // Data points (dots on vertices)
     let mut dots = String::new();
     for (i, dim) in dimensions.iter().enumerate() {
         let angle = (i as f64 / n) * 2.0 * std::f64::consts::PI - std::f64::consts::FRAC_PI_2;
@@ -296,7 +334,6 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
         let x = cx + r * angle.cos();
         let y = cy + r * angle.sin();
 
-        // Use theme colors for dots
         let dot_color = if dim.score > 75 {
             "#EF4444"
         } else if dim.score > 50 {
@@ -306,29 +343,29 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
         };
 
         dots.push_str(&format!(
-            r##"<circle cx="{:.1}" cy="{:.1}" r="4" fill="{}" stroke="#18181b" stroke-width="2" style="filter: url(#glow)"/>"##,
+            r##"<circle cx="{:.1}" cy="{:.1}" r="5" fill="{}" stroke="#18181b" stroke-width="2" style="filter: url(#glow)"/>"##,
             x, y, dot_color
         ));
     }
 
     format!(
-        r##"<svg viewBox="0 0 300 300" class="w-96 h-96 filter drop-shadow-2xl">
+        r##"<svg viewBox="0 0 400 400" class="w-full h-auto max-h-80" preserveAspectRatio="xMidYMid meet">
   <defs>
     <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
     <linearGradient id="polyGrad" x1="0" y1="0" x2="1" y2="1">
-       <stop offset="0%" stop-color="rgba(255, 103, 31, 0.4)"/>
-       <stop offset="100%" stop-color="rgba(239, 68, 68, 0.1)"/>
+       <stop offset="0%" stop-color="rgba(255, 103, 31, 0.35)"/>
+       <stop offset="100%" stop-color="rgba(239, 68, 68, 0.08)"/>
     </linearGradient>
   </defs>
   {circles}
   {axes}
-  <polygon points="{points}" fill="url(#polyGrad)" stroke="#FF671F" stroke-width="2" style="filter: url(#glow)"/>
+  <polygon points="{points}" fill="url(#polyGrad)" stroke="#FF671F" stroke-width="2" stroke-linejoin="round" style="filter: url(#glow)"/>
   {dots}
 </svg>"##,
         circles = circles,
@@ -338,28 +375,28 @@ fn generate_radar_svg(dimensions: &[ThreatDimension]) -> String {
     )
 }
 
-/// Generate dimension detail cards
+/// Generate dimension detail cards — compact 2-column layout
 fn generate_dimension_cards(dimensions: &[ThreatDimension]) -> String {
     dimensions.iter().map(|dim| {
         let (border_color, text_color, bg_color, grad_from, grad_to) = if dim.score > 75 {
-            ("border-red-500/50", "text-red-500", "bg-red-500/10", "#EF4444", "#F87171")
+            ("border-red-500/30", "text-red-400", "bg-red-500/10", "#EF4444", "#F87171")
         } else if dim.score > 50 {
-            ("border-[#FF671F]/50", "text-[#FF671F]", "bg-[#FF671F]/10", "#FF671F", "#FF8A4C")
+            ("border-orange-500/30", "text-orange-400", "bg-orange-500/10", "#FF671F", "#FF8A4C")
         } else {
-            ("border-green-500/30", "text-green-500", "bg-green-500/10", "#22C55E", "#4ADE80")
+            ("border-emerald-500/20", "text-emerald-400", "bg-emerald-500/10", "#22C55E", "#4ADE80")
         };
 
         format!(
-            r#"<div class="bg-zinc-900/50 p-4 rounded-xl border border-zinc-800 transition-all hover:{border_color} hover:shadow-lg group">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-3">
-                        <span class="text-2xl group-hover:scale-110 transition-transform duration-300">{icon}</span>
-                        <h4 class="font-bold text-white text-sm">{label}</h4>
+            r#"<div class="bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/50 backdrop-blur-sm hover:{border_color} transition-all duration-300 hover:scale-[1.02] group/card">
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold {text_color} {bg_color} w-7 h-7 flex items-center justify-center rounded-lg group-hover/card:scale-110 transition-transform">{icon}</span>
+                        <h4 class="font-semibold text-white text-sm">{label}</h4>
                     </div>
-                    <span class="{text_color} font-bold text-sm {bg_color} px-2 py-1 rounded">{score} pts</span>
+                    <span class="{text_color} font-bold text-xs {bg_color} px-2 py-0.5 rounded-full font-mono">{score}</span>
                 </div>
-                <div class="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden mb-2">
-                    <div class="h-full bg-gradient-to-r from-[{grad_from}] to-[{grad_to}]" style="width: {pct}%"></div>
+                <div class="h-1 w-full bg-zinc-800 rounded-full overflow-hidden mb-1">
+                    <div class="h-full bg-gradient-to-r from-[{grad_from}] to-[{grad_to}] rounded-full transition-all duration-500" style="width: {pct}%"></div>
                 </div>
                 <p class="text-xs text-zinc-500">{detail}</p>
             </div>"#,

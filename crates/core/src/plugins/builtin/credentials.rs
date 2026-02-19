@@ -42,33 +42,89 @@ impl SlidePlugin for CredentialsSlidePlugin {
             };
             let source = cred.leak_name.as_deref().unwrap_or("unknown");
             format!(
-                r#"<div class="flex items-center justify-between p-3 bg-zinc-900 rounded mb-2 border-l-4 border-red-500"><span class="font-mono text-sm">{}</span><span class="text-xs text-zinc-500">{}</span></div>"#,
+                r#"<div class="flex items-center justify-between p-4 glass-panel hover:border-red-500/30 hover:scale-[1.01] transition-all duration-300 mb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="text-red-500/50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </span>
+                        <span class="font-mono text-sm text-white">{}</span>
+                    </div>
+                    <span class="text-xs text-zinc-500 bg-zinc-800/50 px-2 py-1 rounded">{}</span>
+                </div>"#,
                 masked_user, source
             )
         }).collect();
 
+        let stealer_count = if data.threat_intelligence.stealer_log_count > 0 {
+            data.threat_intelligence.stealer_log_count
+        } else {
+            data.credential_exposures
+                .iter()
+                .filter(|c| {
+                    c.leak_name
+                        .as_deref()
+                        .map(|n| n.to_lowercase().contains("stealer"))
+                        .unwrap_or(false)
+                })
+                .count() as u64
+        };
+
+        // Premium Header
+        let header = crate::plugins::builtin::theme::section_header_premium(
+            "CREDENCIALES COMPROMETIDAS",
+            &t.get("cred_title"),
+            Some("Credenciales de su organización detectadas en filtraciones y logs de malware stealer.")
+        );
+
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white"><div class="flex-grow h-full overflow-hidden"><div class="h-full flex flex-col"><div class="mb-4"><span class="bg-red-600 px-4 py-1 text-sm font-semibold">CREDENTIALS</span></div><h2 class="text-4xl font-bold mb-8">{title}</h2><div class="grid grid-cols-3 gap-8 mb-8"><div class="bg-zinc-900 p-6 rounded-xl border border-zinc-800 text-center"><p class="text-4xl font-bold text-white">{total}</p><p class="text-zinc-400 text-sm">{lbl_total}</p></div><div class="bg-red-900/30 p-6 rounded-xl border border-red-500/30 text-center"><p class="text-4xl font-bold text-red-400">{critical}</p><p class="text-red-300 text-sm">{lbl_critical}</p></div><div class="bg-zinc-900 p-6 rounded-xl border border-zinc-800 text-center"><p class="text-4xl font-bold text-orange-400">{stealer}</p><p class="text-zinc-400 text-sm">{lbl_stealer}</p></div></div><div class="flex-grow">{examples}</div></div></div>{footer}</div></div>"#,
-            title = t.get("cred_title"),
-            total = format_number(total as u64),
-            lbl_total = t.get("cred_total"),
-            critical = critical,
-            lbl_critical = t.get("cred_critical"),
-            stealer = format_number(if data.threat_intelligence.stealer_log_count > 0 {
-                data.threat_intelligence.stealer_log_count
-            } else {
-                // Fallback: count credentials that came from stealer logs
-                data.credential_exposures
-                    .iter()
-                    .filter(|c| {
-                        c.leak_name
-                            .as_deref()
-                            .map(|n| n.to_lowercase().contains("stealer"))
-                            .unwrap_or(false)
-                    })
-                    .count() as u64
-            }),
-            lbl_stealer = t.get("cred_stealer"),
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
+                <!-- Background -->
+                {bg_pattern}
+
+                <!-- Header -->
+                {header}
+
+                <div class="grid grid-cols-12 gap-8 flex-grow mt-4">
+                    <!-- Left: Stats -->
+                    <div class="col-span-5 flex flex-col gap-6 justify-center">
+                        {card_total}
+                        <div class="grid grid-cols-2 gap-4">
+                            {card_critical}
+                            {card_stealer}
+                        </div>
+                    </div>
+
+                    <!-- Right: Exposed Credentials -->
+                    <div class="col-span-7 flex flex-col">
+                        <h3 class="text-xs font-bold text-zinc-500 mb-4 uppercase tracking-widest border-b border-zinc-900 pb-2">
+                            Credenciales Detectadas (muestra)
+                        </h3>
+                        <div class="flex-grow overflow-hidden">
+                            {examples}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                {footer}
+            </div></div>"#,
+            bg_pattern = crate::plugins::builtin::helpers::geometric_pattern(),
+            header = header,
+            card_total = crate::plugins::builtin::theme::stat_card_hero(
+                &format_number(total as u64),
+                &t.get("cred_total"),
+                Some("Credenciales filtradas detectadas")
+            ),
+            card_critical = crate::plugins::builtin::theme::stat_card_critical(
+                &critical.to_string(),
+                &t.get("cred_critical"),
+                Some("Acceso Privilegiado")
+            ),
+            card_stealer = crate::plugins::builtin::theme::stat_card_large(
+                &format_number(stealer_count),
+                &t.get("cred_stealer"),
+                Some("Malware Stealer")
+            ),
             examples = examples_html,
             footer = footer_dark(15, &t.get("footer_text")),
         );

@@ -55,35 +55,24 @@ impl SlidePlugin for TimelineSlidePlugin {
             .map(|(k, _)| *k)
             .unwrap_or("N/A");
 
-        let items_html: String = data.story_tickets.iter().take(6).map(|ticket| {
-            let (status_color, status_icon) = match ticket.status.as_str() {
-                "closed" => ("bg-green-500", r#"<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>"#),
-                "incident" => ("bg-red-500", r#"<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>"#),
-                _ => ("bg-orange-500", r#"<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>"#),
-            };
-            format!(
-                r#"<div class="flex items-start gap-3 mb-3">
-                    <div class="flex flex-col items-center">
-                        <div class="w-8 h-8 rounded-full {color} flex items-center justify-center">
-                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">{icon}</svg>
-                        </div>
-                        <div class="w-0.5 h-8 bg-zinc-700 mt-1"></div>
-                    </div>
-                    <div class="flex-grow bg-zinc-900/70 p-3 rounded-lg border border-zinc-800">
-                        <div class="flex items-center justify-between">
-                            <p class="font-bold text-white text-sm">{key}</p>
-                            <span class="text-xs text-zinc-500 px-2 py-0.5 bg-zinc-800 rounded">{threat_type}</span>
-                        </div>
-                        <p class="text-xs text-zinc-400 mt-1 truncate">{desc}</p>
-                    </div>
-                </div>"#,
-                color = status_color,
-                icon = status_icon,
-                key = ticket.ticket_key,
-                desc = ticket.description,
-                threat_type = ticket.threat_type,
-            )
-        }).collect();
+        let items_html: String = data
+            .story_tickets
+            .iter()
+            .take(6)
+            .map(|ticket| {
+                let severity = match ticket.status.as_str() {
+                    "incident" => "critical",
+                    "closed" => "low",
+                    _ => "high",
+                };
+                crate::plugins::builtin::theme::timeline_entry(
+                    &ticket.ticket_key,
+                    &ticket.threat_type,
+                    &ticket.description,
+                    severity,
+                )
+            })
+            .collect();
 
         let html = format!(
             r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">

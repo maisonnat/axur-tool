@@ -50,12 +50,6 @@ impl SlidePlugin for MetricsSlidePlugin {
             Some("Cada incidente procesado manualmente consume tiempo que su equipo podría dedicar a decisiones estratégicas. Esta es la diferencia medida.")
         );
 
-        // Teaser
-        let next_teaser = crate::plugins::builtin::theme::next_chapter_teaser(
-            "Siguiente Capítulo",
-            "Eliminación Activa de Amenazas",
-        );
-
         let html = format!(
             r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative bg-zinc-950 text-white overflow-hidden">
                 <!-- Background -->
@@ -118,15 +112,8 @@ impl SlidePlugin for MetricsSlidePlugin {
                     </div>
                 </div>
 
-                <!-- BREAKDOWN: Supporting detail (de-emphasized, bottom of F-pattern) -->
-                <div class="flex justify-center gap-12 text-xs text-zinc-500 border-t border-zinc-800/50 pt-6">
-                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Validación: <b class="text-zinc-300">{val_hours:.0}h</b></span>
-                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Credenciales: <b class="text-zinc-300">{cred_hours:.0}h</b></span>
-                    <span class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Takedowns: <b class="text-zinc-300">{td_hours:.0}h</b></span>
-                </div>
-
-                <!-- ZEIGARNIK EFFECT: Open loop teaser to next section -->
-                {next_teaser}
+                <!-- BREAKDOWN: Anchor Contrast summary (comparison_card component) -->
+                {comparison}
 
                 <!-- Footer -->
                 {footer}
@@ -136,12 +123,25 @@ impl SlidePlugin for MetricsSlidePlugin {
             total_tickets = format_number(data.total_tickets),
             hours_saved = hours_saved,
             analysts_display = analysts_display,
-            val_hours = roi.hours_saved_validation,
-            cred_hours = roi.hours_saved_credentials,
-            td_hours = roi.hours_saved_takedowns,
-            next_teaser = next_teaser,
+            comparison = crate::plugins::builtin::theme::comparison_card(
+                "PROCESO MANUAL",
+                &format!("{}h invertidas", format_number(data.total_tickets)),
+                "CON AXUR",
+                &format!("{:.0}h recuperadas", hours_saved),
+            ),
             footer = footer_dark(6, &t.get("footer_text")),
         );
+
+        // Semantic token replacement
+        let html = html
+            .replace("text-orange-500", "text-brand-primary")
+            .replace("bg-orange-500", "bg-brand-primary")
+            .replace("ring-orange-500", "ring-brand-primary")
+            .replace(
+                "shadow-[0_0_50px_rgba(255,103,31,0.15)]",
+                "shadow-brand-glow",
+            )
+            .replace("from-orange-500", "from-[var(--color-primary)]");
 
         vec![SlideOutput {
             id: "metrics".into(),

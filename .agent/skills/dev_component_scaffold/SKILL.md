@@ -10,6 +10,11 @@ version: 1.0.0
 
 ## Usage
 Run this skill when adding a new UI element.
+
+**Pre-Flight Check**:
+- [ ] **Intent**: Have you answered Who/Verb/Feel?
+- [ ] **Tokens**: Have you defined semantic tokens? (e.g. `bg-surface-card` not `bg-zinc-900`)
+
 Ex: `Implement a 'UserCard' component using dev_component_scaffold`
 
 ## Inputs

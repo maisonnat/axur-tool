@@ -80,6 +80,14 @@ impl SlidePlugin for ClosingSlidePlugin {
             footer = footer_dark(15, &t.get("footer_text")),
         );
 
+        // Aligning CTA colors
+        let html = html
+            .replace("from-orange-500", "from-[var(--color-primary)]")
+            .replace("to-red-500", "to-red-600") // Keep urgency but tweak range
+            .replace("shadow-orange-500", "shadow-[var(--color-primary)]")
+            .replace("text-orange-400", "text-brand-primary") // Hover state
+            .replace("hover:ring-orange-500", "hover:ring-brand-primary");
+
         vec![SlideOutput {
             id: "closing".into(),
             html,

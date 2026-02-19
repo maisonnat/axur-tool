@@ -58,16 +58,6 @@ impl SlidePlugin for IntroSlidePlugin {
                     </div>
                 </div>
                 
-                <!-- ZEIGARNIK EFFECT: Open loop to Act 2 -->
-                <div class="absolute bottom-24 right-14 z-50">
-                    <div class="bg-orange-500/10 border border-orange-500/20 backdrop-blur-md px-5 py-3 rounded-xl flex items-center gap-3 hover:bg-orange-500/20 transition-colors duration-300 cursor-pointer">
-                        <div>
-                            <p class="text-[10px] text-orange-400 uppercase tracking-widest mb-0.5">Siguiente Capítulo</p>
-                            <p class="text-sm font-bold text-white">Panorama de Amenazas →</p>
-                        </div>
-                    </div>
-                </div>
-
                 {footer}
             </div></div>"#,
             title = t.get("intro_title"),
@@ -76,6 +66,12 @@ impl SlidePlugin for IntroSlidePlugin {
             closing = t.get("intro_text_closing"),
             footer = crate::plugins::builtin::helpers::footer_dark(2, &t.get("footer_text")),
         );
+
+        let html = html
+            .replace("#FF671F", "var(--color-primary)")
+            // Intro uses orange-500, let's align it to brand primary for consistency
+            .replace("bg-orange-500", "bg-brand-primary")
+            .replace("text-orange-500", "text-brand-primary");
 
         vec![SlideOutput {
             id: "intro".into(),

@@ -62,12 +62,6 @@ impl SlidePlugin for TakedownsSlidePlugin {
             Some("Axur eliminó amenazas activas en nombre de su organización. Cada takedown representa un riesgo que ya no existe.")
         );
 
-        // Teaser
-        let next_teaser = crate::plugins::builtin::theme::next_chapter_teaser(
-            "Siguiente Capítulo",
-            "Próximos Pasos",
-        );
-
         let html = format!(
             r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 mb-8 relative bg-zinc-950 text-white overflow-hidden">
                 <!-- Background -->
@@ -113,9 +107,6 @@ impl SlidePlugin for TakedownsSlidePlugin {
                         </div>
                     </div>
                 </div>
-
-                <!-- Open Loop -->
-                {next_teaser}
 
                 <!-- Footer -->
                 {footer}
@@ -177,7 +168,6 @@ impl SlidePlugin for TakedownsSlidePlugin {
                 )),
                 "gray"
             ),
-            next_teaser = next_teaser,
             footer = footer_dark(11, &t.get("footer_text")),
         );
 

@@ -29,5 +29,10 @@ Test-NetConnection -ComputerName localhost -Port 3001
 ### 4. Recent Logs
 - Display the last 20 lines of the latest log file in `debug_logs/`.
 
+### 5. Chaos Check (Resilience)
+-   Reference `dev_resilience` skill patterns.
+-   [ ] Does the API return 503 Service Unavailable (not 500) if DB is down?
+-   [ ] Are there retries for transient failures?
+
 ## Script
 (Future: Implement `check_health.ps1` to automate this)

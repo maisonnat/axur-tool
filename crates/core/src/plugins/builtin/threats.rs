@@ -143,6 +143,12 @@ impl SlidePlugin for ThreatsSlidePlugin {
             footer = footer_dark(7, &t.get("footer_text")),
         );
 
+        let html = html
+            .replace("#FF671F", "var(--color-primary)")
+            .replace("bg-[#FF671F]", "bg-brand-primary")
+            .replace("text-[#FF671F]", "text-brand-primary")
+            .replace("border-[#FF671F]", "border-brand-primary");
+
         vec![SlideOutput {
             id: "threats".into(),
             html,

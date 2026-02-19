@@ -86,7 +86,7 @@ impl SlidePlugin for CoverSlidePlugin {
                     <div class="flex-grow flex flex-col justify-center mt-10">
                         <!-- Date Range -->
                         <p class="text-zinc-400 font-mono text-sm tracking-widest mb-6 opacity-80 border-b border-white/10 pb-2 inline-block w-fit">
-                            Analyzed Period: <span class="text-white">{dates}</span>
+                            Período Analizado: <span class="text-white">{dates}</span>
                         </p>
 
                         <h1 class="text-7xl font-black leading-[0.9] display-text uppercase text-white tracking-tight drop-shadow-2xl">
@@ -131,6 +131,15 @@ impl SlidePlugin for CoverSlidePlugin {
             title = title,
             dates = date_range,
         );
+
+        // Define semantic replacements for hardcoded hex values
+        // Note: Using replace() here as a quick refactor strategy, though proper templating would be better long-term.
+        // This ensures all instances of #FF671F (and variations) map to our new CSS variables/classes.
+        let html = html
+            .replace("#FF671F", "var(--color-primary)")
+            .replace("bg-[#FF671F]", "bg-brand-primary")
+            .replace("text-[#FF671F]", "text-brand-primary")
+            .replace("border-[#FF671F]", "border-brand-primary");
 
         vec![SlideOutput {
             id: "cover".into(),

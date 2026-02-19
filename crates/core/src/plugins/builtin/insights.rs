@@ -119,15 +119,6 @@ enum Priority {
 }
 
 impl Priority {
-    fn color(&self) -> &'static str {
-        match self {
-            Priority::Critical => "#EF4444",
-            Priority::High => "#F59E0B",
-            Priority::Medium => "#3B82F6",
-            Priority::Low => "#22C55E",
-        }
-    }
-
     fn label(&self) -> &'static str {
         match self {
             Priority::Critical => "CRÍTICO",
@@ -303,29 +294,11 @@ fn generate_insights(data: &crate::api::report::PocReportData) -> Vec<Insight> {
 }
 
 fn render_insight_card(insight: &Insight) -> String {
-    format!(
-        r##"<div class="bg-zinc-900/60 p-4 rounded-lg border border-zinc-800">
-  <div class="flex items-start gap-3">
-    <span class="text-2xl">{icon}</span>
-    <div class="flex-grow">
-      <div class="flex items-center justify-between mb-1">
-        <h3 class="text-sm font-bold text-white">{title}</h3>
-        <span class="text-xs font-bold px-2 py-0.5 rounded" style="background: {color}20; color: {color}">{priority}</span>
-      </div>
-      <p class="text-xs text-zinc-400 mb-2">{desc}</p>
-      <div class="flex items-center gap-1 text-xs">
-        <span class="text-[#FF671F]">→</span>
-        <span class="text-zinc-300">{action}</span>
-      </div>
-    </div>
-  </div>
-</div>"##,
-        icon = insight.icon,
-        title = insight.title,
-        color = insight.priority.color(),
-        priority = insight.priority.label(),
-        desc = insight.description,
-        action = insight.action,
+    crate::plugins::builtin::theme::action_card(
+        insight.priority.label(),
+        &format!("{} {}", insight.icon, insight.title),
+        &insight.description,
+        &insight.action,
     )
 }
 
@@ -359,9 +332,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_priority_colors() {
-        assert_eq!(Priority::Critical.color(), "#EF4444");
-        assert_eq!(Priority::Low.color(), "#22C55E");
+    fn test_priority_labels() {
+        assert_eq!(Priority::Critical.label(), "CRÍTICA");
+        assert_eq!(Priority::Low.label(), "BAJA");
     }
 
     #[test]

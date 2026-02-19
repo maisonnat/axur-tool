@@ -3,7 +3,7 @@
 //! Displays period-over-period comparisons with delta indicators.
 //! Shows trends: threats, takedowns, exposure, and efficiency changes.
 
-use super::helpers::format_number;
+use super::helpers::{footer_dark, format_number};
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 /// Plugin that generates the Comparative Analysis slide
@@ -62,31 +62,32 @@ impl SlidePlugin for ComparativeSlidePlugin {
         let efficiency_delta = calc_delta(hours_current, hours_prev);
 
         let title = t.get("comparative_title");
-        let period_label = prev
-            .map(|c| c.period_label.as_str())
-            .unwrap_or("vs. Periodo Anterior");
+
+        // Premium Header
+        let header = crate::plugins::builtin::theme::section_header_premium(
+            "TENDENCIAS",
+            &title,
+            Some("Evolución de indicadores clave respecto al periodo anterior."),
+        );
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-black text-white">
-<div class="flex-grow h-full overflow-hidden">
-<div class="h-full flex flex-col">
-  <!-- Header -->
-  <div class="mb-4 flex items-center gap-4">
-    <span class="bg-[#FF671F] text-white px-4 py-2 text-sm font-bold tracking-wider uppercase">TENDENCIAS</span>
-    <span class="text-zinc-400 text-sm">{period}</span>
-  </div>
-  <h2 class="text-4xl font-black mb-8 uppercase tracking-tight">{title}</h2>
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-14 shadow-lg mb-8 relative bg-zinc-950 text-white overflow-hidden">
+                <!-- Background -->
+                {bg_pattern}
+
+                <!-- Header -->
+                {header}
   
   <!-- Comparison Grid -->
-  <div class="grid grid-cols-2 gap-6 flex-grow">
+  <div class="grid grid-cols-2 gap-6 flex-grow mt-4">
     <!-- Threats Delta -->
-    <div class="bg-zinc-900/60 p-6 rounded-lg border border-zinc-800">
+    <div class="glass-panel p-6 hover:scale-[1.02] hover:border-orange-500/30 transition-all duration-300">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-zinc-400 uppercase">Amenazas Detectadas</h3>
+        <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-widest">Amenazas Detectadas</h3>
         {tickets_badge}
       </div>
       <div class="flex items-baseline gap-4">
-        <span class="text-5xl font-black text-white">{current_tickets}</span>
+        <span class="text-5xl font-light text-white">{current_tickets}</span>
         <span class="text-xl text-zinc-500">vs {prev_tickets}</span>
       </div>
       <div class="mt-4 h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -95,13 +96,13 @@ impl SlidePlugin for ComparativeSlidePlugin {
     </div>
     
     <!-- Takedowns Delta -->
-    <div class="bg-zinc-900/60 p-6 rounded-lg border border-zinc-800">
+    <div class="glass-panel p-6 hover:scale-[1.02] hover:border-green-500/30 transition-all duration-300">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-zinc-400 uppercase">Takedowns Exitosos</h3>
+        <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-widest">Takedowns Exitosos</h3>
         {takedowns_badge}
       </div>
       <div class="flex items-baseline gap-4">
-        <span class="text-5xl font-black text-[#22C55E]">{current_takedowns}</span>
+        <span class="text-5xl font-light text-[#22C55E]">{current_takedowns}</span>
         <span class="text-xl text-zinc-500">vs {prev_takedowns}</span>
       </div>
       <div class="mt-4 h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -110,13 +111,13 @@ impl SlidePlugin for ComparativeSlidePlugin {
     </div>
     
     <!-- Credentials Delta -->
-    <div class="bg-zinc-900/60 p-6 rounded-lg border border-zinc-800">
+    <div class="glass-panel p-6 hover:scale-[1.02] hover:border-yellow-500/30 transition-all duration-300">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-zinc-400 uppercase">Credenciales Expuestas</h3>
+        <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-widest">Credenciales Expuestas</h3>
         {credentials_badge}
       </div>
       <div class="flex items-baseline gap-4">
-        <span class="text-5xl font-black text-[#F59E0B]">{current_credentials}</span>
+        <span class="text-5xl font-light text-[#F59E0B]">{current_credentials}</span>
         <span class="text-xl text-zinc-500">vs {prev_credentials}</span>
       </div>
       <div class="mt-4 h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -125,13 +126,13 @@ impl SlidePlugin for ComparativeSlidePlugin {
     </div>
     
     <!-- Efficiency Delta -->
-    <div class="bg-zinc-900/60 p-6 rounded-lg border border-zinc-800">
+    <div class="glass-panel p-6 hover:scale-[1.02] hover:border-purple-500/30 transition-all duration-300">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-zinc-400 uppercase">Horas Ahorradas</h3>
+        <h3 class="text-sm font-bold text-zinc-500 uppercase tracking-widest">Horas Ahorradas</h3>
         {efficiency_badge}
       </div>
       <div class="flex items-baseline gap-4">
-        <span class="text-5xl font-black text-[#8B5CF6]">{hours_current}h</span>
+        <span class="text-5xl font-light text-[#8B5CF6]">{hours_current}h</span>
         <span class="text-xl text-zinc-500">vs {hours_prev}h</span>
       </div>
       <div class="mt-4 h-2 bg-zinc-800 rounded-full overflow-hidden">
@@ -141,18 +142,18 @@ impl SlidePlugin for ComparativeSlidePlugin {
   </div>
 
   <!-- Summary -->
-  <div class="mt-6 bg-zinc-900/30 p-4 rounded-lg border border-zinc-800">
+  <div class="mt-6 glass-panel p-4">
     <p class="text-zinc-400 text-sm">
       <span class="text-white font-bold">Resumen:</span> 
       {summary}
     </p>
   </div>
-</div>
-</div>
-{footer}
-</div></div>"#,
-            title = title,
-            period = period_label,
+
+                <!-- Footer -->
+                {footer}
+            </div></div>"#,
+            bg_pattern = crate::plugins::builtin::helpers::geometric_pattern(),
+            header = header,
             current_tickets = format_number(current_tickets),
             prev_tickets = format_number(prev_tickets),
             tickets_badge = delta_badge(&tickets_delta),
@@ -170,30 +171,13 @@ impl SlidePlugin for ComparativeSlidePlugin {
             efficiency_badge = delta_badge(&efficiency_delta),
             efficiency_bar = calc_bar_width(hours_current, hours_prev),
             summary = generate_summary(&tickets_delta, &takedowns_delta, &credentials_delta),
-            footer = Self::render_footer(t.get("footer_text")),
+            footer = footer_dark(13, &t.get("footer_text")),
         );
 
         vec![SlideOutput {
             id: "comparative".into(),
             html,
         }]
-    }
-}
-
-impl ComparativeSlidePlugin {
-    fn render_footer(footer_text: String) -> String {
-        format!(
-            r#"<footer class="absolute bottom-8 left-14 right-14 flex justify-between items-center">
-<div class="flex items-center font-black tracking-wider select-none text-white h-5">
-  <span class="text-[#FF671F] text-2xl -mr-1">///</span>
-  <span class="text-xl">AXUR</span>
-</div>
-<div class="flex items-center text-xs text-zinc-500">
-  <span>{}</span>
-</div>
-</footer>"#,
-            footer_text
-        )
     }
 }
 

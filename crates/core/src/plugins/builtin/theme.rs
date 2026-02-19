@@ -1,6 +1,7 @@
 //! Axur Brand Theme Constants
 //!
-//! Design tokens and CSS based on Axur.com design system.
+//! Design tokens, typography, and CSS based on Axur.com design system.
+//! Visual identity: "Cyber Noir Intelligence" — see `.agent/skills/axur-design-system/SKILL.md`
 //! Updated with actual colors from axur.com analysis.
 
 /// Brand colors based on Axur.com analysis
@@ -37,6 +38,32 @@ pub mod colors {
     pub const TEXT_BODY_DARK: &str = "#33475B";
 }
 
+/// Typography design tokens — font families, sizes, and weights.
+/// See `.agent/skills/axur-design-system/themes/axur-dark-premium.md` for full spec.
+pub mod typography {
+    /// Font families
+    pub const FONT_DISPLAY: &str = "Inter";
+    pub const FONT_BODY: &str = "Inter";
+    pub const FONT_MONO: &str = "JetBrains Mono, monospace";
+
+    /// Font sizes (rem)
+    pub const SIZE_HERO_XL: &str = "7rem";
+    pub const SIZE_HERO: &str = "4rem";
+    pub const SIZE_H1: &str = "3rem";
+    pub const SIZE_H2: &str = "2rem";
+    pub const SIZE_H3: &str = "1.25rem";
+    pub const SIZE_BODY: &str = "0.875rem";
+    pub const SIZE_LABEL: &str = "0.65rem";
+    pub const SIZE_CAPTION: &str = "0.75rem";
+
+    /// Font weights
+    pub const WEIGHT_LIGHT: u16 = 300;
+    pub const WEIGHT_REGULAR: u16 = 400;
+    pub const WEIGHT_SEMIBOLD: u16 = 600;
+    pub const WEIGHT_BOLD: u16 = 700;
+    pub const WEIGHT_EXTRABOLD: u16 = 800;
+}
+
 /// CSS classes for brand styling - Updated Axur.com design system
 /// NOTE: Styles are now injected globally in `html.rs`. This constant is kept for compatibility but empty.
 pub const BRAND_CSS: &str = "";
@@ -52,7 +79,7 @@ pub fn axur_logo_styled(size: &str) -> String {
 
     format!(
         r#"<div class="flex items-center font-black tracking-wider select-none inter-font">
-            <span class="{slash_size} text-[#FF671F] -mr-1">///</span>
+            <span class="{slash_size} text-brand-primary -mr-1">///</span>
             <span class="{text_size}">AXUR</span>
         </div>"#,
         slash_size = slash_size,
@@ -170,7 +197,10 @@ pub fn progress_bar_colored(percentage: f64, label: Option<&str>, color: &str) -
     let (gradient, shadow_color) = match color {
         "blue" => ("from-blue-500 to-blue-400", "rgba(59, 130, 246, 0.3)"),
         "green" => ("from-[#22C55E] to-emerald-400", "rgba(34, 197, 94, 0.3)"),
-        _ => ("from-[#FF671F] to-[#FF8A4C]", "rgba(255, 103, 31, 0.3)"),
+        _ => (
+            "from-[var(--color-primary)] to-[#FF8A4C]",
+            "rgba(var(--color-primary-rgb), 0.3)",
+        ),
     };
 
     format!(
@@ -199,11 +229,11 @@ pub fn stat_card_hero(value: &str, label: &str, sublabel: Option<&str>) -> Strin
         .unwrap_or_default();
     format!(
         r#"<div class="glass-panel-premium p-10 flex flex-col justify-center relative overflow-hidden group">
-            <div class="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-purple-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <div class="absolute inset-0 bg-gradient-to-br from-brand-primary/5 via-transparent to-purple-500/3 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
             <div class="bg-orb-orange w-40 h-40 -top-10 -right-10"></div>
             <p class="hero-number shimmer-text relative z-10">{value}</p>
             <div class="accent-line w-24 relative z-10"></div>
-            <p class="label-text text-[#FF671F] mt-3 relative z-10">{label}</p>
+            <p class="label-text text-brand-primary mt-3 relative z-10">{label}</p>
             {sublabel}
         </div>"#,
         value = value,
@@ -219,7 +249,7 @@ pub fn stat_card_hero_xl(value: &str, label: &str) -> String {
             <div class="bg-orb-orange w-60 h-60 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style="position:absolute;"></div>
             <p class="hero-number-xl shimmer-text relative z-10">{value}</p>
             <div class="accent-line w-32 mx-auto relative z-10"></div>
-            <p class="label-text text-[#FF671F] mt-4 relative z-10 text-center">{label}</p>
+            <p class="label-text text-brand-primary mt-4 relative z-10 text-center">{label}</p>
         </div>"#,
         value = value,
         label = label,
@@ -271,22 +301,28 @@ pub fn risk_gauge_svg(score: u32, label: &str) -> String {
     let cx = 100.0 + 80.0 * rad.cos();
     let cy = 100.0 - 80.0 * rad.sin();
 
+    // Use loop to find color or just conditions (SVG needs hex or var)
+    // We can use var(--color-primary) for the orange case.
     let color = if clamped >= 75 {
         "#EF4444"
     } else if clamped >= 50 {
         "#F59E0B"
     } else if clamped >= 25 {
-        "#FF671F"
+        "var(--color-primary)"
     } else {
         "#22C55E"
     };
+
+    // For glow, we need rgba... using hardcoded for now or use primary-rgb var if possible but SVG drop-shadow logic is tricky with vars in some renderers.
+    // Let's stick to hex for knowns, but use var for the "orange" slot if safe.
+    // Actually, filter drop-shadow with var() is well supported.
 
     let glow_color = if clamped >= 75 {
         "rgba(239,68,68,0.4)"
     } else if clamped >= 50 {
         "rgba(245,158,11,0.4)"
     } else {
-        "rgba(255,103,31,0.4)"
+        "rgba(var(--color-primary-rgb), 0.4)"
     };
 
     format!(
@@ -296,7 +332,7 @@ pub fn risk_gauge_svg(score: u32, label: &str) -> String {
                     <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
                         <stop offset="0%" stop-color="#22C55E"/>
                         <stop offset="40%" stop-color="#F59E0B"/>
-                        <stop offset="70%" stop-color="#FF671F"/>
+                        <stop offset="70%" stop-color="var(--color-primary)"/>
                         <stop offset="100%" stop-color="#EF4444"/>
                     </linearGradient>
                 </defs>
@@ -359,5 +395,90 @@ pub fn next_chapter_teaser(label: &str, title: &str) -> String {
         </div>"#,
         label = label,
         title = title,
+    )
+}
+
+// ============================================
+// PHASE 3: NEW LAYOUT COMPONENTS (v3.0)
+// ============================================
+
+/// Before/After comparison card — Anchor Contrast technique (Cialdini)
+/// Use for showing improvements, threat reduction, or efficiency gains.
+pub fn comparison_card(
+    before_label: &str,
+    before_value: &str,
+    after_label: &str,
+    after_value: &str,
+) -> String {
+    format!(
+        r#"<div class="grid grid-cols-2 gap-0 rounded-2xl overflow-hidden border border-white/10">
+            <div class="p-8 bg-zinc-900/80 flex flex-col justify-center">
+                <p class="label-text text-zinc-500 mb-2">{before_label}</p>
+                <p class="text-4xl font-light text-zinc-400 display-text">{before_value}</p>
+            </div>
+            <div class="p-8 bg-gradient-to-br from-orange-500/10 to-transparent flex flex-col justify-center border-l border-white/10">
+                <p class="label-text text-orange-400 mb-2">{after_label}</p>
+                <p class="text-4xl font-light text-white display-text text-glow">{after_value}</p>
+            </div>
+        </div>"#,
+        before_label = before_label,
+        before_value = before_value,
+        after_label = after_label,
+        after_value = after_value,
+    )
+}
+
+/// Action recommendation card — CTA with priority badge and effort indicator.
+/// Use for "Sugerencias de Acción" slides (Act 5: Need-Payoff).
+pub fn action_card(priority: &str, title: &str, description: &str, effort: &str) -> String {
+    let priority_color = match priority.to_lowercase().as_str() {
+        "critical" | "crítico" => "bg-red-500/20 text-red-400 border-red-500/30",
+        "high" | "alto" => "bg-orange-500/20 text-orange-400 border-orange-500/30",
+        "medium" | "medio" => "bg-blue-500/20 text-blue-400 border-blue-500/30",
+        _ => "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
+    };
+    format!(
+        r#"<div class="glass-panel p-6 hover:bg-white/5 transition-all duration-300 hover:scale-[1.01] group">
+            <div class="flex items-start justify-between mb-4">
+                <span class="inline-block px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-semibold border {priority_color}">{priority}</span>
+                <span class="text-xs text-zinc-500">⏱ {effort}</span>
+            </div>
+            <h4 class="text-lg font-bold text-white mb-2 tracking-tight group-hover:text-orange-400 transition-colors">{title}</h4>
+            <p class="text-sm text-zinc-400 leading-relaxed">{description}</p>
+        </div>"#,
+        priority_color = priority_color,
+        priority = priority,
+        effort = effort,
+        title = title,
+        description = description,
+    )
+}
+
+/// Timeline entry — vertical timeline element for incident chronology.
+/// Use for "Incident Timeline" slides (Act 2: Problem).
+pub fn timeline_entry(date: &str, title: &str, description: &str, severity: &str) -> String {
+    let (dot_color, line_color) = match severity.to_lowercase().as_str() {
+        "critical" | "crítico" => ("bg-red-500 shadow-red-500/50", "border-red-500/30"),
+        "high" | "alto" => ("bg-orange-500 shadow-orange-500/50", "border-orange-500/30"),
+        "medium" | "medio" => ("bg-blue-500 shadow-blue-500/50", "border-blue-500/30"),
+        _ => ("bg-zinc-500 shadow-zinc-500/50", "border-zinc-500/30"),
+    };
+    format!(
+        r#"<div class="flex gap-6 relative">
+            <div class="flex flex-col items-center">
+                <div class="w-4 h-4 rounded-full {dot_color} shadow-lg flex-shrink-0 mt-1"></div>
+                <div class="w-px flex-grow {line_color} border-l-2 border-dashed mt-2"></div>
+            </div>
+            <div class="pb-8">
+                <p class="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">{date}</p>
+                <h4 class="text-base font-bold text-white mt-1">{title}</h4>
+                <p class="text-sm text-zinc-400 mt-1 leading-relaxed">{description}</p>
+            </div>
+        </div>"#,
+        dot_color = dot_color,
+        line_color = line_color,
+        date = date,
+        title = title,
+        description = description,
     )
 }

@@ -1,9 +1,12 @@
-//! PoC Data Slide Plugin
+//! PoC Data Slide Plugin — ACT 1: The Call to Adventure (Scope)
 //!
-//! Displays monitored assets and period information.
-//! Redesigned with compact duration banner and full-width asset grid.
+//! Narrative Role: The DIGITAL FORTRESS. Shows the scope of protection not as a list,
+//! but as an active, living defense system.
+//!
+//! Design: "Active Sonar" visualization where the Client is the core,
+//! surrounded by concentric rings of protection (Brands > Execs > Infra).
 
-use super::helpers::footer_dark;
+use super::helpers::{footer_dark, format_number};
 use crate::plugins::{PluginContext, SlideOutput, SlidePlugin};
 
 pub struct PocDataSlidePlugin;
@@ -23,103 +26,192 @@ impl SlidePlugin for PocDataSlidePlugin {
         let data = ctx.data;
         let t = ctx.translations;
 
-        // Compact duration badge
-        let duration_html = if data.is_dynamic_window {
-            format!(
-                r#"<div class="flex items-center gap-3 px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-[#FF671F]">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <span class="text-zinc-300 text-sm">{} · <span class="text-[#FF671F] font-semibold">Monitoreo Continuo</span></span>
-                </div>"#,
-                t.get("poc_period_dynamic_title")
-            )
-        } else {
-            format!(
-                r#"<div class="flex items-center gap-4 px-4 py-2 bg-zinc-900 border border-zinc-700 rounded-lg">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-5 h-5 text-[#FF671F]">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span class="text-zinc-400 text-sm">{}</span>
-                    <span class="text-white font-semibold">{} → {}</span>
-                </div>"#,
-                t.get("poc_period_static_title"),
-                &data.start_date,
-                &data.end_date
-            )
-        };
+        // ─── Build Asset Stats ───
+        struct AssetGroup {
+            label: &'static str,
+            count: u32,
+            icon: &'static str,
+            color: &'static str,
+        }
+
+        let assets = [
+            AssetGroup {
+                label: "Marcas",
+                count: data.brands_count,
+                icon: "🛡️",
+                color: "orange",
+            },
+            AssetGroup {
+                label: "Ejecutivos",
+                count: data.executives_count,
+                icon: "👤",
+                color: "blue",
+            },
+            AssetGroup {
+                label: "Infraestructura",
+                count: data.ips_count + data.domains_count,
+                icon: "🌐",
+                color: "emerald",
+            },
+        ];
+
+        let assets_html: String = assets
+            .iter()
+            .map(|a| {
+                format!(
+                    r#"<div class="flex items-center justify-between p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl backdrop-blur-sm">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-lg bg-{color}-500/10 flex items-center justify-center text-2xl border border-{color}-500/20">
+                                {icon}
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold text-white font-mono leading-none">{count}</div>
+                                <div class="text-xs text-zinc-500 uppercase tracking-wider mt-1">{label}</div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end">
+                            <div class="flex items-center gap-1.5">
+                                <span class="relative flex h-2 w-2">
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-{color}-400 opacity-75"></span>
+                                  <span class="relative inline-flex rounded-full h-2 w-2 bg-{color}-500"></span>
+                                </span>
+                                <span class="text-[10px] text-{color}-400 uppercase tracking-widest font-bold">Activo</span>
+                            </div>
+                        </div>
+                    </div>"#,
+                    label = a.label,
+                    count = format_number(a.count as u64),
+                    icon = a.icon,
+                    color = a.color
+                )
+            })
+            .collect();
+
+        // ─── Brand Nodes (Orbit 1) ───
+        // Position top 3 brands in a triangle layout around the core
+        let brand_nodes: String = data
+            .brands
+            .iter()
+            .take(3)
+            .enumerate()
+            .map(|(i, brand)| {
+                // Calculate position on a circle (radius 160px)
+                // -90deg is top (0), then 30 (1), 150 (2) for 3 items
+                let angle_deg = -90.0 + (i as f64 * 120.0);
+                let angle_rad = angle_deg.to_radians();
+                let radius = 160.0;
+                let x = radius * angle_rad.cos();
+                let y = radius * angle_rad.sin();
+
+                format!(
+                    r#"<div class="absolute flex flex-col items-center gap-2 transform -translate-x-1/2 -translate-y-1/2 group/node"
+                            style="left: calc(50% + {x}px); top: calc(50% + {y}px);">
+                        <div class="w-12 h-12 bg-black border border-orange-500/50 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(255,103,31,0.3)] z-10 group-hover/node:scale-110 transition-transform duration-500">
+                             <svg class="w-6 h-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                        </div>
+                        <div class="px-3 py-1 bg-black/80 border border-zinc-800 rounded-full text-xs font-bold text-white tracking-wide whitespace-nowrap backdrop-blur-md opacity-0 group-hover/node:opacity-100 transition-opacity duration-300 transform translate-y-2 group-hover/node:translate-y-0">
+                            {brand}
+                        </div>
+                        <!-- Connecting Line to center -->
+                        <div class="absolute top-1/2 left-1/2 w-[160px] h-[1px] bg-gradient-to-r from-orange-500/0 via-orange-500/20 to-orange-500/0 origin-left -z-10"
+                             style="transform: rotate({angle}deg) translateX(-160px);"></div>
+                   </div>"#,
+                    x = x,
+                    y = y,
+                    brand = brand,
+                    angle = angle_deg + 180.0 // Line points inward
+                )
+            })
+            .collect();
+
+        // ─── Radar Scan SVG ───
+        let radar_scan = r##"
+            <div class="absolute inset-0 rounded-full overflow-hidden animate-[spin_8s_linear_infinite]">
+                 <div class="absolute top-0 right-0 w-1/2 h-1/2 bg-gradient-to-bl from-orange-500/10 via-orange-500/0 to-transparent"></div>
+            </div>
+        "##;
 
         let html = format!(
-            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex flex-col p-10 md:p-14 shadow-lg mb-8 relative bg-black text-white">
-<div class="flex-grow h-full overflow-hidden">
-<!-- Background pattern -->
-<div class="absolute inset-0" style="background-image:radial-gradient(circle at 25px 25px,rgba(255,75,0,0.08) 2%,transparent 0%),radial-gradient(circle at 75px 75px,rgba(255,75,0,0.08) 2%,transparent 0%);background-size:100px 100px"></div>
+            r#"<div class="relative group"><div class="printable-slide aspect-[16/9] w-full flex p-12 relative bg-black text-white overflow-hidden">
+                <!-- Background Grid -->
+                {bg}
 
-<div class="relative h-full flex flex-col">
-  <!-- Header Row with Title + Duration -->
-  <div class="flex items-start justify-between mb-8">
-    <div>
-      <span class="bg-[#FF671F] px-4 py-1 text-sm font-bold tracking-wider uppercase">{title_scope}</span>
-      <h2 class="text-4xl font-black mt-3 uppercase tracking-tight">{title_assets}</h2>
-    </div>
-    {duration}
-  </div>
-  
-  <!-- Full-width Asset Grid -->
-  <div class="flex-grow">
-    <div class="grid grid-cols-4 gap-6 h-full">
-      <!-- Brands -->
-      <div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 flex flex-col justify-center items-center text-center hover:border-[#FF671F]/50 transition-colors">
-        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-12 h-12 text-[#FF671F] mb-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286z"/>
-        </svg>
-        <p class="text-5xl font-black text-white" style="text-shadow: 0 0 20px rgba(255,75,0,0.3)">{brands}</p>
-        <p class="text-sm text-zinc-400 mt-2 uppercase tracking-wider">{brands_label}</p>
-      </div>
-      
-      <!-- Executives -->
-      <div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 flex flex-col justify-center items-center text-center hover:border-[#FF671F]/50 transition-colors">
-        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-12 h-12 text-[#FF671F] mb-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
-        </svg>
-        <p class="text-5xl font-black text-white" style="text-shadow: 0 0 20px rgba(255,75,0,0.3)">{exec}</p>
-        <p class="text-sm text-zinc-400 mt-2 uppercase tracking-wider">{lbl_exec}</p>
-      </div>
-      
-      <!-- IPs -->
-      <div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 flex flex-col justify-center items-center text-center hover:border-[#FF671F]/50 transition-colors">
-        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-12 h-12 text-[#FF671F] mb-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008zm-3 6h.008v.008h-.008v-.008zm0-6h.008v.008h-.008v-.008z"/>
-        </svg>
-        <p class="text-5xl font-black text-white" style="text-shadow: 0 0 20px rgba(255,75,0,0.3)">{ips}</p>
-        <p class="text-sm text-zinc-400 mt-2 uppercase tracking-wider">{lbl_ips}</p>
-      </div>
-      
-      <!-- Domains -->
-      <div class="bg-zinc-900/80 p-8 rounded-xl border border-zinc-800 flex flex-col justify-center items-center text-center hover:border-[#FF671F]/50 transition-colors">
-        <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" class="w-12 h-12 text-[#FF671F] mb-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582"/>
-        </svg>
-        <p class="text-5xl font-black text-white" style="text-shadow: 0 0 20px rgba(255,75,0,0.3)">{domains}</p>
-        <p class="text-sm text-zinc-400 mt-2 uppercase tracking-wider">{lbl_domains}</p>
-      </div>
-    </div>
-  </div>
-</div>
-</div>
-{footer}
-</div></div>"#,
-            title_scope = t.get("poc_scope_title"),
-            title_assets = t.get("poc_assets_title"),
-            brands = data.brands_count,
-            brands_label = t.get("poc_label_brands"),
-            exec = data.executives_count,
-            lbl_exec = t.get("poc_label_executives"),
-            ips = data.ips_count,
-            lbl_ips = t.get("poc_label_ips"),
-            domains = data.domains_count,
-            lbl_domains = t.get("poc_label_domains"),
-            duration = duration_html,
+                <div class="flex w-full gap-12 relative z-10">
+                    <!-- Left Column: Context & Stats -->
+                    <div class="w-1/3 flex flex-col justify-between py-4">
+                        <div>
+                            <span class="text-orange-500 font-bold tracking-[0.3em] text-xs uppercase mb-2 block">{title_scope}</span>
+                            <h2 class="text-5xl font-black uppercase tracking-tight leading-none mb-6">{title_assets}</h2>
+                            <div class="w-16 h-1 bg-orange-500 mb-8"></div>
+                            
+                            <p class="text-zinc-400 text-sm leading-relaxed mb-6">
+                                Monitoreo activo y continuo las 24/7 sobre todo el perímetro digital, 
+                                detectando amenazas desde la Deep Web hasta redes sociales y dominios fraudulentos.
+                            </p>
+                        </div>
+
+                        <div class="flex flex-col gap-4">
+                            {assets}
+                        </div>
+
+                        <!-- Duration Badge -->
+                        <div class="mt-8 flex items-center gap-3 text-xs text-zinc-500 font-mono border-t border-zinc-800 pt-4">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>SISTEMA ACTIVO: {start} → {end}</span>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: The Digital Fortress Visualization -->
+                    <div class="w-2/3 relative flex items-center justify-center">
+                        <!-- Orbit System Container -->
+                        <div class="relative w-[500px] h-[500px] flex items-center justify-center">
+                            
+                            <!-- Outer Ring (Infra) -->
+                            <div class="absolute inset-0 border border-zinc-800/60 rounded-full"></div>
+                            <div class="absolute inset-0 border border-dashed border-zinc-700/30 rounded-full animate-[spin_60s_linear_infinite]"></div>
+                            
+                            <!-- Middle Ring (Execs) -->
+                            <div class="absolute inset-[80px] border border-orange-500/10 rounded-full"></div>
+                            <div class="absolute inset-[80px] border border-dashed border-orange-500/20 rounded-full animate-[spin_40s_linear_infinite_reverse]"></div>
+
+                            <!-- Inner Ring (Brands) -->
+                            <div class="absolute inset-[160px] border border-orange-500/30 rounded-full shadow-[0_0_30px_rgba(255,103,31,0.1)]"></div>
+
+                            <!-- Radar Scan Effect -->
+                            <div class="absolute inset-[20px] rounded-full opacity-50 pointer-events-none mix-blend-screen">
+                                {radar}
+                            </div>
+
+                            <!-- Core (Company Logo) -->
+                            <div class="absolute w-24 h-24 bg-zinc-900 border-2 border-orange-500 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(255,103,31,0.4)] z-20 relative">
+                                <div class="absolute inset-0 bg-orange-500/10 rounded-full animate-ping opacity-20"></div>
+                                <div class="text-center">
+                                    <div class="text-2xl font-black text-white tracking-widest leading-none">AXUR</div>
+                                    <div class="text-[8px] text-orange-400 uppercase tracking-widest mt-1">Core</div>
+                                </div>
+                            </div>
+
+                            <!-- Floating Brand Nodes -->
+                            {brands}
+
+                            <!-- Decorative Data Points (Fake Nodes for Visual Density) -->
+                            <div class="absolute top-[10%] right-[20%] w-2 h-2 bg-zinc-700 rounded-full animate-pulse"></div>
+                            <div class="absolute bottom-[20%] left-[15%] w-1.5 h-1.5 bg-zinc-600 rounded-full animate-pulse delay-700"></div>
+                            <div class="absolute top-[50%] right-[5%] w-1 h-1 bg-orange-500/50 rounded-full animate-ping"></div>
+                        </div>
+                    </div>
+                </div>
+
+                {footer}
+            </div></div>"#,
+            bg = crate::plugins::builtin::helpers::geometric_pattern(),
+            title_scope = t.get("poc_scope_title"), // "Alcance del Monitoreo"
+            title_assets = t.get("poc_assets_title"), // "Activos Monitoreados"
+            assets = assets_html,
+            start = data.start_date,
+            end = data.end_date,
+            radar = radar_scan,
+            brands = brand_nodes,
             footer = footer_dark(5, &t.get("footer_text")),
         );
 
