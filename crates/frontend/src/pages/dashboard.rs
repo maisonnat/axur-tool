@@ -94,6 +94,7 @@ pub fn DashboardPage() -> impl IntoView {
     let use_user_credits = create_rw_signal(false);
     let use_plugins = create_rw_signal(false); // New plugin system toggle
     let use_mock_data = create_rw_signal(false); // Mock report mode
+    let debug_mode = create_rw_signal(false); // Admin/Debug mode
 
     // Load preferences from localStorage
     let plugin_theme = create_rw_signal(crate::load_theme());
@@ -189,40 +190,205 @@ pub fn DashboardPage() -> impl IntoView {
     });
 
     // Generate report action - shows preview first if Threat Hunting enabled
-    let generate_action = create_action(move |_: &()| async move {
-        if selected_tenant.get().is_empty() {
-            error.set(Some(AppError {
-                code: Some("RPT-004".into()),
-                message: "Selecciona un tenant para continuar".into(),
-            }));
-            return;
-        }
+    let state_for_action = state.clone();
+    let generate_action = create_action(move |_: &()| {
+        let state = state_for_action.clone();
+        async move {
+            if selected_tenant.get().is_empty() {
+                error.set(Some(AppError {
+                    code: Some("RPT-004".into()),
+                    message: "Selecciona un tenant para continuar".into(),
+                }));
+                return;
+            }
 
-        let threat_intel = include_threat_intel.get();
-        let tag = story_tag.get();
+            let threat_intel = include_threat_intel.get();
+            let tag = story_tag.get();
 
-        // If Threat Hunting enabled and tag provided, show preview first
-        if threat_intel && !tag.trim().is_empty() && !preview_confirmed.get() {
-            show_preview_modal.set(true);
+            // If Threat Hunting enabled and tag provided, show preview first
+            if threat_intel && !tag.trim().is_empty() && !preview_confirmed.get() {
+                show_preview_modal.set(true);
 
-            // Reset streaming state
-            streaming_progress.set(StreamingProgress {
-                is_streaming: true,
-                current_domain: String::new(),
-                current_index: 0,
-                total_domains: 0,
-                current_source: String::new(),
-                signal_lake_count: 0,
-                chatter_count: 0,
-                credential_count: 0,
-                error_message: None,
-                is_finished: false,
-            });
+                // Reset streaming state
+                streaming_progress.set(StreamingProgress {
+                    is_streaming: true,
+                    current_domain: String::new(),
+                    current_index: 0,
+                    total_domains: 0,
+                    current_source: String::new(),
+                    signal_lake_count: 0,
+                    chatter_count: 0,
+                    credential_count: 0,
+                    error_message: None,
+                    is_finished: false,
+                });
 
-            // Start SSE streaming
+                // Start SSE streaming
+                let tenant = selected_tenant.get();
+                let stream_url =
+                    api::get_threat_hunting_stream_url(&tenant, &tag, use_user_credits.get());
+
+                // Use JavaScript EventSource for SSE
+                use wasm_bindgen::prelude::*;
+                use wasm_bindgen::JsCast;
+
+                // Create EventSource with credentials
+                let init = web_sys::EventSourceInit::new();
+                init.set_with_credentials(true);
+                let es = web_sys::EventSource::new_with_event_source_init_dict(&stream_url, &init);
+
+                match es {
+                    Ok(event_source) => {
+                        // Clone signals for closures
+                        let sp = streaming_progress;
+                        let pd = preview_data;
+                        let pl = preview_loading;
+                        let _spm = show_preview_modal;
+                        let _err = error;
+                        let es_clone = event_source.clone();
+
+                        // Message handler
+                        let onmessage = Closure::wrap(Box::new(move |e: web_sys::MessageEvent| {
+                            if let Some(data) = e.data().as_string() {
+                                if let Ok(event) =
+                                    serde_json::from_str::<api::ThreatHuntingStreamEvent>(&data)
+                                {
+                                    match event {
+                                        api::ThreatHuntingStreamEvent::Started {
+                                            total_domains,
+                                            total_tickets,
+                                        } => {
+                                            sp.update(|s| {
+                                                s.total_domains = total_domains;
+                                                s.is_streaming = true;
+                                            });
+                                            pd.update(|p| p.tickets_count = total_tickets);
+                                        }
+                                        api::ThreatHuntingStreamEvent::DomainProcessing {
+                                            domain,
+                                            index,
+                                            source,
+                                        } => {
+                                            sp.update(|s| {
+                                                s.current_domain = domain;
+                                                s.current_index = index;
+                                                s.current_source = source;
+                                            });
+                                        }
+                                        api::ThreatHuntingStreamEvent::DomainComplete {
+                                            source,
+                                            count,
+                                            ..
+                                        } => {
+                                            sp.update(|s| {
+                                                if source == "signal-lake" {
+                                                    s.signal_lake_count += count;
+                                                } else if source == "credential" {
+                                                    s.credential_count += count;
+                                                } else {
+                                                    s.chatter_count += count;
+                                                }
+                                            });
+                                        }
+                                        api::ThreatHuntingStreamEvent::Finished {
+                                            total_count,
+                                            signal_lake_count,
+                                            chatter_count,
+                                            credential_count,
+                                            estimated_credits,
+                                        } => {
+                                            pd.set(PreviewData {
+                                                signal_lake_count,
+                                                credential_count,
+                                                chat_message_count: chatter_count,
+                                                forum_message_count: 0,
+                                                total_count,
+                                                estimated_credits: estimated_credits as u64,
+                                                tickets_count: pd.get_untracked().tickets_count,
+                                            });
+                                            sp.update(|s| {
+                                                s.is_finished = true;
+                                                s.is_streaming = false;
+                                            });
+                                            pl.set(false);
+                                            es_clone.close();
+                                        }
+                                        api::ThreatHuntingStreamEvent::Error { message } => {
+                                            sp.update(|s| {
+                                                s.error_message = Some(message.clone());
+                                                s.is_finished = true;
+                                                s.is_streaming = false;
+                                            });
+                                            pl.set(false);
+                                            es_clone.close();
+                                        }
+                                    }
+                                }
+                            }
+                        })
+                            as Box<dyn FnMut(_)>);
+
+                        event_source.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
+                        onmessage.forget(); // Prevent closure from being dropped
+
+                        // Error handler
+                        let sp_err = streaming_progress;
+                        let pl_err = preview_loading;
+                        let es_err = event_source.clone();
+                        let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
+                            sp_err.update(|s| {
+                                s.error_message = Some("Connection error".into());
+                                s.is_finished = true;
+                                s.is_streaming = false;
+                            });
+                            pl_err.set(false);
+                            es_err.close();
+                        })
+                            as Box<dyn FnMut(_)>);
+
+                        event_source.set_onerror(Some(onerror.as_ref().unchecked_ref()));
+                        onerror.forget();
+                    }
+                    Err(_) => {
+                        // Fallback to regular API if EventSource fails
+                        error.set(Some(AppError::simple("Failed to create EventSource")));
+                        show_preview_modal.set(false);
+                    }
+                }
+
+                return;
+            }
+
+            // Generate full report via SSE streaming (avoids Cloudflare 524 timeout)
+            generating.set(true);
+            error.set(None);
+            report_html.set(None);
+            preview_confirmed.set(false);
+
             let tenant = selected_tenant.get();
-            let stream_url =
-                api::get_threat_hunting_stream_url(&tenant, &tag, use_user_credits.get());
+            let from = from_date.get();
+            let to = to_date.get();
+            let lang = language.get();
+            let tag_opt = if tag.trim().is_empty() {
+                None
+            } else {
+                Some(tag.as_str())
+            };
+
+            let template_id = selected_template.get();
+
+            // Build SSE stream URL
+            let stream_url = api::get_report_stream_url(
+                &tenant,
+                &from,
+                &to,
+                &lang,
+                tag_opt,
+                threat_intel,
+                template_id.as_deref(),
+                use_plugins.get(),
+                use_mock_data.get(),
+            );
 
             // Use JavaScript EventSource for SSE
             use wasm_bindgen::prelude::*;
@@ -236,107 +402,62 @@ pub fn DashboardPage() -> impl IntoView {
             match es {
                 Ok(event_source) => {
                     // Clone signals for closures
-                    let sp = streaming_progress;
-                    let pd = preview_data;
-                    let pl = preview_loading;
-                    let _spm = show_preview_modal;
-                    let _err = error;
+                    let report = report_html;
+                    let err = error;
+                    let gen = generating;
+                    let ti = threat_intel;
                     let es_clone = event_source.clone();
+                    let app_state = state.clone();
 
                     // Message handler
-                    let onmessage = Closure::wrap(Box::new(move |e: web_sys::MessageEvent| {
-                        if let Some(data) = e.data().as_string() {
-                            if let Ok(event) =
-                                serde_json::from_str::<api::ThreatHuntingStreamEvent>(&data)
-                            {
-                                match event {
-                                    api::ThreatHuntingStreamEvent::Started {
-                                        total_domains,
-                                        total_tickets,
-                                    } => {
-                                        sp.update(|s| {
-                                            s.total_domains = total_domains;
-                                            s.is_streaming = true;
-                                        });
-                                        pd.update(|p| p.tickets_count = total_tickets);
+                    let onmessage = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
+                        if let Some(data) = event.data().as_string() {
+                            match serde_json::from_str::<api::ReportStreamEvent>(&data) {
+                                Ok(evt) => match evt {
+                                    api::ReportStreamEvent::StageProgress { message, .. } => {
+                                        leptos::logging::log!("Report progress: {}", message);
                                     }
-                                    api::ThreatHuntingStreamEvent::DomainProcessing {
-                                        domain,
-                                        index,
-                                        source,
-                                    } => {
-                                        sp.update(|s| {
-                                            s.current_domain = domain;
-                                            s.current_index = index;
-                                            s.current_source = source;
-                                        });
+                                    api::ReportStreamEvent::Finished { html, .. } => {
+                                        report.set(Some(html));
+                                        gen.set(false);
+                                        es_clone.close();
+                                        // Unlock achievement if threat intel was used
+                                        if ti {
+                                            crate::onboarding::unlock_achievement(
+                                                "threat_hunting",
+                                                &app_state,
+                                            );
+                                        }
                                     }
-                                    api::ThreatHuntingStreamEvent::DomainComplete {
-                                        source,
-                                        count,
-                                        ..
-                                    } => {
-                                        sp.update(|s| {
-                                            if source == "signal-lake" {
-                                                s.signal_lake_count += count;
-                                            } else if source == "credential" {
-                                                s.credential_count += count;
-                                            } else {
-                                                s.chatter_count += count;
-                                            }
-                                        });
-                                    }
-                                    api::ThreatHuntingStreamEvent::Finished {
-                                        total_count,
-                                        signal_lake_count,
-                                        chatter_count,
-                                        credential_count,
-                                        estimated_credits,
-                                    } => {
-                                        pd.set(PreviewData {
-                                            signal_lake_count,
-                                            credential_count,
-                                            chat_message_count: chatter_count,
-                                            forum_message_count: 0,
-                                            total_count,
-                                            estimated_credits: estimated_credits as u64,
-                                            tickets_count: pd.get_untracked().tickets_count,
-                                        });
-                                        sp.update(|s| {
-                                            s.is_finished = true;
-                                            s.is_streaming = false;
-                                        });
-                                        pl.set(false);
+                                    api::ReportStreamEvent::Error { code, message } => {
+                                        err.set(Some(AppError {
+                                            code: Some(code),
+                                            message,
+                                        }));
+                                        gen.set(false);
                                         es_clone.close();
                                     }
-                                    api::ThreatHuntingStreamEvent::Error { message } => {
-                                        sp.update(|s| {
-                                            s.error_message = Some(message.clone());
-                                            s.is_finished = true;
-                                            s.is_streaming = false;
-                                        });
-                                        pl.set(false);
-                                        es_clone.close();
-                                    }
+                                    _ => {} // Started, StageComplete - just progress indicators
+                                },
+                                Err(e) => {
+                                    leptos::logging::error!("Failed to parse SSE event: {}", e);
                                 }
                             }
                         }
                     }) as Box<dyn FnMut(_)>);
 
                     event_source.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
-                    onmessage.forget(); // Prevent closure from being dropped
+                    onmessage.forget();
 
                     // Error handler
-                    let sp_err = streaming_progress;
-                    let pl_err = preview_loading;
+                    let err_clone = error;
+                    let gen_clone = generating;
                     let es_err = event_source.clone();
                     let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
-                        sp_err.update(|s| {
-                            s.error_message = Some("Connection error".into());
-                            s.is_finished = true;
-                            s.is_streaming = false;
-                        });
-                        pl_err.set(false);
+                        err_clone.set(Some(AppError::simple(
+                            "Connection error during report generation",
+                        )));
+                        gen_clone.set(false);
                         es_err.close();
                     }) as Box<dyn FnMut(_)>);
 
@@ -344,121 +465,11 @@ pub fn DashboardPage() -> impl IntoView {
                     onerror.forget();
                 }
                 Err(_) => {
-                    // Fallback to regular API if EventSource fails
-                    error.set(Some(AppError::simple("Failed to create EventSource")));
-                    show_preview_modal.set(false);
-                }
-            }
-
-            return;
-        }
-
-        // Generate full report via SSE streaming (avoids Cloudflare 524 timeout)
-        generating.set(true);
-        error.set(None);
-        report_html.set(None);
-        preview_confirmed.set(false);
-
-        let tenant = selected_tenant.get();
-        let from = from_date.get();
-        let to = to_date.get();
-        let lang = language.get();
-        let tag_opt = if tag.trim().is_empty() {
-            None
-        } else {
-            Some(tag.as_str())
-        };
-
-        let template_id = selected_template.get();
-
-        // Build SSE stream URL
-        let stream_url = api::get_report_stream_url(
-            &tenant,
-            &from,
-            &to,
-            &lang,
-            tag_opt,
-            threat_intel,
-            template_id.as_deref(),
-            use_plugins.get(),
-            use_mock_data.get(),
-        );
-
-        // Use JavaScript EventSource for SSE
-        use wasm_bindgen::prelude::*;
-        use wasm_bindgen::JsCast;
-
-        // Create EventSource with credentials
-        let init = web_sys::EventSourceInit::new();
-        init.set_with_credentials(true);
-        let es = web_sys::EventSource::new_with_event_source_init_dict(&stream_url, &init);
-
-        match es {
-            Ok(event_source) => {
-                // Clone signals for closures
-                let report = report_html;
-                let err = error;
-                let gen = generating;
-                let ti = threat_intel;
-                let es_clone = event_source.clone();
-
-                // Message handler
-                let onmessage = Closure::wrap(Box::new(move |event: web_sys::MessageEvent| {
-                    if let Some(data) = event.data().as_string() {
-                        match serde_json::from_str::<api::ReportStreamEvent>(&data) {
-                            Ok(evt) => match evt {
-                                api::ReportStreamEvent::StageProgress { message, .. } => {
-                                    leptos::logging::log!("Report progress: {}", message);
-                                }
-                                api::ReportStreamEvent::Finished { html, .. } => {
-                                    report.set(Some(html));
-                                    gen.set(false);
-                                    es_clone.close();
-                                    // Unlock achievement if threat intel was used
-                                    if ti {
-                                        crate::onboarding::unlock_achievement("threat_hunting");
-                                    }
-                                }
-                                api::ReportStreamEvent::Error { code, message } => {
-                                    err.set(Some(AppError {
-                                        code: Some(code),
-                                        message,
-                                    }));
-                                    gen.set(false);
-                                    es_clone.close();
-                                }
-                                _ => {} // Started, StageComplete - just progress indicators
-                            },
-                            Err(e) => {
-                                leptos::logging::error!("Failed to parse SSE event: {}", e);
-                            }
-                        }
-                    }
-                }) as Box<dyn FnMut(_)>);
-
-                event_source.set_onmessage(Some(onmessage.as_ref().unchecked_ref()));
-                onmessage.forget();
-
-                // Error handler
-                let err_clone = error;
-                let gen_clone = generating;
-                let es_err = event_source.clone();
-                let onerror = Closure::wrap(Box::new(move |_: web_sys::Event| {
-                    err_clone.set(Some(AppError::simple(
-                        "Connection error during report generation",
+                    error.set(Some(AppError::simple(
+                        "Failed to create EventSource for report generation",
                     )));
-                    gen_clone.set(false);
-                    es_err.close();
-                }) as Box<dyn FnMut(_)>);
-
-                event_source.set_onerror(Some(onerror.as_ref().unchecked_ref()));
-                onerror.forget();
-            }
-            Err(_) => {
-                error.set(Some(AppError::simple(
-                    "Failed to create EventSource for report generation",
-                )));
-                generating.set(false);
+                    generating.set(false);
+                }
             }
         }
     });
@@ -498,14 +509,17 @@ pub fn DashboardPage() -> impl IntoView {
             on_cancel=on_preview_cancel
         />
 
-        <div class="min-h-screen">
+        <div class="min-h-screen bg-cyber-grid bg-fixed">
             // Header
-            <header class="bg-zinc-900 border-b border-zinc-800 px-6 py-4">
+            <header class="glass-panel sticky top-0 z-50 border-b border-white/5 px-6 py-4 backdrop-blur-xl">
                 <div class="max-w-7xl mx-auto flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <span class="text-orange-500 text-2xl font-black italic">"///"</span>
-                        <span class="text-white text-xl font-bold tracking-widest">"AXUR"</span>
-                        <span class="text-zinc-500 ml-2">"Web"</span>
+                    <div class="flex items-center gap-3 group cursor-default">
+                        <div class="relative">
+                            <span class="text-brand-primary text-2xl font-black italic relative z-10 group-hover:animate-pulse">"///"</span>
+                            <div class="absolute inset-0 bg-brand-primary/20 blur-lg rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                        </div>
+                        <span class="text-white text-xl font-bold tracking-[0.2em] font-display">"AXUR"</span>
+                        <span class="text-zinc-500 text-xs font-mono uppercase tracking-widest border border-zinc-800 px-2 py-0.5 rounded bg-surface-base">"Web"</span>
                     </div>
                     <div class="flex items-center gap-4">
                         // Editor & Marketplace - visible to all
@@ -592,8 +606,34 @@ pub fn DashboardPage() -> impl IntoView {
             <crate::components::HintManager />
 
             // Main content
-            <main class="max-w-7xl mx-auto p-6">
-                <h1 class="text-2xl font-bold text-white mb-6">{move || dict.get().generate_report}</h1>
+            <main class="max-w-7xl mx-auto p-6 relative z-10">
+                // Cinematic Hero Section
+                <div class="relative mb-12 py-10 overflow-hidden rounded-3xl border border-white/5 bg-surface-base/50 backdrop-blur-sm group">
+                    <div class="absolute inset-0 bg-cyber-grid opacity-30"></div>
+                    <div class="absolute -top-24 -right-24 w-96 h-96 bg-brand-primary/20 blur-[100px] rounded-full animate-pulse-slow"></div>
+                    <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-brand-secondary/10 blur-[80px] rounded-full"></div>
+
+                    <div class="relative z-10 px-8 flex flex-col items-start gap-4">
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary text-xs font-bold font-mono tracking-widest uppercase rounded">
+                                "System Ready"
+                            </span>
+                            <div class="h-px w-12 bg-gradient-to-r from-brand-primary/50 to-transparent"></div>
+                        </div>
+
+                        <h1 class="text-6xl md:text-7xl font-display font-bold text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-zinc-500 uppercase tracking-tighter drop-shadow-lg">
+                            "Threat" <br />
+                            <span class="text-stroke-current text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-brand-secondary selection:text-white">"Intelligence"</span>
+                        </h1>
+
+                        <p class="max-w-2xl text-zinc-400 text-lg font-light border-l-2 border-brand-primary/50 pl-6 mt-4">
+                            "Advanced cyber-surveillance telemetry. Generate exec-ready reports in seconds."
+                        </p>
+                    </div>
+
+                    // Decorative scanline
+                    <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent via-brand-primary/5 to-transparent h-[20%] w-full animate-scanline opacity-30"></div>
+                </div>
 
                 // Error message with structured error code
                 {move || error.get().map(|e| {
@@ -615,23 +655,27 @@ pub fn DashboardPage() -> impl IntoView {
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     // Form
-                    <div class="lg:col-span-1">
-                        <CardWithHeader title=Signal::derive(move || dict.get().configuration.to_string())>
-                            <Show
-                                when=move || !loading_tenants.get()
-                                fallback=|| view! {
-                                    <div class="mb-4">
-                                        <div class="h-4 w-20 bg-zinc-700 rounded animate-pulse mb-2"></div>
-                                        <div class="relative">
-                                            <div class="w-full h-12 bg-zinc-800 border border-zinc-700 rounded-lg animate-pulse"></div>
-                                            <div class="absolute inset-0 flex items-center justify-center gap-2">
-                                                <div class="animate-spin h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full"></div>
-                                                <span class="text-zinc-500 text-sm">"Conectando..."</span>
-                                            </div>
-                                        </div>
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="glass-panel rounded-2xl p-1 overflow-hidden group hover:border-brand-primary/30 transition-all duration-500">
+                            <div class="bg-surface-base/80 p-6 rounded-xl space-y-6 backdrop-blur-md">
+                                <div class="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
+                                    <div class="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                     </div>
-                                }
-                            >
+                                    <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-400 font-mono">
+                                        {move || dict.get().configuration}
+                                    </h2>
+                                </div>
+
+                                <Show
+                                    when=move || !loading_tenants.get()
+                                    fallback=|| view! {
+                                        <div class="space-y-4">
+                                            <div class="h-4 w-20 bg-white/5 rounded animate-pulse"></div>
+                                            <div class="w-full h-12 bg-white/5 rounded-lg animate-pulse"></div>
+                                        </div>
+                                    }
+                                >
                                 <Combobox
                                     label=Signal::derive(move || dict.get().tenant_label.to_string())
                                     options=tenant_options.into()
@@ -640,146 +684,122 @@ pub fn DashboardPage() -> impl IntoView {
                                 />
                             </Show>
 
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-zinc-400 mb-2">{move || dict.get().from_date}</label>
-                                <input
-                                    type="date"
-                                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none"
-                                    prop:value=move || from_date.get()
-                                    on:input=move |ev| from_date.set(event_target_value(&ev))
-                                />
-                            </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-zinc-500 uppercase tracking-wider">{move || dict.get().from_date}</label>
+                                    <input
+                                        type="date"
+                                        class="w-full bg-surface-elevated/50 border border-white/10 text-white rounded-lg py-3 px-4 outline-none focus:border-brand-primary/50 focus:shadow-glow-sm transition-all duration-300 placeholder-zinc-600"
+                                        prop:value=move || from_date.get()
+                                        on:input=move |ev| from_date.set(event_target_value(&ev))
+                                    />
+                                </div>
 
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-zinc-400 mb-2">{move || dict.get().to_date}</label>
-                                <input
-                                    type="date"
-                                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none"
-                                    prop:value=move || to_date.get()
-                                    on:input=move |ev| to_date.set(event_target_value(&ev))
-                                />
-                            </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-zinc-500 uppercase tracking-wider">{move || dict.get().to_date}</label>
+                                    <input
+                                        type="date"
+                                        class="w-full bg-surface-elevated/50 border border-white/10 text-white rounded-lg py-3 px-4 outline-none focus:border-brand-primary/50 focus:shadow-glow-sm transition-all duration-300 placeholder-zinc-600"
+                                        prop:value=move || to_date.get()
+                                        on:input=move |ev| to_date.set(event_target_value(&ev))
+                                    />
+                                </div>
 
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-zinc-400 mb-2">"Story Tag (Optional)"</label>
-                                <input
-                                    type="text"
-                                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none placeholder-zinc-600"
-                                    placeholder="tag:campaign-name"
-                                    prop:value=move || story_tag.get()
-                                    on:input=move |ev| story_tag.set(event_target_value(&ev))
-                                />
-                            </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-zinc-500 uppercase tracking-wider">"Story Tag (Optional)"</label>
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-brand-primary transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            class="w-full bg-surface-elevated/50 border border-white/10 text-white rounded-lg py-3 pl-10 pr-4 outline-none focus:border-brand-primary/50 focus:shadow-glow-sm transition-all duration-300 placeholder-zinc-600 font-mono text-sm"
+                                            placeholder="tag:campaign-name"
+                                            prop:value=move || story_tag.get()
+                                            on:input=move |ev| story_tag.set(event_target_value(&ev))
+                                        />
+                                    </div>
+                                </div>
 
-                            <div class="mb-6">
-                                <label class="block text-sm font-medium text-zinc-400 mb-2">{move || dict.get().language_label}</label>
-                                <select
-                                    class="w-full bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none cursor-pointer"
-                                    on:change=move |ev| language.set(event_target_value(&ev))
-                                >
-                                    <option value="es" selected>"Español"</option>
-                                    <option value="en">"English"</option>
-                                    <option value="pt">"Português"</option>
-                                </select>
-                            </div>
+                                <div class="space-y-2">
+                                    <label class="text-xs font-bold text-zinc-500 uppercase tracking-wider">{move || dict.get().language_label}</label>
+                                    <div class="relative">
+                                        <select
+                                            class="w-full bg-surface-elevated/50 border border-white/10 text-white rounded-lg py-3 px-4 outline-none cursor-pointer focus:border-brand-primary/50 focus:shadow-glow-sm transition-all appearance-none"
+                                            on:change=move |ev| language.set(event_target_value(&ev))
+                                        >
+                                            <option value="es" selected>"Español"</option>
+                                            <option value="en">"English"</option>
+                                            <option value="pt">"Português"</option>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-zinc-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+                                </div>
 
                             // Template selection
-                            <div class="mb-4">
-                                <label class="block text-sm font-medium text-zinc-400 mb-2">"📄 Report Template"</label>
+                            <div class="space-y-2">
+                                <label class="text-xs font-bold text-zinc-500 uppercase tracking-wider">"Report Template"</label>
                                 <div class="flex gap-2">
-                                    <select
-                                        class="flex-1 bg-zinc-800 border border-zinc-700 text-white rounded-lg py-3 px-4 outline-none appearance-none"
-                                        on:change=move |ev| {
-                                            let val = event_target_value(&ev);
-                                            if val == "default" {
-                                                selected_template.set(None);
-                                            } else {
-                                                selected_template.set(Some(val));
+                                    <div class="relative flex-1">
+                                        <select
+                                            class="w-full bg-surface-elevated/50 border border-white/10 text-white rounded-lg py-3 px-4 outline-none focus:border-brand-primary/50 focus:shadow-glow-sm transition-all appearance-none"
+                                            on:change=move |ev| {
+                                                let val = event_target_value(&ev);
+                                                if val == "default" {
+                                                    selected_template.set(None);
+                                                } else {
+                                                    selected_template.set(Some(val));
+                                                }
                                             }
-                                        }
-                                    >
-                                        <optgroup label="System Templates">
-                                            <option value="default" selected>"⭐ Axur Default"</option>
-                                            <option value="executive">"📊 Executive Summary"</option>
-                                            <option value="technical">"🔧 Technical Deep Dive"</option>
-                                            <option value="compliance">"📋 Compliance Report"</option>
-                                        </optgroup>
-                                        <optgroup label="My Templates">
-                                            <Show when=move || !user_templates.get().is_empty()
-                                                fallback=|| view! { <option disabled>"No templates yet"</option> }
-                                            >
-                                                <For
-                                                    each=move || user_templates.get()
-                                                    key=|t| t.id.clone()
-                                                    children=move |t| view! {
-                                                        <option value={t.id.clone()}>{t.name}</option>
-                                                    }
-                                                />
-                                            </Show>
-                                        </optgroup>
-                                        <optgroup label="Options">
-                                            <option value="custom">"✏️ Browse Custom..."</option>
-                                        </optgroup>
-                                    </select>
+                                        >
+                                            <optgroup label="System Templates">
+                                                <option value="default" selected>"⭐ Axur Default"</option>
+                                                <option value="executive">"📊 Executive Summary"</option>
+                                                <option value="technical">"🔧 Technical Deep Dive"</option>
+                                                <option value="compliance">"📋 Compliance Report"</option>
+                                            </optgroup>
+                                            <optgroup label="My Templates">
+                                                <Show when=move || !user_templates.get().is_empty()
+                                                    fallback=|| view! { <option disabled>"No templates yet"</option> }
+                                                >
+                                                    <For
+                                                        each=move || user_templates.get()
+                                                        key=|t| t.id.clone()
+                                                        children=move |t| view! {
+                                                            <option value={t.id.clone()}>{t.name}</option>
+                                                        }
+                                                    />
+                                                </Show>
+                                            </optgroup>
+                                            <optgroup label="Options">
+                                                <option value="custom">"✏️ Browse Custom..."</option>
+                                            </optgroup>
+                                        </select>
+                                        <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-zinc-500">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
                                     <button
                                         on:click=move |_| state.current_page.set(crate::Page::Marketplace)
-                                        class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-lg text-sm"
+                                        class="px-4 py-2 bg-surface-elevated hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10 hover:border-brand-primary/50 rounded-lg transition-all"
                                         title="Open Template Marketplace"
                                     >
                                         "🛒"
                                     </button>
                                 </div>
                                 <Show when=move || selected_template.get().is_some()>
-                                    <p class="text-xs text-indigo-400 mt-1">
+                                    <p class="text-xs text-brand-primary mt-1 font-mono">
                                         "Using custom template: " {move || selected_template.get().unwrap_or_default()}
                                     </p>
                                 </Show>
                             </div>
 
                             // Threat Hunting Toggle
-                            <div class="mb-6 p-4 rounded-lg bg-zinc-800/50 border border-zinc-700">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex-1">
-                                        <label class="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                class="w-5 h-5 rounded border-zinc-600 bg-zinc-700 text-purple-500 focus:ring-purple-500 focus:ring-offset-zinc-900 cursor-pointer"
-                                                prop:checked=move || include_threat_intel.get()
-                                                on:change=move |ev| include_threat_intel.set(event_target_checked(&ev))
-                                            />
-                                            <span class="text-white font-medium">"🔍 Threat Hunting"
-                                            </span>
-                                        </label>
-                                        <p class="text-zinc-500 text-xs mt-1 ml-7">"Investigación profunda en Signal-Lake, credenciales y foros"
-                                        </p>
-                                    </div>
-                                </div>
-                                // Credits warning - subtle but visible
-                                <Show when=move || include_threat_intel.get()>
-                                    <div class="mt-3 flex items-center gap-2 text-amber-400/80 text-xs bg-amber-900/20 rounded px-3 py-2 border border-amber-500/20">
-                                        <span class="text-sm">"⚡"
-                                        </span>
-                                        <span>"Consume créditos de Threat Hunting · Añade ~1-2 min al reporte"
-                                        </span>
-                                    </div>
-
-                                    // Admin credits toggle
-                                    <div class="mt-3 pt-3 border-t border-zinc-700/50">
-                                        <label class="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                class="w-4 h-4 rounded border-zinc-600 bg-zinc-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-zinc-900 cursor-pointer"
-                                                prop:checked=move || use_user_credits.get()
-                                                on:change=move |ev| use_user_credits.set(event_target_checked(&ev))
-                                            />
-                                            <span class="text-zinc-300 text-sm">"Usar créditos de Admin Global"
-                                            </span>
-                                        </label>
-                                        <p class="text-zinc-500 text-xs mt-1 ml-6">"Seleccionar si el tenant no tiene créditos asignados"
-                                        </p>
-                                    </div>
-                                </Show>
-                            </div>
+                            <ThreatHuntingToggle
+                                include_threat_intel=include_threat_intel
+                                debug_mode=debug_mode
+                            />
 
                             // Plugin System Toggle (Experimental)
                             <div class="mb-6 p-4 rounded-lg bg-green-900/20 border border-green-700/50">
@@ -872,24 +892,27 @@ pub fn DashboardPage() -> impl IntoView {
                             </div>
 
                             // Mock Data Toggle (Dev)
-                            <div class="mb-6 p-4 rounded-lg bg-indigo-900/20 border border-indigo-700/50">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        class="w-5 h-5 rounded border-indigo-600 bg-zinc-700 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900 cursor-pointer"
-                                        prop:checked=move || use_mock_data.get()
-                                        on:change=move |ev| use_mock_data.set(event_target_checked(&ev))
-                                    />
-                                    <span class="text-white font-medium">"🧪 Mock Report Mode"</span>
+                            <div class="mb-8 p-4 rounded-xl bg-indigo-900/10 border border-indigo-500/20 backdrop-blur-sm">
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    <div class="relative">
+                                        <input
+                                            type="checkbox"
+                                            class="peer sr-only"
+                                            prop:checked=move || use_mock_data.get()
+                                            on:change=move |ev| use_mock_data.set(event_target_checked(&ev))
+                                        />
+                                        <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                                    </div>
+                                    <span class="text-indigo-200 font-bold text-xs uppercase tracking-wider">"Mock Mode"</span>
                                 </label>
-                                <p class="text-zinc-500 text-xs mt-1 ml-7">"Genera un reporte con datos falsos completos para pruebas de diseño (ignora tenant/fechas)"</p>
                             </div>
 
                             <button
-                                class="w-full bg-orange-600 hover:bg-orange-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                                class="w-full bg-gradient-to-r from-brand-primary to-brand-primary-hover hover:to-orange-500 text-white font-bold py-4 px-6 rounded-xl shadow-glow hover:shadow-glow-orange transition-all duration-300 flex items-center justify-center gap-3 group relative overflow-hidden"
                                 disabled=move || generating.get()
                                 on:click=move |_| generate_action.dispatch(())
                             >
+                                <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                                 {move || if generating.get() {
                                     view! {
                                         <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -898,92 +921,106 @@ pub fn DashboardPage() -> impl IntoView {
                                         </svg>
                                     }.into_view()
                                 } else {
-                                    view! {}.into_view()
+                                    view! { <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> }.into_view()
                                 }}
-                                {move || dict.get().generate_btn}
+                                <span class="relative z-10">{move || dict.get().generate_btn}</span>
                             </button>
-                        </CardWithHeader>
+                        </div>
                     </div>
+                </div>
 
-                    // Preview
-                    <div class="lg:col-span-2">
-                        <CardWithHeader title=Signal::derive(move || dict.get().preview.to_string())>
-                            <Show
-                                when=move || report_html.get().is_some()
-                                fallback=|| view! {
-                                    <div class="text-center py-16 text-zinc-500">
-                                        <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                        </svg>
-                                        <p>"Configura y genera un reporte para ver la vista previa"</p>
+                </div> // Close Col 1
+                // Preview Column
+                <div class="lg:col-span-2">
+                    <div class="glass-panel rounded-2xl p-1 overflow-hidden h-full">
+                        <div class="bg-surface-base/50 h-full flex flex-col backdrop-blur-md">
+                            // Preview Header
+                            <div class="p-6 border-b border-white/5 flex items-center justify-between bg-surface-base/80">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                                     </div>
-                                }
-                            >
-                                <div class="mb-4 flex gap-4">
-                                    <button
-                                        class="flex-1 bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-                                        on:click=move |_| {
-                                            if let Some(html) = report_html.get() {
-                                                // Generate descriptive filename
+                                    <h2 class="text-sm font-bold uppercase tracking-widest text-zinc-400 font-mono">
+                                        "Live Preview"
+                                    </h2>
+                                </div>
+
+                                <Show
+                                    when=move || report_html.get().is_some()
+                                    fallback=|| view! {
+                                        <div class="flex-1 flex flex-col items-center justify-center text-zinc-600 space-y-6 animate-pulse-slow">
+                                            <div class="w-24 h-24 rounded-2xl bg-surface-elevated/50 flex items-center justify-center border border-white/5 shadow-inner">
+                                                <svg class="w-10 h-10 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                                </svg>
+                                            </div>
+                                            <p class="font-mono text-sm uppercase tracking-widest text-zinc-500">"Waiting for Input..."</p>
+                                        </div>
+                                    }
+                                >
+                                    <div class="mt-auto pt-6 border-t border-white/5 grid grid-cols-2 gap-4">
+                                        <button
+                                            class="bg-surface-elevated hover:bg-brand-primary text-zinc-400 hover:text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 group"
+                                            on:click=move |_| {
+                                                if let Some(html) = report_html.get() {
+                                                    let tenant_key = selected_tenant.get();
+                                                    let tenant_name = tenants.get()
+                                                        .iter()
+                                                        .find(|t| t.key == tenant_key)
+                                                        .map(|t| t.name.clone())
+                                                        .unwrap_or_else(|| "report".to_string());
+
+                                                    let clean_name: String = tenant_name
+                                                        .chars()
+                                                        .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-')
+                                                        .collect::<String>()
+                                                        .replace(' ', "_");
+
+                                                    let today = get_today();
+                                                    let filename = format!("{}_{}_report.html", clean_name, today);
+                                                    download_html(&html, &filename);
+                                                }
+                                            }
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                            "Download HTML"
+                                        </button>
+
+                                        <button
+                                            class="bg-blue-600/20 hover:bg-blue-600 border border-blue-500/30 text-blue-400 hover:text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled=move || exporting_slides.get()
+                                            on:click={
+                                            let state = state.clone();
+                                            move |_| {
+                                                if exporting_slides.get() { return; }
+                                                exporting_slides.set(true);
+
+                                                let html = report_html.get().unwrap_or_default();
                                                 let tenant_key = selected_tenant.get();
                                                 let tenant_name = tenants.get()
                                                     .iter()
                                                     .find(|t| t.key == tenant_key)
                                                     .map(|t| t.name.clone())
-                                                    .unwrap_or_else(|| "report".to_string());
+                                                    .unwrap_or_else(|| "Report".to_string());
 
-                                                // Clean name for filename (remove special chars)
-                                                let clean_name: String = tenant_name
-                                                    .chars()
-                                                    .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-')
-                                                    .collect::<String>()
-                                                    .replace(' ', "_");
+                                                let state = state.clone();
+                                                spawn_local(async move {
+                                                    let slide_data = parse_html_to_slides(&html);
+                                                    let title = format!("{} - Threat Report", tenant_name);
 
-                                                let today = get_today(); // YYYY-MM-DD
-                                                let filename = format!("{}_{}_report.html", clean_name, today);
-                                                download_html(&html, &filename);
-                                            }
-                                        }
-                                    >
-                                        {move || dict.get().download_html}
-                                    </button>
-
-                                    // Export to Google Slides button
-                                    <button
-                                        class="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                                        disabled=move || exporting_slides.get()
-                                        on:click=move |_| {
-                                            if exporting_slides.get() { return; }
-                                            exporting_slides.set(true);
-
-                                            let html = report_html.get().unwrap_or_default();
-                                            let tenant_key = selected_tenant.get();
-                                            let tenant_name = tenants.get()
-                                                .iter()
-                                                .find(|t| t.key == tenant_key)
-                                                .map(|t| t.name.clone())
-                                                .unwrap_or_else(|| "Report".to_string());
-
-                                            spawn_local(async move {
-                                                // Parse HTML to extract slides
-                                                let slide_data = parse_html_to_slides(&html);
-                                                let title = format!("{} - Threat Report", tenant_name);
-
-                                                match api::export_to_slides(&title, slide_data).await {
-                                                    Ok(resp) => {
-                                                        leptos::logging::log!("Exported to Google Slides: {}", resp.presentation_url);
-                                                        // Unlock achievement
-                                                        crate::onboarding::unlock_achievement("first_export");
-                                                        // Open presentation in new tab
-                                                        if let Some(window) = web_sys::window() {
-                                                            let _ = window.open_with_url_and_target(
-                                                                &resp.presentation_url,
-                                                                "_blank"
-                                                            );
+                                                    match api::export_to_slides(&title, slide_data).await {
+                                                        Ok(resp) => {
+                                                            leptos::logging::log!("Exported to Google Slides: {}", resp.presentation_url);
+                                                            crate::onboarding::unlock_achievement("first_export", &state);
+                                                            if let Some(window) = web_sys::window() {
+                                                                let _ = window.open_with_url_and_target(
+                                                                    &resp.presentation_url,
+                                                                    "_blank"
+                                                                );
+                                                            }
                                                         }
-                                                    }
-                                                    Err(e) => {
-                                                        leptos::logging::error!("Google Slides export failed: {}", e);
+                                                        Err(e) => {
+                                                            leptos::logging::error!("Google Slides export failed: {}", e);
                                                         if let Some(window) = web_sys::window() {
                                                             let _ = window.alert_with_message(&format!("Export failed: {}", e));
                                                         }
@@ -992,6 +1029,7 @@ pub fn DashboardPage() -> impl IntoView {
                                                 exporting_slides.set(false);
                                             });
                                         }
+                                    }
                                     >
                                         <span>{move || if exporting_slides.get() { "⏳" } else { "📊" }}</span>
                                         <span>{move || if exporting_slides.get() { "Exporting..." } else { "Google Slides" }}</span>
@@ -1087,9 +1125,10 @@ pub fn DashboardPage() -> impl IntoView {
                                     ></iframe>
                                 </div>
                             </Show>
-                        </CardWithHeader>
+                        </div>
                     </div>
                 </div>
+            </div>
             </main>
             <FeedbackWidget />
             <QueueStatusPanel job_id=current_queue_job.into() />

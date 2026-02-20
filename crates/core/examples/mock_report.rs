@@ -17,6 +17,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         data.threats_by_type.iter().map(|t| t.count).sum::<u64>()
     );
 
+    // Define plugin configuration
+    let config = PluginConfig {
+        is_poc: true,
+        show_compliance: true,
+        custom_branding: true,
+        theme: ThemeMode::Dark,
+        disabled_plugins: vec![],
+        custom_css: None,
+        show_style_showcase: true, // Enable for mock verification
+    };
+
     // 2. Load translations (compiled-in)
     let translations =
         Translations::load("es").expect("Failed to load Spanish translations (es.json)");

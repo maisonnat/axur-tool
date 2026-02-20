@@ -56,26 +56,28 @@ pub fn mark_welcome_seen() {
     save_onboarding_progress(&progress);
 }
 
-/// Unlock an achievement by ID
-pub fn mark_achievement_unlocked(id: &str) {
+/// Unlock an achievement by ID. Returns true if newly unlocked.
+pub fn mark_achievement_unlocked(id: &str) -> bool {
     let mut progress = get_onboarding_progress();
     if !progress.unlocked_achievements.contains(&id.to_string()) {
         progress.unlocked_achievements.push(id.to_string());
         save_onboarding_progress(&progress);
 
-        // Trigger celebration (via JS)
+        // Trigger celebration (via JS) - kept for legacy/confetti if needed, but Toast is now Rust
         #[cfg(target_arch = "wasm32")]
         {
             use wasm_bindgen::prelude::*;
             #[wasm_bindgen(
-                inline_js = "export function showAchievementToast(id) { if(window.showAchievementToast) window.showAchievementToast(id); }"
+                inline_js = "export function showAchievementToast(id) { if(window.launchConfetti) window.launchConfetti(); }"
             )]
             extern "C" {
                 fn showAchievementToast(id: &str);
             }
             showAchievementToast(id);
         }
+        return true;
     }
+    false
 }
 
 /// Check if an achievement is unlocked

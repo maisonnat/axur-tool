@@ -62,7 +62,7 @@ pub fn TutorialOrchestrator() -> impl IntoView {
             // Tutorial complete
             mark_tutorial_complete();
             show_tutorial.set(false);
-            crate::onboarding::unlock_achievement("tutorial");
+            crate::onboarding::unlock_achievement("tutorial", &state);
         } else {
             current_step.set(next);
             set_current_step(next);
@@ -71,8 +71,9 @@ pub fn TutorialOrchestrator() -> impl IntoView {
 
     let on_skip_step = move |_| {
         show_tutorial.set(false);
-        crate::onboarding::storage::mark_welcome_seen();
     };
+    let on_next_step = store_value(on_next_step);
+    let on_skip_step = store_value(on_skip_step);
 
     // Convert signals for props
     let welcome_signal: Signal<bool> = Signal::derive(move || show_welcome.get());
@@ -98,8 +99,8 @@ pub fn TutorialOrchestrator() -> impl IntoView {
                             instruction=Signal::derive(move || step.instruction(lang).to_string())
                             step_number=Signal::derive(move || current_step.get() + 1)
                             total_steps=Signal::derive(move || TUTORIAL_STEPS.len())
-                            on_next=Callback::new(on_next_step)
-                            on_skip=Callback::new(on_skip_step)
+                            on_next=Callback::new(move |v| on_next_step.with_value(|cb| cb(v)))
+                            on_skip=Callback::new(move |v| on_skip_step.with_value(|cb| cb(v)))
                             is_visible=tutorial_signal
                         />
                     }.into_view()

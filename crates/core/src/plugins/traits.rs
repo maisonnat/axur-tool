@@ -54,6 +54,8 @@ pub struct PluginConfig {
     pub disabled_plugins: Vec<String>,
     /// Custom CSS to inject
     pub custom_css: Option<String>,
+    /// Show style showcase (debug/verification only)
+    pub show_style_showcase: bool,
 }
 
 impl PluginConfig {

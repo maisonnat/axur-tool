@@ -18,8 +18,8 @@ impl SlidePlugin for StyleShowcasePlugin {
         999
     } // High priority to appear early
 
-    fn is_enabled(&self, _ctx: &PluginContext) -> bool {
-        true // Always enabled for now, or could check a flag
+    fn is_enabled(&self, ctx: &PluginContext) -> bool {
+        ctx.config.show_style_showcase
     }
 
     fn generate_slides(&self, _ctx: &PluginContext) -> Vec<SlideOutput> {

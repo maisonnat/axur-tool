@@ -1,8 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused)]
 
+use crate::api::retry::retry_api_call;
 use crate::api::{create_client, API_URL};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose, Engine as _};
 use chrono::Local;
 use regex::Regex;
@@ -21,12 +22,25 @@ async fn download_image_as_base64(
     auth: &str,
     url: &str,
 ) -> Option<String> {
-    let resp = client
-        .get(url)
-        .header("Authorization", auth)
-        .send()
-        .await
-        .ok()?;
+    // Est. requests: 1 (with up to 3 retries)
+    let resp = retry_api_call(
+        || async {
+            let res = client.get(url).header("Authorization", auth).send().await?;
+            // If 429 or 5xx, return Err to trigger retry
+            if res.status().is_server_error()
+                || res.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+            {
+                return Err(anyhow::anyhow!(
+                    "Request failed with status: {}",
+                    res.status()
+                ));
+            }
+            Ok(res)
+        },
+        "download_image",
+    )
+    .await
+    .ok()?;
 
     if !resp.status().is_success() {
         tracing::warn!("Failed to download screenshot: {} - {}", url, resp.status());
@@ -1644,20 +1658,16 @@ pub async fn fetch_full_report(
     let t_from = &ticket_from;
     let t_to = &ticket_to;
 
-    // Phase 1: Fetch customer info and stats in batches to avoid rate limiting
-    // Batch 1 (6 reqs): Base Counts — ALL 5 ticket statuses per API docs
-    // Lifecycle: open → quarantine → incident → treatment → closed
-    let (
-        customer_data,
-        total_open,
-        total_quarantine,
-        total_incident,
-        total_treatment,
-        total_closed,
-    ) = tokio::join!(
+    // Phase 1: Fetch customer info and stats in batches to avoid rate limiting (Max 5 concurrent)
+    // Batch 1A (3 reqs): Base Counts for OPEN / QUARANTINE + Customer Data
+    let (customer_data, total_open, total_quarantine) = tokio::join!(
         fetch_customer_data(&client, &auth, tenant_id),
         fetch_ticket_count(&client, &auth, t_from, t_to, "open", tenant_id),
         fetch_ticket_count(&client, &auth, t_from, t_to, "quarantine", tenant_id),
+    );
+
+    // Batch 1B (3 reqs): Base Counts for INCIDENT / TREATMENT / CLOSED
+    let (total_incident, total_treatment, total_closed) = tokio::join!(
         fetch_ticket_count(&client, &auth, t_from, t_to, "incident", tenant_id),
         fetch_ticket_count(&client, &auth, t_from, t_to, "treatment", tenant_id),
         fetch_ticket_count(&client, &auth, t_from, t_to, "closed", tenant_id),
@@ -2056,11 +2066,34 @@ async fn fetch_customer_data(
     tenant_id: &str,
 ) -> Result<CustomerData> {
     let url = format!("{}/customers/customers", API_URL);
-    let resp = client
-        .get(&url)
-        .header("Authorization", auth)
-        .send()
-        .await?;
+
+    // Est. requests: 1 (with retries)
+    let resp = match retry_api_call(
+        || async {
+            let res = client
+                .get(&url)
+                .header("Authorization", auth)
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
+
+            if res.status().is_server_error()
+                || res.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+            {
+                return Err(anyhow::anyhow!("API Error {}", res.status()));
+            }
+            Ok(res)
+        },
+        "fetch_customer_data",
+    )
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            log_api_call("fetch_customer_data", &url, 500, false, &e.to_string());
+            return Ok(CustomerData::default());
+        }
+    };
 
     let status = resp.status().as_u16();
     let success = resp.status().is_success();
@@ -2174,11 +2207,42 @@ async fn fetch_ticket_count(
         "{}/tickets-api/stats/customer?from={}&to={}&status={}&customer={}",
         API_URL, from, to, status, customer
     );
-    let resp = client
-        .get(&url)
-        .header("Authorization", auth)
-        .send()
-        .await?;
+
+    // Est. requests: 1 (with retries)
+    // Retry on 429/5xx
+    let resp_result = retry_api_call(
+        || async {
+            let res = client
+                .get(&url)
+                .header("Authorization", auth)
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
+
+            if res.status().is_server_error()
+                || res.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+            {
+                return Err(anyhow::anyhow!("API Error {}", res.status()));
+            }
+            Ok(res)
+        },
+        &format!("fetch_ticket_count_{}", status),
+    )
+    .await;
+
+    let resp = match resp_result {
+        Ok(r) => r,
+        Err(e) => {
+            log_api_call(
+                &format!("fetch_ticket_count_{}_FAILED", status),
+                &url,
+                0,
+                false,
+                &e.to_string(),
+            );
+            return Ok(0);
+        }
+    };
 
     let http_status = resp.status().as_u16();
     let success = resp.status().is_success();
@@ -3900,12 +3964,27 @@ async fn start_threat_search(
         }),
     };
 
-    let resp = client
-        .post(&url)
-        .header("Authorization", auth)
-        .json(&request)
-        .send()
-        .await?;
+    // Est. requests: 1 (with retries)
+    let resp = retry_api_call(
+        || async {
+            let res = client
+                .post(&url)
+                .header("Authorization", auth)
+                .json(&request)
+                .send()
+                .await
+                .map_err(|e| anyhow::anyhow!(e))?;
+
+            if res.status().is_server_error()
+                || res.status() == reqwest::StatusCode::TOO_MANY_REQUESTS
+            {
+                return Err(anyhow::anyhow!("API Error {}", res.status()));
+            }
+            Ok(res)
+        },
+        &format!("start_threat_search_{:?}", source),
+    )
+    .await?;
 
     if !resp.status().is_success() {
         tracing::warn!(
@@ -3933,15 +4012,48 @@ async fn poll_threat_search(
     );
 
     for attempt in 0..max_attempts {
-        let resp = client
-            .get(&url)
-            .header("Authorization", auth)
-            .send()
-            .await?;
+        // Est. requests: 1 per attempt (wrapped in retry for transient network errors)
+        let resp_result = retry_api_call(
+            || async {
+                let res = client
+                    .get(&url)
+                    .header("Authorization", auth)
+                    .send()
+                    .await
+                    .map_err(|e| anyhow::anyhow!(e))?;
+
+                // Note: We don't retry 404s or 400s here as they might be valid poll responses?
+                // Actually 5xx should be retried.
+                if res.status().is_server_error() {
+                    return Err(anyhow::anyhow!("API Error {}", res.status()));
+                }
+                Ok(res)
+            },
+            &format!("poll_threat_search_{}", search_id),
+        )
+        .await;
+
+        let resp = match resp_result {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::warn!(
+                    "Poll attempt {} failed network/server check: {}",
+                    attempt,
+                    e
+                );
+                // Standard delay before next poll attempt
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                continue;
+            }
+        };
 
         if !resp.status().is_success() {
-            tracing::warn!("Poll attempt {} failed: {}", attempt, resp.status());
-            tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+            tracing::warn!(
+                "Poll attempt {} failed status check: {}",
+                attempt,
+                resp.status()
+            );
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
             continue;
         }
 
@@ -3951,8 +4063,8 @@ async fn poll_threat_search(
             return Ok(response.get_results().to_vec());
         }
 
-        // Wait before next poll
-        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+        // Wait before next poll (Standard 1s Rule)
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     }
 
     tracing::warn!(

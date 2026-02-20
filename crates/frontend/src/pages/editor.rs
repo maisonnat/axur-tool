@@ -568,6 +568,7 @@ pub fn EditorPage() -> impl IntoView {
                                 })
                                 .collect();
 
+                            let state = state.clone();
                             spawn_local(async move {
                                 match api::export_to_slides(&title, slide_data).await {
                                     Ok(resp) => {
@@ -575,7 +576,7 @@ pub fn EditorPage() -> impl IntoView {
                                         // Trigger CSAT survey
                                         show_csat();
                                         // Unlock achievement
-                                        crate::onboarding::unlock_achievement("first_export");
+                                        crate::onboarding::unlock_achievement("first_export", &state);
                                         // Open presentation in new tab
                                         if let Some(window) = web_sys::window() {
                                             let _ = window.open_with_url_and_target(

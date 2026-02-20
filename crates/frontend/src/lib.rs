@@ -7,7 +7,11 @@ mod components;
 mod i18n;
 pub mod onboarding;
 mod pages;
+mod services;
 mod storage;
+mod styles;
+
+pub use styles::design_tokens;
 
 use leptos::*;
 use pages::{
@@ -37,6 +41,8 @@ pub struct AppState {
     /// Template ID to fetch content from but treat as new (fork)
     pub editor_clone_from_id: RwSignal<Option<String>>,
     pub is_admin: RwSignal<bool>,
+    /// Latest unlocked achievement (for toast notification)
+    pub latest_achievement: RwSignal<Option<onboarding::achievements::Achievement>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -64,6 +70,7 @@ impl Default for AppState {
             editor_template_id: create_rw_signal(None),
             editor_clone_from_id: create_rw_signal(None),
             is_admin: create_rw_signal(false),
+            latest_achievement: create_rw_signal(None),
         }
     }
 }
@@ -134,6 +141,11 @@ pub fn App() -> impl IntoView {
         <components::ColdStartOverlay
             is_warming=is_warming.read_only()
             is_ready=is_ready.read_only()
+        />
+
+        <components::AchievementToast
+            achievement=state.latest_achievement.read_only()
+            on_dismiss=Callback::new(move |_| state.latest_achievement.set(None))
         />
 
         <div class="min-h-screen bg-zinc-950 text-zinc-100 font-sans">

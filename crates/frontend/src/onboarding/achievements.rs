@@ -4,6 +4,7 @@
 //! Each achievement can be triggered by different actions.
 
 use crate::UiLanguage;
+use leptos::*;
 
 /// How an achievement is triggered/unlocked
 #[derive(Clone, Debug, PartialEq)]
@@ -19,7 +20,7 @@ pub enum AchievementTrigger {
 }
 
 /// A single achievement/milestone
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Achievement {
     /// Unique identifier
     pub id: &'static str,
@@ -131,7 +132,13 @@ pub static ALL_ACHIEVEMENTS: &[Achievement] = &[
 ];
 
 /// Unlock an achievement by ID (call from anywhere in the app)
-pub fn unlock_achievement(id: &str) {
+/// Unlock an achievement by ID (call from anywhere in the app)
+pub fn unlock_achievement(id: &str, state: &crate::AppState) {
     use crate::onboarding::storage;
-    storage::mark_achievement_unlocked(id);
+    if storage::mark_achievement_unlocked(id) {
+        // Find achievement details and show toast
+        if let Some(achievement) = ALL_ACHIEVEMENTS.iter().find(|a| a.id == id) {
+            state.latest_achievement.set(Some(achievement.clone()));
+        }
+    }
 }

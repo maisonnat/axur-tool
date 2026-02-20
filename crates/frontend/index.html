@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Axur Web - Threat Hunting</title>
     <meta name="description" content="Axur Web - Generador de reportes de inteligencia de amenazas externas">
+
+    <!-- Google Fonts: Outfit (Premium Sans) & Syncopate (Cinematic Display) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=Syncopate:wght@400;700&family=Inter:wght@400;600&family=DM+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <link data-trunk rel="rust" href="Cargo.toml" />
     <link data-trunk rel="copy-dir" href="assets" />
 
@@ -15,339 +22,22 @@
     <!-- html2canvas for screenshots -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
+
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        // Screenshot capability
+        // Global function for screenshot capture (kept for now as fallback/bridge)
         window.captureScreenshot = async function () {
+            if (typeof html2canvas === 'undefined') return null;
             try {
-                // If in editor, try to capture valid canvas first?
-                // But html2canvas captures entire DOM which is better for context (sidebar, modals)
-                if (typeof html2canvas === 'undefined') return null;
-
-                // Capture entire body
                 const canvas = await html2canvas(document.body, {
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: true,
-                    ignoreElements: (element) => {
-                        // Ignore the feedback widget itself to avoid recursion if it's open
-                        return element.classList.contains('feedback-widget-ignore');
-                    }
+                    logging: false, useCORS: true, allowTaint: true,
+                    ignoreElements: (e) => e.classList.contains('feedback-widget-ignore')
                 });
-
-                // Return as base64 JPEG
                 return canvas.toDataURL('image/jpeg', 0.7);
-            } catch (e) {
-                console.error('[Feedback] Screenshot failed:', e);
-                return null;
-            }
-        };
-
-        // ==================== ANNOTATION EDITOR ====================
-        window.annotationEditor = {
-            canvas: null,
-            ctx: null,
-            isDrawing: false,
-            color: '#ef4444', // red
-            lineWidth: 4,
-            originalImage: null,
-            annotatedData: null,
-
-            open: function (screenshotData) {
-                const overlay = document.getElementById('annotation-overlay');
-                const canvas = document.getElementById('annotation-canvas');
-                if (!overlay || !canvas) return;
-
-                overlay.classList.remove('hidden');
-                this.canvas = canvas;
-                this.ctx = canvas.getContext('2d');
-
-                // Load screenshot as background
-                const img = new Image();
-                img.onload = () => {
-                    // Size canvas to fit screen
-                    const maxW = window.innerWidth - 32;
-                    const maxH = window.innerHeight - 100;
-                    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-
-                    canvas.width = img.width * scale;
-                    canvas.height = img.height * scale;
-                    this.ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    this.originalImage = img;
-                };
-                img.src = screenshotData;
-
-                // Bind events
-                this._bindEvents();
-                this._bindColorButtons();
-            },
-
-            _bindEvents: function () {
-                const c = this.canvas;
-                c.onmousedown = (e) => this._startDraw(e);
-                c.onmousemove = (e) => this._draw(e);
-                c.onmouseup = () => this._endDraw();
-                c.onmouseleave = () => this._endDraw();
-
-                // Touch support
-                c.ontouchstart = (e) => { e.preventDefault(); this._startDraw(e.touches[0]); };
-                c.ontouchmove = (e) => { e.preventDefault(); this._draw(e.touches[0]); };
-                c.ontouchend = () => this._endDraw();
-
-                // Buttons
-                document.getElementById('annotation-clear')?.addEventListener('click', () => this.clear());
-                document.getElementById('annotation-done')?.addEventListener('click', () => this.done());
-            },
-
-            _bindColorButtons: function () {
-                const colors = { 'red': '#ef4444', 'yellow': '#facc15', 'blue': '#3b82f6' };
-                Object.keys(colors).forEach(name => {
-                    const btn = document.getElementById(`annotation-color-${name}`);
-                    if (btn) {
-                        btn.onclick = () => {
-                            this.color = colors[name];
-                            // Update border
-                            Object.keys(colors).forEach(n => {
-                                const b = document.getElementById(`annotation-color-${n}`);
-                                if (b) b.classList.toggle('border-white', n === name);
-                            });
-                        };
-                    }
-                });
-            },
-
-            _startDraw: function (e) {
-                this.isDrawing = true;
-                const rect = this.canvas.getBoundingClientRect();
-                this.lastX = e.clientX - rect.left;
-                this.lastY = e.clientY - rect.top;
-            },
-
-            _draw: function (e) {
-                if (!this.isDrawing) return;
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                this.ctx.strokeStyle = this.color;
-                this.ctx.lineWidth = this.lineWidth;
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.lastX, this.lastY);
-                this.ctx.lineTo(x, y);
-                this.ctx.stroke();
-
-                this.lastX = x;
-                this.lastY = y;
-            },
-
-            _endDraw: function () {
-                this.isDrawing = false;
-            },
-
-            clear: function () {
-                if (this.originalImage && this.ctx) {
-                    this.ctx.drawImage(this.originalImage, 0, 0, this.canvas.width, this.canvas.height);
-                }
-            },
-
-            done: function () {
-                if (this.canvas) {
-                    this.annotatedData = this.canvas.toDataURL('image/jpeg', 0.8);
-                }
-                document.getElementById('annotation-overlay')?.classList.add('hidden');
-            },
-
-            getAnnotated: function () {
-                return this.annotatedData;
-            }
-        };
-
-        // Global wrappers for Rust binding
-        window.openAnnotationEditor = function (screenshotData) {
-            window.annotationEditor.open(screenshotData);
-        };
-        window.getAnnotatedScreenshot = function () {
-            return window.annotationEditor.getAnnotated();
-        };
-
-        // ==================== ACHIEVEMENT SYSTEM ====================
-        window._achievementTitles = {
-            'tutorial': '🎓 Tutorial completado',
-            'first_import': '📥 Primera importación',
-            'first_export': '📤 Primera exportación',
-            'template_created': '✨ Template creado',
-            'threat_hunting': '🔍 Threat Hunter',
-            'shortcut_master': '⌨️ Maestro de atajos'
-        };
-
-        // Unlock achievement (called from JS, syncs to localStorage)
-        window.unlockAchievement = function (id) {
-            const key = 'axur_onboarding';
-            let progress = JSON.parse(localStorage.getItem(key) || '{}');
-            if (!progress.unlocked_achievements) progress.unlocked_achievements = [];
-            if (!progress.unlocked_achievements.includes(id)) {
-                progress.unlocked_achievements.push(id);
-                localStorage.setItem(key, JSON.stringify(progress));
-                window.showAchievementToast(id);
-            }
-        };
-
-        // Show achievement toast notification with confetti
-        window.showAchievementToast = function (id) {
-            const title = window._achievementTitles[id] || id;
-            const toast = document.createElement('div');
-            toast.className = 'achievement-toast';
-            toast.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: linear-gradient(135deg, #18181b 0%, #27272a 100%); border: 1px solid #3f3f46; border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); color: white; font-family: Inter, sans-serif;">
-                    <span style="font-size: 32px; animation: bounce 0.5s ease;">🏆</span>
-                    <div>
-                        <p style="margin: 0 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #f97316;">Logro Desbloqueado</p>
-                        <p style="margin: 0; font-size: 16px; font-weight: 600;">${title}</p>
-                    </div>
-                </div>
-            `;
-            toast.style.cssText = 'position: fixed; bottom: 100px; left: 20px; z-index: 10000; animation: slideUp 0.4s ease, fadeOut 0.4s ease 3s forwards;';
-            document.body.appendChild(toast);
-
-            // Trigger confetti effect
-            window.launchConfetti();
-
-            setTimeout(() => toast.remove(), 3500);
-        };
-
-        // Simple canvas confetti effect
-        window.launchConfetti = function () {
-            const canvas = document.createElement('canvas');
-            canvas.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10001;';
-            document.body.appendChild(canvas);
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-
-            const particles = [];
-            const colors = ['#f97316', '#fbbf24', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
-
-            for (let i = 0; i < 100; i++) {
-                particles.push({
-                    x: canvas.width / 2,
-                    y: canvas.height / 2,
-                    vx: (Math.random() - 0.5) * 15,
-                    vy: (Math.random() - 0.5) * 15 - 5,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    size: Math.random() * 8 + 4,
-                    rotation: Math.random() * 360,
-                    rotationSpeed: (Math.random() - 0.5) * 10
-                });
-            }
-
-            let frame = 0;
-            const animate = () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                particles.forEach(p => {
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    p.vy += 0.3; // gravity
-                    p.rotation += p.rotationSpeed;
-
-                    ctx.save();
-                    ctx.translate(p.x, p.y);
-                    ctx.rotate(p.rotation * Math.PI / 180);
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
-                    ctx.restore();
-                });
-
-                frame++;
-                if (frame < 120) requestAnimationFrame(animate);
-                else canvas.remove();
-            };
-            animate();
-        };
-
-        // Add achievement animation styles
-        const achievementStyles = document.createElement('style');
-        achievementStyles.textContent = `
-            @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            @keyframes fadeOut { to { opacity: 0; transform: translateY(-20px); } }
-            @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
-            
-            /* GitHub Sync Overlay */
-            .github-sync-overlay {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                background: rgba(0, 0, 0, 0.85);
-                backdrop-filter: blur(8px);
-                padding: 12px 20px;
-                border-radius: 50px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                z-index: 9999;
-                font-family: Inter, sans-serif;
-                color: white;
-                font-size: 14px;
-                border: 1px solid rgba(255,255,255,0.1);
-                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                animation: slideUp 0.3s ease;
-            }
-            .sync-icon { font-size: 18px; }
-            .sync-icon.spinning { animation: spin 1s linear infinite; }
-            .sync-icon.warning { color: #f97316; }
-            .pulse-text { animation: pulse 1.5s ease-in-out infinite; }
-            .fade-text { color: #22c55e; animation: fadeOut 2s ease forwards; animation-delay: 1s; }
-            .warning-text { color: #f97316; }
-            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-            @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-            
-            /* Cold Start Overlay (Freeze to Thaw) */
-            .cold-overlay {
-                position: fixed;
-                inset: 0;
-                backdrop-filter: blur(8px);
-                background: linear-gradient(135deg, rgba(165,216,255,0.7), rgba(59,130,246,0.5));
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-                transition: all 1.5s ease-out;
-            }
-            .cold-overlay.warming {
-                backdrop-filter: blur(2px);
-                background: linear-gradient(135deg, rgba(249,115,22,0.3), rgba(234,88,12,0.2));
-            }
-            .cold-overlay.ready {
-                opacity: 0;
-                pointer-events: none;
-            }
-            .cold-content {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 16px;
-                color: white;
-                font-family: Inter, sans-serif;
-            }
-            .cold-icon { font-size: 64px; animation: pulse 2s ease-in-out infinite; }
-            .cold-text { font-size: 18px; font-weight: 500; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
-        `;
-        document.head.appendChild(achievementStyles);
-
-        // Shortcut tracking (call when any shortcut is used)
-        window.trackShortcutUsage = function () {
-            const key = 'axur_onboarding';
-            let progress = JSON.parse(localStorage.getItem(key) || '{}');
-            progress.shortcuts_used = (progress.shortcuts_used || 0) + 1;
-            localStorage.setItem(key, JSON.stringify(progress));
-            if (progress.shortcuts_used >= 5) {
-                window.unlockAchievement('shortcut_master');
-            }
+            } catch (e) { console.error(e); return null; }
         };
     </script>
 
@@ -360,13 +50,62 @@
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
                         mono: ['DM Mono', 'monospace'],
+                        display: ['Syncopate', 'Outfit', 'sans-serif'], // Cinematic Headers
+                        body: ['Outfit', 'sans-serif'], // Premium Body
                     },
                     colors: {
-                        axur: {
-                            red: '#EF4043',
-                            orange: '#f97316',
+                        brand: {
+                            primary: '#FF671F', // Axur Orange
+                            'primary-hover': '#E6500A',
+                            secondary: '#EF4043', // Axur Red
                         },
+                        surface: {
+                            base: '#050505', // Deepest Black
+                            layer: '#09090b', // Zinc-950
+                            elevated: '#18181b', // Zinc-900
+                            highlight: '#27272a', // Zinc-800
+                        },
+                        content: {
+                            primary: '#FFFFFF',
+                            secondary: '#a1a1aa', // Zinc-400
+                            tertiary: '#52525b', // Zinc-600
+                        },
+                        status: {
+                            success: '#22c55e',
+                            warning: '#f59e0b',
+                            danger: '#ef4444',
+                            info: '#3b82f6',
+                        }
                     },
+                    backgroundImage: {
+                        'cyber-grid': "radial-gradient(circle at 50% 50%, rgba(255, 103, 31, 0.03) 0%, transparent 50%), linear-gradient(0deg, rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
+                        'glass-gradient': "linear-gradient(145deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)",
+                        'glow-orange': "radial-gradient(circle, rgba(255,103,31,0.15) 0%, transparent 70%)",
+                    },
+                    animation: {
+                        'glow-pulse': 'glow-pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'scanline': 'scanline 8s linear infinite',
+                    },
+                    keyframes: {
+                        'glow-pulse': {
+                            '0%, 100%': { opacity: '0.5', boxShadow: '0 0 20px rgba(255, 103, 31, 0.1)' },
+                            '50%': { opacity: '1', boxShadow: '0 0 30px rgba(255, 103, 31, 0.3)' },
+                        },
+                        'float': {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        'scanline': {
+                            '0%': { transform: 'translateY(-100%)' },
+                            '100%': { transform: 'translateY(100%)' },
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+                        'glow': '0 0 15px rgba(255, 103, 31, 0.3)',
+                        'glow-sm': '0 0 10px rgba(255, 103, 31, 0.2)',
+                    }
                 },
             },
         };
@@ -376,444 +115,9 @@
         // ==================== PPTX IMPORTER (HYBRID) ====================
 
         // ==================== PPTX IMPORTER (HYBRID V2 - FIXED) ====================
-        const PPTXImporter = {
-            MAX_FILE_SIZE: 50 * 1024 * 1024,
-            MAX_SLIDES: 50,
-            PROCESSING_TIMEOUT: 30000,
+        // ==================== PPTX IMPORTER REMOVED (Migrated to PptxService) ====================
+        // Legacy code removed.
 
-            state: { zip: null, fileName: '', slides: {} },
-
-            // --- 1. UNIT FIX: EXACT FLOAT PRECISION (Reason #2) ---
-            // 914400 EMUs = 1 inch = 96 px => 1px = 9525 EMUs
-            emuToPixels: function (emu) {
-                if (emu === undefined || emu === null) return 0;
-                return emu / 9525;
-            },
-            pixelsToEmu: function (pixels) {
-                return Math.round(pixels * 9525);
-            },
-
-            // --- HELPER: FETCH XML ---
-            async fetchXml(zip, path) {
-                const f = zip.file(path);
-                if (!f) return null;
-                const str = await f.async('string');
-                return new DOMParser().parseFromString(str, 'application/xml');
-            },
-
-            // --- HELPER: RESOLVE RELATIONSHIP ---
-            async getRelTarget(zip, relsPath, typeSuffix) {
-                const doc = await this.fetchXml(zip, relsPath);
-                if (!doc) return null;
-                // Find relationship by type ending (ignore schema date versions)
-                const rel = Array.from(doc.getElementsByTagName('Relationship') || [])
-                    .find(r => r.getAttribute('Type') && r.getAttribute('Type').endsWith(typeSuffix));
-                if (!rel) return null;
-
-                let target = rel.getAttribute('Target');
-                // Normalize path
-                if (target.startsWith('../')) target = target.replace('../', 'ppt/');
-                else if (target.startsWith('/')) target = target.substring(1);
-                else if (!target.startsWith('ppt/')) {
-                    // Logic relative to rels folder location involves typically stepping back once
-                    // ppt/slides/_rels/slide1.rels -> ppt/slides/../slideLayouts/layout.xml
-                    if (relsPath.includes('slides/_rels') && !target.includes('/')) target = 'ppt/slides/' + target;
-                    else if (relsPath.includes('slideLayouts/_rels') && !target.includes('/')) target = 'ppt/slideLayouts/' + target;
-                }
-
-                // Resolve ".." parts
-                const parts = target.split('/');
-                const stack = [];
-                for (const p of parts) {
-                    if (p === '..') stack.pop();
-                    else stack.push(p);
-                }
-                return stack.join('/');
-            },
-
-            // --- PARSE COLOR ---
-            parseColor: function (node) {
-                if (!node) return null;
-                const srgb = node.querySelector('srgbClr, a\\:srgbClr');
-                if (srgb) return '#' + srgb.getAttribute('val');
-                const scheme = node.querySelector('schemeClr, a\\:schemeClr');
-                if (scheme) {
-                    const map = {
-                        'bg1': '#ffffff', 'tx1': '#000000', 'bg2': '#f3f4f6', 'tx2': '#1f2937',
-                        'accent1': '#f97316', 'accent2': '#22c55e', 'accent3': '#3b82f6',
-                        'accent4': '#ef4444', 'accent5': '#eab308', 'accent6': '#a855f7'
-                    };
-                    return map[scheme.getAttribute('val')] || '#888888';
-                }
-                return null;
-            },
-
-            // --- PARSE TRANSFORM ---
-            parseTransform: function (spPr, ox, oy) {
-                if (!spPr) return null;
-                const xfrm = spPr.querySelector('xfrm, a\\:xfrm');
-                if (!xfrm) return null;
-
-                const off = xfrm.querySelector('off, a\\:off');
-                const ext = xfrm.querySelector('ext, a\\:ext');
-
-                // If missing off/ext, it's likely a placeholder inheriting transform.
-                // We SKIP it for now (returning null), or we default to 0?
-                // Returning null filters it out in current logic, which is cleaner than 0,0 box.
-                if (!off || !ext) return null;
-
-                return {
-                    left: this.emuToPixels(parseInt(off.getAttribute('x') || 0)) + ox,
-                    top: this.emuToPixels(parseInt(off.getAttribute('y') || 0)) + oy,
-                    width: this.emuToPixels(parseInt(ext.getAttribute('cx') || 0)),
-                    height: this.emuToPixels(parseInt(ext.getAttribute('cy') || 0)),
-                    angle: parseInt(xfrm.getAttribute('rot') || 0) / 60000
-                };
-            },
-
-            // --- EXTRACT SHAPES (Reason #3 partial) ---
-            async extractShapes(node, zip, relsDoc, ox, oy) {
-                const shapes = [];
-                const children = node.childNodes;
-
-                for (let i = 0; i < children.length; i++) {
-                    const child = children[i];
-                    if (child.nodeType !== 1) continue;
-                    const tag = child.localName || child.nodeName.split(':').pop();
-
-                    if (tag === 'grpSp') {
-                        // Recursively handle group contents (flat for now)
-                        // Group xfrm should calculate new ox, oy.
-                        const grpSpPr = child.querySelector('grpSpPr, p\\:grpSpPr');
-                        let newOx = ox, newOy = oy;
-
-                        if (grpSpPr) {
-                            const xfrm = grpSpPr.querySelector('xfrm, a\\:xfrm');
-                            if (xfrm) {
-                                const off = xfrm.querySelector('off, a\\:off');
-                                const chOff = xfrm.querySelector('chOff, a\\:chOff');
-                                if (off && chOff) {
-                                    // Simple Group logic
-                                    const gx = this.emuToPixels(parseInt(off.getAttribute('x') || 0));
-                                    const gy = this.emuToPixels(parseInt(off.getAttribute('y') || 0));
-                                    const cx = this.emuToPixels(parseInt(chOff.getAttribute('x') || 0));
-                                    const cy = this.emuToPixels(parseInt(chOff.getAttribute('y') || 0));
-                                    newOx = ox + (gx - cx);
-                                    newOy = oy + (gy - cy);
-                                }
-                            }
-                        }
-                        shapes.push(...(await this.extractShapes(child, zip, relsDoc, newOx, newOy)));
-                    }
-                    else if (tag === 'sp') {
-                        const spPr = child.querySelector('spPr, p\\:spPr');
-                        const transform = this.parseTransform(spPr, ox, oy);
-
-                        if (transform) {
-                            const txBody = child.querySelector('txBody, p\\:txBody');
-                            const { id, name } = { id: Date.now(), name: 'Shape' }; // Simple ID if missing
-
-                            if (txBody) {
-                                let text = '';
-                                txBody.querySelectorAll('p, a\\:p').forEach(p => {
-                                    p.querySelectorAll('r, a\\:r').forEach(r => {
-                                        const t = r.querySelector('t, a\\:t');
-                                        if (t) text += t.textContent;
-                                    });
-                                    text += '\n';
-                                });
-                                shapes.push({
-                                    type: 'textbox',
-                                    ...transform,
-                                    text: text.trim(),
-                                    fill: '#000000',
-                                    fontSize: 14, fontFamily: 'Inter'
-                                });
-                            } else {
-                                const solidFill = spPr.querySelector('solidFill, a\\:solidFill');
-                                const fill = this.parseColor(solidFill) || '#3f3f46';
-                                shapes.push({
-                                    type: 'rect',
-                                    ...transform,
-                                    fill: fill
-                                });
-                            }
-                        }
-                    }
-                    else if (tag === 'pic') {
-                        const blipFill = child.querySelector('blipFill, p\\:blipFill');
-                        if (blipFill) {
-                            const blip = blipFill.querySelector('blip, a\\:blip');
-                            const embedId = blip?.getAttribute('r:embed');
-                            if (embedId && relsDoc) {
-                                const rel = Array.from(relsDoc.getElementsByTagName('Relationship') || [])
-                                    .find(r => r.getAttribute('Id') === embedId);
-
-                                if (rel) {
-                                    let target = rel.getAttribute('Target');
-                                    if (target.startsWith('../')) target = target.replace('../', 'ppt/');
-                                    else if (target.startsWith('media/')) target = 'ppt/media/' + target.split('/').pop();
-                                    else if (!target.startsWith('ppt/')) target = 'ppt/' + target;
-
-                                    // Fix relative path if needed
-                                    if (target.indexOf('..') !== -1) {
-                                        // Simplify
-                                        target = target.replace(/\w+\/\.\.\//g, '');
-                                    }
-
-                                    const imgFile = zip.file(target);
-                                    if (imgFile) {
-                                        const data = await imgFile.async('base64');
-                                        const spPr = child.querySelector('spPr, p\\:spPr');
-                                        const transform = this.parseTransform(spPr, ox, oy);
-
-                                        // Mime guess
-                                        const ext = target.split('.').pop().toLowerCase();
-                                        const mime = ext === 'svg' ? 'image/svg+xml' : (ext === 'png' ? 'image/png' : 'image/jpeg');
-
-                                        if (transform) {
-                                            shapes.push({
-                                                type: 'image',
-                                                ...transform,
-                                                src: `data:${mime};base64,${data}`,
-                                                selectable: true
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                return shapes;
-            },
-
-            // --- HIERARCHY PIPELINE (Reason #1) ---
-            async parseSlide(xml, zip, slideNum) {
-                const slidesRelPath = `ppt/slides/_rels/slide${slideNum}.xml.rels`;
-                const slideDoc = new DOMParser().parseFromString(xml, 'application/xml');
-                const relsDoc = await this.fetchXml(zip, slidesRelPath);
-
-                let allShapes = [];
-
-                // 1. MASTER & LAYOUT (Reason #1: Ghost Problem)
-                // Try to find Layout
-                const layoutPath = await this.getRelTarget(zip, slidesRelPath, 'slideLayout');
-                if (layoutPath) {
-                    const layoutDoc = await this.fetchXml(zip, layoutPath);
-                    if (layoutDoc) {
-                        const layoutRelsPath = layoutPath.replace('slideLayouts/', 'slideLayouts/_rels/') + '.rels';
-                        const layoutRelsDoc = await this.fetchXml(zip, layoutRelsPath);
-
-                        // Try to find Master from Layout
-                        const masterPath = await this.getRelTarget(zip, layoutRelsPath, 'slideMaster');
-                        if (masterPath) {
-                            const masterDoc = await this.fetchXml(zip, masterPath);
-                            const masterRelsPath = masterPath.replace('slideMasters/', 'slideMasters/_rels/') + '.rels';
-                            const masterRelsDoc = await this.fetchXml(zip, masterRelsPath);
-
-                            // MASTER SHAPES (Backgrounds)
-                            if (masterDoc) {
-                                const spTree = masterDoc.getElementsByTagName('p:spTree')[0] || masterDoc.getElementsByTagName('spTree')[0];
-                                if (spTree) {
-                                    const mShapes = await this.extractShapes(spTree, zip, masterRelsDoc, 0, 0);
-                                    // Only keep visual elements (not text placeholders)
-                                    allShapes.push(...mShapes.filter(s => s.type !== 'textbox'));
-                                }
-                            }
-                        }
-
-                        // LAYOUT SHAPES
-                        const spTree = layoutDoc.getElementsByTagName('p:spTree')[0] || layoutDoc.getElementsByTagName('spTree')[0];
-                        if (spTree) {
-                            const lShapes = await this.extractShapes(spTree, zip, layoutRelsDoc, 0, 0);
-                            // Only keep visual elements
-                            allShapes.push(...lShapes.filter(s => s.type !== 'textbox'));
-                        }
-                    }
-                }
-
-                // 2. SLIDE SHAPES
-                const spTree = slideDoc.getElementsByTagName('p:spTree')[0] || slideDoc.getElementsByTagName('spTree')[0];
-                if (spTree) {
-                    const sShapes = await this.extractShapes(spTree, zip, relsDoc, 0, 0);
-                    allShapes.push(...sShapes);
-                }
-
-                // Add default black background if none
-                if (!allShapes.some(s => s.type === 'rect' && s.width > 1000 && s.height > 600)) {
-                    allShapes.unshift({
-                        type: 'rect', left: 0, top: 0, width: 1280, height: 720, fill: '#18181b'
-                    });
-                }
-
-                return { objects: allShapes };
-            },
-
-            importFile: async function (file) {
-                console.log("[PPTX] Importing via Google Hybrid Architecture...");
-                this.state.originalFile = file; // Store for export
-                this.state.fileName = file.name;
-
-                try {
-                    // 1. Upload to Backend (Google Drive/Slides)
-                    const formData = new FormData();
-                    formData.append('file', file);
-
-                    console.log("[PPTX] Uploading for preview generation...");
-                    const resp = await fetch('/api/import/pptx', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (!resp.ok) {
-                        const errText = await resp.text();
-                        throw new Error("Preview generation failed: " + errText);
-                    }
-
-                    const result = await resp.json();
-                    if (!result.success) throw new Error(result.message);
-
-                    const imageUrls = result.slides;
-                    console.log(`[PPTX] Received ${imageUrls.length} slide previews from Google.`);
-
-                    // Update progress
-                    if (window.showPptxProgress) window.showPptxProgress('processing', imageUrls.length + ' slides');
-
-                    const slides = [];
-
-                    // Images are now base64 data URLs from backend (no pre-fetching needed!)
-                    // Backend handles rate limiting with Retry-After header support
-                    console.log('[PPTX] Backend returned ' + imageUrls.length + ' embedded images (no 429 risk)');
-
-                    for (let i = 0; i < imageUrls.length; i++) {
-                        const url = imageUrls[i];
-                        const slideNum = i + 1;
-
-                        // Update progress per slide
-                        if (window.showPptxProgress) {
-                            window.showPptxProgress('processing', `Preparing slide ${slideNum}/${imageUrls.length}`);
-                        }
-
-                        // Note: DO NOT hardcode width/height - let Fabric.js detect from actual image
-                        slides.push({
-                            slideNumber: slideNum,
-                            canvasJson: JSON.stringify({
-                                version: "5.3.0",
-                                objects: [], // Empty objects layer
-                                backgroundImage: {
-                                    type: 'image',
-                                    version: '5.3.0',
-                                    originX: 'left',
-                                    originY: 'top',
-                                    left: 0,
-                                    top: 0,
-                                    // Data URL is already embedded (no network fetch at display time)
-                                    src: url,
-                                    scaleX: 1,
-                                    scaleY: 1,
-                                    crossOrigin: 'anonymous',
-                                    stroke: null,
-                                    strokeWidth: 0,
-                                    fill: 'rgb(0,0,0)',
-                                    opacity: 1,
-                                    visible: true,
-                                    backgroundColor: ''
-                                }
-                            })
-                        });
-                    }
-                    console.log('[PPTX] All slides prepared successfully');
-
-                    this.state.slides = slides;
-                    // Clean up URL object? No, these are remote URLs.
-
-                    return {
-                        success: true,
-                        fileName: this.state.fileName,
-                        slides: slides,
-                        slideCount: slides.length
-                    };
-
-                } catch (e) {
-                    console.error("Import failed:", e);
-                    alert("Import failed: " + e.message);
-                    return { success: false, slides: [] };
-                }
-            },
-
-            patchSlideXML: function () { },
-
-            exportPPTX: async function () {
-                if (!this.state.originalFile) {
-                    alert("No hay archivo original cargado.");
-                    return;
-                }
-
-                // Sync current canvas to state using the correct global variable 'fabricCanvas'
-                if (typeof fabricCanvas !== 'undefined' && fabricCanvas && window._importedSlides && window._importedSlides[window._currentImportedSlideIndex]) {
-                    window._importedSlides[window._currentImportedSlideIndex].canvasJson = JSON.stringify(fabricCanvas.toJSON(['placeholderKey']));
-                }
-
-                const edits = [];
-                const slides = window._importedSlides || [];
-
-                slides.forEach((slide, idx) => {
-                    const json = typeof slide.canvasJson === 'string' ? JSON.parse(slide.canvasJson) : slide.canvasJson;
-                    if (json.objects) {
-                        json.objects.forEach(obj => {
-                            // Check if it's a Placeholder Group
-                            if (obj.placeholderKey) {
-                                edits.push({
-                                    slide_index: idx + 1,
-                                    text: '{{' + obj.placeholderKey + '}}', // Visual text
-                                    placeholder_key: obj.placeholderKey,      // Internal naming
-                                    x: obj.left,
-                                    y: obj.top,
-                                    width: obj.width * (obj.scaleX || 1),
-                                    height: obj.height * (obj.scaleY || 1)
-                                });
-                            }
-                            // Or if it's a manual Textbox
-                            else if (obj.selectable !== false && (obj.type === 'textbox' || obj.type === 'i-text')) {
-                                edits.push({
-                                    slide_index: idx + 1,
-                                    text: obj.text || "Text",
-                                    x: obj.left,
-                                    y: obj.top,
-                                    width: obj.width * (obj.scaleX || 1),
-                                    height: obj.height * (obj.scaleY || 1)
-                                });
-                            }
-                        });
-                    }
-                });
-
-                console.log("[PPTX] Exporting edits:", edits);
-
-                const formData = new FormData();
-                formData.append('file', this.state.originalFile);
-                formData.append('edits', JSON.stringify(edits));
-
-                try {
-                    const resp = await fetch('/api/export/inject', { method: 'POST', body: formData });
-                    if (!resp.ok) throw new Error("Backend error: " + resp.statusText);
-
-                    const blob = await resp.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = "injected_" + this.state.originalFile.name;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                } catch (e) {
-                    alert("Export failed: " + e.message);
-                }
-            }
-        };
-        window.PPTXImporter = PPTXImporter;
-        window.importPPTX = (file) => PPTXImporter.importFile(file);
 
         // Handle PPTX import from file input (called via setTimeout to avoid WASM closure issues)
         window.handlePptxImport = async function () {
@@ -1558,14 +862,64 @@
         const originalImport = window.importPptxFile;
         if (originalImport) {
             window.importPptxFile = async function (file) {
-                const result = await originalImport.call(this, file);
-                if (result && result.success) {
-                    window.cloudAutoSave.start(file.name.replace('.pptx', ''));
-                }
-                return result;
-            };
+                window.cloudAutoSave.start(file.name.replace('.pptx', ''));
+            }
+            return result;
+        };
         }
     </script>
+    <style>
+        /* Scrollbar aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #09090b;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 4px;
+            border: 2px solid #09090b;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
+        }
+
+        /* Selection */
+        ::selection {
+            background: rgba(255, 103, 31, 0.3);
+            color: white;
+        }
+
+        /* Base Body */
+        body {
+            background-color: #050505;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(255, 103, 31, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(239, 64, 67, 0.05), transparent 25%);
+            background-attachment: fixed;
+            color: #ffffff;
+            font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+        }
+
+        /* Glass Utility */
+        .glass-panel {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Utility for text-balance */
+        .text-balance {
+            text-wrap: balance;
+        }
+    </style>
 
     <!-- Fabric.js for canvas editing -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
