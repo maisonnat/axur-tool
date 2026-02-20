@@ -60,11 +60,12 @@ pub fn ThreatHuntingPreviewModal(
     view! {
         <Show when=move || is_open.get()>
             <div class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div class="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden">
+                <div class="bg-surface-base/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] max-w-lg w-full overflow-hidden">
                     // Header
-                    <div class="bg-gradient-to-r from-orange-600 to-amber-600 px-6 py-4">
-                        <h2 class="text-white font-bold text-lg">"Threat Hunting Preview"</h2>
-                        <p class="text-white/70 text-sm">"Vista previa de resultados disponibles"</p>
+                    <div class="bg-surface-elevated/50 border-b border-white/5 px-6 py-5 relative overflow-hidden">
+                        <div class="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-brand-primary/50 to-transparent"></div>
+                        <h2 class="text-white font-bold text-lg font-display tracking-wide">"Threat Hunting Preview"</h2>
+                        <p class="text-white/60 text-sm mt-1">"Vista previa de resultados disponibles"</p>
                     </div>
 
                     // Content
@@ -77,9 +78,9 @@ pub fn ThreatHuntingPreviewModal(
                                 view! {
                                     <div class="space-y-4">
                                         // Progress bar
-                                        <div class="w-full bg-zinc-700 rounded-full h-2.5">
+                                        <div class="w-full bg-surface-base border border-white/5 rounded-full h-2.5 overflow-hidden shadow-inner">
                                             <div
-                                                class="bg-gradient-to-r from-orange-500 to-amber-500 h-2.5 rounded-full transition-all duration-300"
+                                                class="bg-brand-primary h-2.5 rounded-full transition-all duration-300 shadow-glow-orange"
                                                 style=format!("width: {}%", progress.progress_percentage())
                                             ></div>
                                         </div>
@@ -102,16 +103,16 @@ pub fn ThreatHuntingPreviewModal(
 
                                         // Running totals
                                         <div class="grid grid-cols-3 gap-3 mt-4">
-                                            <div class="bg-zinc-800/50 rounded-lg p-2 border border-zinc-700 text-center">
-                                                <span class="text-zinc-400 text-xs block">"Signal-Lake"</span>
+                                            <div class="bg-surface-elevated/40 rounded-xl p-3 border border-white/5 text-center shadow-inner">
+                                                <span class="text-zinc-400 text-xs block font-mono">"Signal-Lake"</span>
                                                 <span class="text-lg font-bold text-blue-400">{progress.signal_lake_count}</span>
                                             </div>
-                                            <div class="bg-zinc-800/50 rounded-lg p-2 border border-zinc-700 text-center">
-                                                <span class="text-zinc-400 text-xs block">"Chatter"</span>
+                                            <div class="bg-surface-elevated/40 rounded-xl p-3 border border-white/5 text-center shadow-inner">
+                                                <span class="text-zinc-400 text-xs block font-mono">"Chatter"</span>
                                                 <span class="text-lg font-bold text-green-400">{progress.chatter_count}</span>
                                             </div>
-                                            <div class="bg-zinc-800/50 rounded-lg p-2 border border-zinc-700 text-center">
-                                                <span class="text-zinc-400 text-xs block">"Credenciales"</span>
+                                            <div class="bg-surface-elevated/40 rounded-xl p-3 border border-white/5 text-center shadow-inner">
+                                                <span class="text-zinc-400 text-xs block font-mono">"Credenciales"</span>
                                                 <span class="text-lg font-bold text-red-400">{progress.credential_count}</span>
                                             </div>
                                         </div>
@@ -134,31 +135,31 @@ pub fn ThreatHuntingPreviewModal(
                                     <div>
                                         // Show error if present
                                         {error.map(|e| view! {
-                                            <div class="bg-red-900/30 border border-red-500/50 rounded-lg p-4 mb-4">
+                                            <div class="bg-red-900/20 backdrop-blur-md border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] rounded-xl p-4 mb-4">
                                                 <p class="text-red-400 text-sm">{e}</p>
                                             </div>
                                         })}
 
                                         <div class="grid grid-cols-2 gap-4 mb-6">
-                                            <div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
-                                                <span class="text-zinc-400 text-sm">"Signal-Lake"</span>
+                                            <div class="bg-surface-elevated/40 backdrop-blur-md rounded-xl p-4 border border-white/5 group hover:border-white/10 transition-colors">
+                                                <span class="text-zinc-400 text-sm font-mono tracking-wider">"Signal-Lake"</span>
                                                 <div class="text-2xl font-bold text-blue-400">{data.signal_lake_count}</div>
                                             </div>
-                                            <div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
-                                                <span class="text-zinc-400 text-sm">"Credenciales"</span>
+                                            <div class="bg-surface-elevated/40 backdrop-blur-md rounded-xl p-4 border border-white/5 group hover:border-white/10 transition-colors">
+                                                <span class="text-zinc-400 text-sm font-mono tracking-wider">"Credenciales"</span>
                                                 <div class="text-2xl font-bold text-red-400">{data.credential_count}</div>
                                             </div>
-                                            <div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
-                                                <span class="text-zinc-400 text-sm">"Chat/Telegram"</span>
+                                            <div class="bg-surface-elevated/40 backdrop-blur-md rounded-xl p-4 border border-white/5 group hover:border-white/10 transition-colors">
+                                                <span class="text-zinc-400 text-sm font-mono tracking-wider">"Chat/Telegram"</span>
                                                 <div class="text-2xl font-bold text-green-400">{data.chat_message_count}</div>
                                             </div>
-                                            <div class="bg-zinc-800/50 rounded-lg p-4 border border-zinc-700">
-                                                <span class="text-zinc-400 text-sm">"Foros Dark Web"</span>
+                                            <div class="bg-surface-elevated/40 backdrop-blur-md rounded-xl p-4 border border-white/5 group hover:border-white/10 transition-colors">
+                                                <span class="text-zinc-400 text-sm font-mono tracking-wider">"Foros Dark Web"</span>
                                                 <div class="text-2xl font-bold text-purple-400">{data.forum_message_count}</div>
                                             </div>
                                         </div>
 
-                                        <div class="bg-amber-900/20 border border-amber-500/30 rounded-lg p-4 mb-6">
+                                        <div class="bg-amber-500/5 backdrop-blur-md border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.05)] rounded-xl p-5 mb-6">
                                             <div class="flex items-center justify-between mb-2">
                                                 <span class="text-amber-300 font-medium">"Resumen"</span>
                                                 <span class="text-white font-bold text-lg">{data.total_count} " resultados"</span>
@@ -169,20 +170,21 @@ pub fn ThreatHuntingPreviewModal(
                                             </div>
                                             <div class="flex items-center justify-between text-sm">
                                                 <span class="text-amber-200/70">"Creditos estimados:"</span>
-                                                <span class="text-amber-400 font-bold">"~" {data.estimated_credits}</span>
+                                                <span class="text-brand-primary font-bold">"~" {data.estimated_credits}</span>
                                             </div>
                                         </div>
 
-                                        <div class="mb-4 p-3 bg-yellow-900/10 border border-yellow-500/20 rounded text-sm text-yellow-200">
-                                            <span class="font-bold">Nota:</span> "La vista previa consume créditos iniciales de búsqueda (1 pag)."
+                                        <div class="mb-5 p-3 bg-brand-primary/10 border border-brand-primary/20 rounded-xl text-sm text-brand-primary/90 flex items-start gap-2 backdrop-blur-md font-mono">
+                                            <span class="text-lg leading-none">"⚡"</span>
+                                            <span>"La vista previa consume créditos iniciales de búsqueda (1 pag)."</span>
                                         </div>
 
-                                        <p class="text-gray-400 mb-6">
+                                        <p class="text-zinc-400 mb-6 px-1">
                                             "¿Desea generar el reporte completo e investigar a fondo estos hallazgos?"
                                         </p>
 
-                                        <div class="bg-zinc-800 rounded-lg p-3 text-xs text-zinc-400 mb-6">
-                                            "Al continuar, se consumiran creditos de Threat Hunting. Esta operacion puede tomar 1-2 minutos."
+                                        <div class="bg-surface-elevated/50 border border-white/5 rounded-xl p-3 text-xs text-zinc-400/80 mb-2">
+                                            "Al continuar, se consumiran creditos de Threat Hunting. Esta operacion puede tomar varios minutos."
                                         </div>
                                     </div>
                                 }.into_view()
@@ -191,15 +193,15 @@ pub fn ThreatHuntingPreviewModal(
                     </div>
 
                     // Footer
-                    <div class="bg-zinc-800/50 px-6 py-4 flex justify-end gap-3">
+                    <div class="bg-surface-elevated/60 border-t border-white/5 px-6 py-4 flex justify-end gap-3">
                         <button
-                            class="px-4 py-2 rounded-lg border border-zinc-600 text-zinc-300 hover:bg-zinc-700 transition-colors"
+                            class="px-4 py-2 rounded-xl bg-surface-base/50 border border-white/10 text-zinc-300 hover:text-white hover:bg-surface-elevated/80 transition-all duration-300 focus:outline-none"
                             on:click=move |_| on_cancel.call(())
                         >
                             "Cancelar"
                         </button>
                         <button
-                            class="px-6 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="px-6 py-2 rounded-xl bg-brand-primary/20 hover:bg-brand-primary/40 border border-brand-primary/30 text-brand-primary hover:text-white font-bold tracking-wide transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:shadow-glow-orange"
                             on:click=move |_| on_confirm.call(())
                             disabled=move || is_loading.get() || (streaming_progress.get().is_streaming && !streaming_progress.get().is_finished)
                         >

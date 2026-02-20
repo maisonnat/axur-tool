@@ -95,14 +95,14 @@ pub fn Combobox(
 
     view! {
         <div class="mb-4 relative">
-            <label class="block text-sm font-medium text-zinc-400 mb-2">
+            <label class="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1.5 ml-1">
                 {move || label.get()}
             </label>
             <div class="relative">
                 <input
                     type="text"
                     placeholder=move || placeholder.get()
-                    class="w-full bg-zinc-800 border border-zinc-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white placeholder-zinc-500 rounded-lg py-3 px-4 pr-10 outline-none transition-colors"
+                    class="w-full bg-zinc-900/50 border border-white/10 hover:border-brand-primary/30 text-zinc-300 placeholder-zinc-600 rounded-xl py-3 px-4 pr-10 outline-none focus:border-brand-primary/50 focus:shadow-glow-orange focus:bg-zinc-800 transition-all duration-300 shadow-inner"
                     prop:value=move || search_text.get()
                     on:input=move |ev| {
                         search_text.set(event_target_value(&ev));
@@ -142,7 +142,7 @@ pub fn Combobox(
 
             // Dropdown list
             <Show when=move || is_open.get() && !filtered_options.get().is_empty()>
-                <div class="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+                <div class="absolute z-50 w-full mt-2 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.8)] max-h-60 overflow-auto">
                     <For
                         each=move || filtered_options.get().into_iter().enumerate()
                         key=|(_, (key, _))| key.clone()
@@ -181,7 +181,7 @@ pub fn Combobox(
 
             // No results message
             <Show when=move || is_open.get() && filtered_options.get().is_empty() && !search_text.get().is_empty()>
-                <div class="absolute z-50 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg">
+                <div class="absolute z-50 w-full mt-2 bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.8)]">
                     <div class="px-4 py-3 text-zinc-400 text-sm">
                         "No se encontraron resultados"
                     </div>

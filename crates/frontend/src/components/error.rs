@@ -53,7 +53,7 @@ pub fn ErrorDisplay(
     });
 
     view! {
-        <div class="bg-red-900/30 border border-red-500/50 rounded-lg p-4 mb-4">
+        <div class="bg-red-900/20 backdrop-blur-md border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.15)] rounded-xl p-4 mb-4">
             // Header with error code
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
@@ -66,7 +66,7 @@ pub fn ErrorDisplay(
 
                 // Error code badge with copy button
                 <div class="flex items-center gap-2">
-                    <code class="bg-red-950/50 text-red-300 px-2 py-1 rounded text-sm font-mono">
+                    <code class="bg-red-950/60 border border-red-500/20 text-red-300 px-2 py-1 rounded-lg text-sm font-mono">
                         {error_code.clone()}
                     </code>
                     <button
@@ -102,7 +102,7 @@ pub fn ErrorDisplay(
                 {on_retry.map(|callback| view! {
                     <button
                         on:click=move |_| callback.call(())
-                        class="px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-medium rounded transition-colors"
+                        class="px-4 py-2 bg-red-500/20 hover:bg-red-500/40 border border-red-500/30 text-red-400 hover:text-white text-sm font-bold tracking-wide rounded-lg transition-all duration-300 focus:outline-none focus:shadow-[0_0_10px_rgba(239,68,68,0.3)]"
                     >
                         "Reintentar"
                     </button>
@@ -110,7 +110,7 @@ pub fn ErrorDisplay(
                 {on_dismiss.map(|callback| view! {
                     <button
                         on:click=move |_| callback.call(())
-                        class="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-200 text-sm font-medium rounded transition-colors"
+                        class="px-4 py-2 bg-surface-base/50 hover:bg-surface-elevated/80 border border-white/10 text-zinc-300 hover:text-white text-sm font-medium rounded-lg transition-all duration-300 focus:outline-none"
                     >
                         "Cerrar"
                     </button>
@@ -132,7 +132,7 @@ pub fn ErrorBadge(
 ) -> impl IntoView {
     view! {
         <span
-            class="inline-flex items-center gap-1 bg-red-900/50 text-red-300 px-2 py-0.5 rounded text-xs font-mono"
+            class="inline-flex items-center gap-1 bg-red-900/40 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)] text-red-300 px-2 py-0.5 rounded-lg text-xs font-mono backdrop-blur-sm"
             title=tooltip.unwrap_or_default()
         >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

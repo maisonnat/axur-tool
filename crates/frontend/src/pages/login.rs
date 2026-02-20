@@ -1,7 +1,7 @@
 //! Login page with 3-step authentication flow and language selection
 
 use crate::api;
-use crate::components::{Card, TextInput};
+use crate::components::TextInput;
 use crate::{get_ui_dict, AppState, Page, UiLanguage};
 use leptos::*;
 
@@ -182,11 +182,12 @@ pub fn LoginPage() -> impl IntoView {
     let (view_state, set_view_state) = create_signal(LoginView::Landing);
 
     view! {
-        <div class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-zinc-950 font-sans text-zinc-100">
-            // Background Elements
-             <div class="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-orange-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-             <div class="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-
+        // The "Nebula" Background with subtle grid
+        <div class="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-[#050505] font-sans text-zinc-100 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]">
+            // Background Elements (Breathing Nebula)
+             <div class="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-brand-primary/30 rounded-full blur-[100px] pointer-events-none animate-pulse" style="animation-duration: 6s;"></div>
+             <div class="absolute bottom-[-20%] right-[-10%] w-[80%] h-[80%] bg-purple-900/40 rounded-full blur-[120px] pointer-events-none animate-pulse" style="animation-duration: 8s; animation-direction: reverse;"></div>
+             <div class="absolute top-[20%] left-[30%] w-[50%] h-[50%] bg-blue-900/30 rounded-full blur-[120px] pointer-events-none animate-pulse" style="animation-duration: 10s;"></div>
 
             <div class="z-10 w-full max-w-md animate-in fade-in zoom-in duration-700">
                 {move || match view_state.get() {
@@ -194,32 +195,36 @@ pub fn LoginPage() -> impl IntoView {
                          <div class="text-center space-y-8">
                             // Logo
                             <div class="inline-flex items-center gap-2 mb-4 hover:scale-105 transition-transform cursor-default">
-                                <span class="text-orange-500 text-5xl font-black italic">"///"</span>
-                                <span class="text-white text-4xl font-bold tracking-widest">"AXUR"</span>
+                                <span class="text-brand-primary text-5xl font-black italic drop-shadow-[0_0_15px_rgba(255,103,49,0.5)]">"///"</span>
+                                <span class="text-white text-4xl font-bold tracking-[0.15em]">"AXUR"</span>
                             </div>
 
-                            <h1 class="text-2xl font-light text-zinc-300">
-                                <span class="text-white font-semibold">{move || dict.get().landing_tagline_highlight}</span> {move || dict.get().landing_tagline}
+                            <h1 class="text-2xl font-light text-zinc-300 tracking-wide">
+                                <span class="text-white font-semibold drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{move || dict.get().landing_tagline_highlight}</span> {move || dict.get().landing_tagline}
                             </h1>
-                            <p class="text-zinc-500 text-sm -mt-4">{move || dict.get().landing_subtitle}</p>
+                            <p class="text-zinc-500 text-sm -mt-4 font-mono tracking-widest uppercase">{move || dict.get().landing_subtitle}</p>
 
                             <div class="space-y-4 pt-8">
                                 <button
-                                    class="w-full bg-white text-black hover:bg-zinc-200 font-bold text-lg py-4 px-8 rounded-full transition-all hover:scale-105 shadow-xl flex items-center justify-center gap-2"
+                                    class="w-full relative overflow-hidden group rounded-2xl p-[2px] transition-all duration-500 hover:scale-[1.02] shadow-[0_0_20px_rgba(255,103,49,0.1)] hover:shadow-[0_0_30px_rgba(255,103,49,0.3)]"
                                     on:click=move |_| set_view_state.set(LoginView::Login)
                                 >
-                                    {move || dict.get().landing_login_btn}
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                                    </svg>
+                                    <span class="absolute inset-0 bg-gradient-to-r from-brand-primary via-purple-500 to-brand-primary rounded-2xl opacity-100 bg-[length:200%_auto] animate-[gradient-x_3s_linear_infinite]"></span>
+                                    <div class="relative bg-zinc-950 hover:bg-transparent px-8 py-4 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 w-full h-full backdrop-blur-md text-zinc-100 hover:text-white font-bold text-lg drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                                        <div class="absolute inset-0 bg-gradient-to-r from-brand-primary/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity animate-[pulse_2s_ease-in-out_infinite] rounded-2xl z-0"></div>
+                                        <span class="relative z-10 font-black tracking-widest uppercase font-mono text-sm">{move || dict.get().landing_login_btn}</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 relative z-10 group-hover:translate-x-1 transition-transform">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                                        </svg>
+                                    </div>
                                 </button>
 
                                 <button
-                                    class="w-full bg-transparent border-2 border-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-white font-semibold text-lg py-4 px-8 rounded-full transition-all hover:scale-105 flex items-center justify-center gap-2"
+                                    class="w-full bg-transparent border border-white/10 hover:border-white/30 text-zinc-400 hover:text-white hover:bg-white/5 font-semibold text-sm py-3 px-8 rounded-2xl transition-all flex items-center justify-center gap-2 tracking-widest uppercase font-mono backdrop-blur-sm"
                                     on:click=move |_| current_page.set(Page::BetaApply)
                                 >
                                     {move || dict.get().landing_beta_btn}
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
                                     </svg>
                                 </button>
@@ -247,18 +252,20 @@ pub fn LoginPage() -> impl IntoView {
                          </div>
                     }.into_view(),
                     LoginView::Login => view! {
-                        <div>
+                        <div class="w-full">
                              <button
-                                class="mb-6 text-zinc-500 hover:text-white transition-colors flex items-center gap-2"
+                                class="mb-6 text-zinc-500 hover:text-white transition-colors flex items-center gap-2 group mx-auto"
                                 on:click=move |_| set_view_state.set(LoginView::Landing)
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 group-hover:-translate-x-1 transition-transform">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
                                 </svg>
                                 "Back"
                             </button>
 
-                            <Card>
+                            // The Glassmorphism Form Wrapper
+                            <div class="bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden group">
+                                <div class="absolute inset-0 bg-gradient-to-br from-brand-primary/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
                                 // Error message
                                 {move || error.get().map(|e| view! {
                                     <div class="bg-red-900/30 border border-red-500/50 text-red-200 px-4 py-3 rounded-lg mb-4">
@@ -290,12 +297,19 @@ pub fn LoginPage() -> impl IntoView {
                                             autocomplete="current-password".to_string()
                                         />
 
-                                        <div class="mt-6">
+                                        <div class="mt-8 relative hidden lg:block"></div>
+                                        <div class="mt-8">
                                             <button
                                                 type="submit"
-                                                class="w-full bg-orange-600 hover:bg-orange-500 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+                                                class="w-full relative overflow-hidden group rounded-xl p-[2px] transition-all duration-500 hover:scale-[1.02] shadow-[0_0_20px_rgba(255,103,49,0.1)] hover:shadow-[0_0_30px_rgba(255,103,49,0.4)]"
                                             >
-                                                {move || dict.get().continue_btn}
+                                                <span class="absolute inset-0 bg-gradient-to-r from-brand-primary via-purple-500 to-brand-primary rounded-xl opacity-100 bg-[length:200%_auto] animate-[gradient-x_3s_linear_infinite]"></span>
+                                                <div class="relative bg-zinc-950 hover:bg-transparent px-6 py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 w-full h-full backdrop-blur-md text-zinc-100 font-bold drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                                                    <span class="relative z-10 tracking-widest uppercase font-mono text-sm">{move || dict.get().continue_btn}</span>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"/>
+                                                    </svg>
+                                                </div>
                                             </button>
                                         </div>
                                     </form>
@@ -339,7 +353,7 @@ pub fn LoginPage() -> impl IntoView {
                                         <p class="text-zinc-400">{move || dict.get().finalizing}</p>
                                     </div>
                                 </Show>
-                            </Card>
+                            </div> // End of Glassmorphism wrapper
 
                             // Footer with copyright and language selector
                             <div class="mt-6 text-center">

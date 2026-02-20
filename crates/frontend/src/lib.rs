@@ -10,6 +10,7 @@ mod pages;
 mod services;
 mod storage;
 mod styles;
+pub mod utils;
 
 pub use styles::design_tokens;
 

@@ -1,4 +1,3 @@
-use crate::components::*;
 use leptos::*; // For icons or other components if needed
 
 #[component]
@@ -21,9 +20,9 @@ pub fn ThreatHuntingToggle(
             <div class=move || {
                 let base = "relative p-6 rounded-2xl border transition-all duration-300 overflow-hidden";
                 if include_threat_intel.get() {
-                    format!("{} bg-surface-elevated/90 border-brand-primary/50 shadow-[0_0_30px_rgba(255,103,31,0.15)]", base)
+                    format!("{} bg-surface-base/50 backdrop-blur-md border-brand-primary/50 shadow-[0_0_30px_rgba(255,103,13,0.15)]", base)
                 } else {
-                    format!("{} bg-surface-elevated/50 border-white/5 hover:border-white/10 hover:bg-surface-elevated/70", base)
+                    format!("{} bg-surface-base/40 backdrop-blur-md border-white/10 hover:border-white/20 hover:bg-surface-elevated/60", base)
                 }
             }>
                 <div class="flex items-center justify-between relative z-10">

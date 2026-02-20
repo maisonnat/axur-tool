@@ -175,8 +175,8 @@ const DICT_ES: UiDict = UiDict {
     email_password_required: "Email y contraseña son requeridos",
 
     // Landing page
-    landing_tagline: " para proteger tu negocio",
-    landing_tagline_highlight: "Soluciones IA",
+    landing_tagline: " de Inteligencia a partir de Datos Críticos",
+    landing_tagline_highlight: "Ingeniería",
     landing_subtitle: "Más allá del perímetro",
     landing_login_btn: "Iniciar Sesión",
     landing_beta_btn: "Solicitar Acceso Beta",
@@ -284,8 +284,8 @@ const DICT_EN: UiDict = UiDict {
     email_password_required: "Email and password are required",
 
     // Landing page
-    landing_tagline: " to protect your business",
-    landing_tagline_highlight: "AI Solutions",
+    landing_tagline: " from Critical Infrastructure Data",
+    landing_tagline_highlight: "Intelligence Engineering",
     landing_subtitle: "Beyond the perimeter",
     landing_login_btn: "Log In",
     landing_beta_btn: "Request Beta Access",
@@ -393,8 +393,8 @@ const DICT_PT: UiDict = UiDict {
     email_password_required: "Email e senha são obrigatórios",
 
     // Landing page
-    landing_tagline: " para proteger seu negócio",
-    landing_tagline_highlight: "Soluções IA",
+    landing_tagline: " de Inteligência a partir de Dados Críticos",
+    landing_tagline_highlight: "Engenharia",
     landing_subtitle: "Além do perímetro",
     landing_login_btn: "Entrar",
     landing_beta_btn: "Solicitar Acesso Beta",

@@ -39,7 +39,7 @@ pub fn TextInput(
                 type=input_type
                 placeholder=move || placeholder.get()
                 autocomplete=autocomplete
-                class="w-full bg-zinc-800 border border-zinc-700 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-white placeholder-zinc-500 rounded-lg py-3 px-4 outline-none transition-colors"
+                class="w-full bg-black/40 border border-white/10 hover:border-brand-primary/40 focus:border-brand-primary focus:shadow-[0_0_15px_rgba(255,103,49,0.3)] text-white placeholder-zinc-500 rounded-xl py-3 px-4 outline-none transition-all duration-300 backdrop-blur-sm shadow-inner"
                 prop:value=move || value.try_get().unwrap_or_default()
                 on:input=move |ev| {
                     let _ = value.try_set(event_target_value(&ev));
